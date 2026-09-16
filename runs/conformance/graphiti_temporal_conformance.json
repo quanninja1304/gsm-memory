@@ -1,0 +1,970 @@
+{
+  "suite": "Graphiti native temporal conformance",
+  "configuration": {
+    "graphiti_version": "0.30.2",
+    "kuzu_version": "0.11.3",
+    "backend": "KuzuDriver(:memory:)",
+    "llm_client": "GeminiClient",
+    "llm_model": "gemini-2.5-flash",
+    "embedder": "GeminiEmbedder",
+    "embedding_model": "gemini-embedding-001",
+    "embedding_dim": 768,
+    "reranker": "GeminiRerankerClient",
+    "ingestion_mode": "Mode B / Graphiti.add_episode"
+  },
+  "result_count": 10,
+  "results": [
+    {
+      "test_id": "T1",
+      "name": "Forward state transition",
+      "graphiti_version": "0.30.2",
+      "configuration": {
+        "graphiti_version": "0.30.2",
+        "kuzu_version": "0.11.3",
+        "backend": "KuzuDriver(:memory:)",
+        "llm_client": "GeminiClient",
+        "llm_model": "gemini-2.5-flash",
+        "embedder": "GeminiEmbedder",
+        "embedding_model": "gemini-embedding-001",
+        "embedding_dim": 768,
+        "reranker": "GeminiRerankerClient",
+        "ingestion_mode": "Mode B / Graphiti.add_episode"
+      },
+      "expected": {
+        "2026-10-21T12:00:00Z": true,
+        "2026-10-22T12:00:00Z": false,
+        "2026-10-23T12:00:00Z": false
+      },
+      "observed_graph": {
+        "group_id": "t1_646323f1ae",
+        "stages": [
+          {
+            "stage": "after T1-E1",
+            "episode_count": 1,
+            "node_count": 2,
+            "edge_count": 1,
+            "episodes": [
+              {
+                "uuid": "8d3691df-8dfc-4a97-81ee-a8879fd17665",
+                "name": "T1-E1",
+                "content": "PERSON_A joined TEAM_B effective 2026-10-20.",
+                "source": "EpisodeType.message",
+                "source_description": "HR source S1",
+                "valid_at": "2026-10-20T12:00:00+00:00",
+                "created_at": "2026-09-15T14:38:42.463333+00:00",
+                "entity_edges": [
+                  "d266dbc8-d741-4231-8925-0e4db0befd92"
+                ]
+              }
+            ],
+            "nodes": [
+              {
+                "uuid": "6887738d-9329-42e0-b5d8-70977854c252",
+                "name": "TEAM_B",
+                "labels": [
+                  "Entity"
+                ],
+                "summary": "PERSON_A joined TEAM_B"
+              },
+              {
+                "uuid": "16752d2d-17c2-4285-b5d2-c221c344d8b2",
+                "name": "PERSON_A",
+                "labels": [
+                  "Entity"
+                ],
+                "summary": "PERSON_A joined TEAM_B"
+              }
+            ],
+            "edges": [
+              {
+                "uuid": "d266dbc8-d741-4231-8925-0e4db0befd92",
+                "source_node_uuid": "16752d2d-17c2-4285-b5d2-c221c344d8b2",
+                "target_node_uuid": "6887738d-9329-42e0-b5d8-70977854c252",
+                "name": "JOINS",
+                "fact": "PERSON_A joined TEAM_B",
+                "valid_at": "2026-10-20T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:38:49.731535+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "8d3691df-8dfc-4a97-81ee-a8879fd17665"
+                ],
+                "attributes": {},
+                "lifecycle_observation": {
+                  "uuid_status": "new",
+                  "invalidated": false,
+                  "expired": false
+                }
+              }
+            ],
+            "ingestion": {
+              "episode_uuid": "8d3691df-8dfc-4a97-81ee-a8879fd17665",
+              "reference_time_argument": "2026-10-20T12:00:00+00:00",
+              "edge_count_before": 0,
+              "edge_count_after": 1
+            }
+          },
+          {
+            "stage": "after T1-E2",
+            "episode_count": 2,
+            "node_count": 2,
+            "edge_count": 2,
+            "episodes": [
+              {
+                "uuid": "8d3691df-8dfc-4a97-81ee-a8879fd17665",
+                "name": "T1-E1",
+                "content": "PERSON_A joined TEAM_B effective 2026-10-20.",
+                "source": "EpisodeType.message",
+                "source_description": "HR source S1",
+                "valid_at": "2026-10-20T12:00:00+00:00",
+                "created_at": "2026-09-15T14:38:42.463333+00:00",
+                "entity_edges": [
+                  "d266dbc8-d741-4231-8925-0e4db0befd92"
+                ]
+              },
+              {
+                "uuid": "89557917-521f-43ac-95c0-2d7a6369683f",
+                "name": "T1-E2",
+                "content": "PERSON_A left TEAM_B effective 2026-10-22.",
+                "source": "EpisodeType.message",
+                "source_description": "HR source S1",
+                "valid_at": "2026-10-22T12:00:00+00:00",
+                "created_at": "2026-09-15T14:38:52.170418+00:00",
+                "entity_edges": [
+                  "354ebeeb-cc72-4605-8635-612dbc62df08",
+                  "d266dbc8-d741-4231-8925-0e4db0befd92"
+                ]
+              }
+            ],
+            "nodes": [
+              {
+                "uuid": "6887738d-9329-42e0-b5d8-70977854c252",
+                "name": "TEAM_B",
+                "labels": [
+                  "Entity"
+                ],
+                "summary": "PERSON_A joined TEAM_B\nPERSON_A left TEAM_B."
+              },
+              {
+                "uuid": "16752d2d-17c2-4285-b5d2-c221c344d8b2",
+                "name": "PERSON_A",
+                "labels": [
+                  "Entity"
+                ],
+                "summary": "PERSON_A joined TEAM_B\nPERSON_A left TEAM_B."
+              }
+            ],
+            "edges": [
+              {
+                "uuid": "d266dbc8-d741-4231-8925-0e4db0befd92",
+                "source_node_uuid": "16752d2d-17c2-4285-b5d2-c221c344d8b2",
+                "target_node_uuid": "6887738d-9329-42e0-b5d8-70977854c252",
+                "name": "JOINS",
+                "fact": "PERSON_A joined TEAM_B",
+                "valid_at": "2026-10-20T00:00:00+00:00",
+                "invalid_at": "2026-10-22T00:00:00+00:00",
+                "created_at": "2026-09-15T14:38:49.731535+00:00",
+                "expired_at": "2026-09-15T14:39:10.709569+00:00",
+                "episodes": [
+                  "8d3691df-8dfc-4a97-81ee-a8879fd17665"
+                ],
+                "attributes": {},
+                "lifecycle_observation": {
+                  "uuid_status": "reused",
+                  "invalidated": true,
+                  "expired": true
+                }
+              },
+              {
+                "uuid": "354ebeeb-cc72-4605-8635-612dbc62df08",
+                "source_node_uuid": "16752d2d-17c2-4285-b5d2-c221c344d8b2",
+                "target_node_uuid": "6887738d-9329-42e0-b5d8-70977854c252",
+                "name": "LEFT",
+                "fact": "PERSON_A left TEAM_B.",
+                "valid_at": "2026-10-22T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:39:06.129174+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "89557917-521f-43ac-95c0-2d7a6369683f"
+                ],
+                "attributes": {},
+                "lifecycle_observation": {
+                  "uuid_status": "new",
+                  "invalidated": false,
+                  "expired": false
+                }
+              }
+            ],
+            "ingestion": {
+              "episode_uuid": "89557917-521f-43ac-95c0-2d7a6369683f",
+              "reference_time_argument": "2026-10-22T12:00:00+00:00",
+              "edge_count_before": 1,
+              "edge_count_after": 2
+            }
+          }
+        ]
+      },
+      "retrieval": {
+        "searches": [
+          {
+            "query_id": "T1-1",
+            "query": "Was PERSON_A a member of TEAM_B at 2026-10-21T12:00:00Z?",
+            "result_count": 2,
+            "results": [
+              {
+                "uuid": "d266dbc8-d741-4231-8925-0e4db0befd92",
+                "source_node_uuid": "16752d2d-17c2-4285-b5d2-c221c344d8b2",
+                "target_node_uuid": "6887738d-9329-42e0-b5d8-70977854c252",
+                "name": "JOINS",
+                "fact": "PERSON_A joined TEAM_B",
+                "valid_at": "2026-10-20T00:00:00+00:00",
+                "invalid_at": "2026-10-22T00:00:00+00:00",
+                "created_at": "2026-09-15T14:38:49.731535+00:00",
+                "expired_at": "2026-09-15T14:39:10.709569+00:00",
+                "episodes": [
+                  "8d3691df-8dfc-4a97-81ee-a8879fd17665"
+                ],
+                "attributes": {}
+              },
+              {
+                "uuid": "354ebeeb-cc72-4605-8635-612dbc62df08",
+                "source_node_uuid": "16752d2d-17c2-4285-b5d2-c221c344d8b2",
+                "target_node_uuid": "6887738d-9329-42e0-b5d8-70977854c252",
+                "name": "LEFT",
+                "fact": "PERSON_A left TEAM_B.",
+                "valid_at": "2026-10-22T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:39:06.129174+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "89557917-521f-43ac-95c0-2d7a6369683f"
+                ],
+                "attributes": {}
+              }
+            ],
+            "warning": "Raw search candidates are not treated as a temporal answer.",
+            "oracle_expected_state": "MEMBER",
+            "raw_positive_membership_hit": true
+          },
+          {
+            "query_id": "T1-2",
+            "query": "Was PERSON_A a member of TEAM_B at 2026-10-22T12:00:00Z?",
+            "result_count": 2,
+            "results": [
+              {
+                "uuid": "d266dbc8-d741-4231-8925-0e4db0befd92",
+                "source_node_uuid": "16752d2d-17c2-4285-b5d2-c221c344d8b2",
+                "target_node_uuid": "6887738d-9329-42e0-b5d8-70977854c252",
+                "name": "JOINS",
+                "fact": "PERSON_A joined TEAM_B",
+                "valid_at": "2026-10-20T00:00:00+00:00",
+                "invalid_at": "2026-10-22T00:00:00+00:00",
+                "created_at": "2026-09-15T14:38:49.731535+00:00",
+                "expired_at": "2026-09-15T14:39:10.709569+00:00",
+                "episodes": [
+                  "8d3691df-8dfc-4a97-81ee-a8879fd17665"
+                ],
+                "attributes": {}
+              },
+              {
+                "uuid": "354ebeeb-cc72-4605-8635-612dbc62df08",
+                "source_node_uuid": "16752d2d-17c2-4285-b5d2-c221c344d8b2",
+                "target_node_uuid": "6887738d-9329-42e0-b5d8-70977854c252",
+                "name": "LEFT",
+                "fact": "PERSON_A left TEAM_B.",
+                "valid_at": "2026-10-22T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:39:06.129174+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "89557917-521f-43ac-95c0-2d7a6369683f"
+                ],
+                "attributes": {}
+              }
+            ],
+            "warning": "Raw search candidates are not treated as a temporal answer.",
+            "oracle_expected_state": "NOT_MEMBER",
+            "raw_positive_membership_hit": true
+          },
+          {
+            "query_id": "T1-3",
+            "query": "Was PERSON_A a member of TEAM_B at 2026-10-23T12:00:00Z?",
+            "result_count": 2,
+            "results": [
+              {
+                "uuid": "d266dbc8-d741-4231-8925-0e4db0befd92",
+                "source_node_uuid": "16752d2d-17c2-4285-b5d2-c221c344d8b2",
+                "target_node_uuid": "6887738d-9329-42e0-b5d8-70977854c252",
+                "name": "JOINS",
+                "fact": "PERSON_A joined TEAM_B",
+                "valid_at": "2026-10-20T00:00:00+00:00",
+                "invalid_at": "2026-10-22T00:00:00+00:00",
+                "created_at": "2026-09-15T14:38:49.731535+00:00",
+                "expired_at": "2026-09-15T14:39:10.709569+00:00",
+                "episodes": [
+                  "8d3691df-8dfc-4a97-81ee-a8879fd17665"
+                ],
+                "attributes": {}
+              },
+              {
+                "uuid": "354ebeeb-cc72-4605-8635-612dbc62df08",
+                "source_node_uuid": "16752d2d-17c2-4285-b5d2-c221c344d8b2",
+                "target_node_uuid": "6887738d-9329-42e0-b5d8-70977854c252",
+                "name": "LEFT",
+                "fact": "PERSON_A left TEAM_B.",
+                "valid_at": "2026-10-22T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:39:06.129174+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "89557917-521f-43ac-95c0-2d7a6369683f"
+                ],
+                "attributes": {}
+              }
+            ],
+            "warning": "Raw search candidates are not treated as a temporal answer.",
+            "oracle_expected_state": "NOT_MEMBER",
+            "raw_positive_membership_hit": true
+          }
+        ]
+      },
+      "diagnostics": {
+        "valid_time_checks": {
+          "2026-10-21T12:00:00Z": {
+            "at": "2026-10-21T12:00:00+00:00",
+            "is_member_from_valid_interval": true,
+            "matching_edge_ids": [
+              "d266dbc8-d741-4231-8925-0e4db0befd92"
+            ],
+            "active_edge_ids": [
+              "d266dbc8-d741-4231-8925-0e4db0befd92"
+            ],
+            "note": "expired_at was recorded but not reinterpreted as valid_to",
+            "expected": true,
+            "matches_oracle": true
+          },
+          "2026-10-22T12:00:00Z": {
+            "at": "2026-10-22T12:00:00+00:00",
+            "is_member_from_valid_interval": false,
+            "matching_edge_ids": [
+              "d266dbc8-d741-4231-8925-0e4db0befd92"
+            ],
+            "active_edge_ids": [],
+            "note": "expired_at was recorded but not reinterpreted as valid_to",
+            "expected": false,
+            "matches_oracle": true
+          },
+          "2026-10-23T12:00:00Z": {
+            "at": "2026-10-23T12:00:00+00:00",
+            "is_member_from_valid_interval": false,
+            "matching_edge_ids": [
+              "d266dbc8-d741-4231-8925-0e4db0befd92"
+            ],
+            "active_edge_ids": [],
+            "note": "expired_at was recorded but not reinterpreted as valid_to",
+            "expected": false,
+            "matches_oracle": true
+          }
+        },
+        "construction": "PASS",
+        "retrieval": "RAW_SUPPORT_RETRIEVED"
+      },
+      "verdict": "PASS",
+      "failure_tags": [],
+      "notes": [
+        "Negative temporal questions are not scored from raw search hits because search returns candidates, not a temporal truth value."
+      ],
+      "execution_status": "COMPLETED"
+    },
+    {
+      "test_id": "T2",
+      "name": "Retroactive valid_from correction",
+      "graphiti_version": "0.30.2",
+      "configuration": {
+        "graphiti_version": "0.30.2",
+        "kuzu_version": "0.11.3",
+        "backend": "KuzuDriver(:memory:)",
+        "llm_client": "GeminiClient",
+        "llm_model": "gemini-2.5-flash",
+        "embedder": "GeminiEmbedder",
+        "embedding_model": "gemini-embedding-001",
+        "embedding_dim": 768,
+        "reranker": "GeminiRerankerClient",
+        "ingestion_mode": "Mode B / Graphiti.add_episode"
+      },
+      "expected": {
+        "2026-10-21T12:00:00Z": false,
+        "2026-10-23T12:00:00Z": true
+      },
+      "observed_graph": {
+        "group_id": "t2_6fc5630da5",
+        "stages": [
+          {
+            "stage": "after T2-E1",
+            "episode_count": 1,
+            "node_count": 2,
+            "edge_count": 1,
+            "episodes": [
+              {
+                "uuid": "71065e46-760f-41ed-a9ec-bb7d31a34c8b",
+                "name": "T2-E1",
+                "content": "PERSON_A joined TEAM_B effective 2026-10-20.",
+                "source": "EpisodeType.message",
+                "source_description": "HR announcement",
+                "valid_at": "2026-10-20T12:00:00+00:00",
+                "created_at": "2026-09-15T14:41:26.994959+00:00",
+                "entity_edges": [
+                  "863d404b-bf99-437d-9423-ee092743c144"
+                ]
+              }
+            ],
+            "nodes": [
+              {
+                "uuid": "e979addf-506d-41ea-a6c9-bfdd1dbc0577",
+                "name": "PERSON_A",
+                "labels": [
+                  "Entity"
+                ],
+                "summary": "PERSON_A joined TEAM_B"
+              },
+              {
+                "uuid": "2877ec90-9033-458c-bc9c-b81c9f8242c3",
+                "name": "TEAM_B",
+                "labels": [
+                  "Entity"
+                ],
+                "summary": "PERSON_A joined TEAM_B"
+              }
+            ],
+            "edges": [
+              {
+                "uuid": "863d404b-bf99-437d-9423-ee092743c144",
+                "source_node_uuid": "e979addf-506d-41ea-a6c9-bfdd1dbc0577",
+                "target_node_uuid": "2877ec90-9033-458c-bc9c-b81c9f8242c3",
+                "name": "JOINED_TEAM",
+                "fact": "PERSON_A joined TEAM_B",
+                "valid_at": "2026-10-20T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:41:33.732198+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "71065e46-760f-41ed-a9ec-bb7d31a34c8b"
+                ],
+                "attributes": {},
+                "lifecycle_observation": {
+                  "uuid_status": "new",
+                  "invalidated": false,
+                  "expired": false
+                }
+              }
+            ],
+            "ingestion": {
+              "episode_uuid": "71065e46-760f-41ed-a9ec-bb7d31a34c8b",
+              "reference_time_argument": "2026-10-20T12:00:00+00:00",
+              "edge_count_before": 0,
+              "edge_count_after": 1
+            }
+          },
+          {
+            "stage": "after T2-E2",
+            "episode_count": 2,
+            "node_count": 2,
+            "edge_count": 2,
+            "episodes": [
+              {
+                "uuid": "71065e46-760f-41ed-a9ec-bb7d31a34c8b",
+                "name": "T2-E1",
+                "content": "PERSON_A joined TEAM_B effective 2026-10-20.",
+                "source": "EpisodeType.message",
+                "source_description": "HR announcement",
+                "valid_at": "2026-10-20T12:00:00+00:00",
+                "created_at": "2026-09-15T14:41:26.994959+00:00",
+                "entity_edges": [
+                  "863d404b-bf99-437d-9423-ee092743c144"
+                ]
+              },
+              {
+                "uuid": "1ce010ae-1e39-4bf1-9a90-bcef3982c619",
+                "name": "T2-E2",
+                "content": "Correction: PERSON_A actually joined TEAM_B effective 2026-10-22, not 2026-10-20.",
+                "source": "EpisodeType.message",
+                "source_description": "HR correction",
+                "valid_at": "2026-10-22T12:00:00+00:00",
+                "created_at": "2026-09-15T14:41:36.139233+00:00",
+                "entity_edges": [
+                  "ad8e6406-01ec-430d-83d6-25114ec79da3"
+                ]
+              }
+            ],
+            "nodes": [
+              {
+                "uuid": "e979addf-506d-41ea-a6c9-bfdd1dbc0577",
+                "name": "PERSON_A",
+                "labels": [
+                  "Entity"
+                ],
+                "summary": "PERSON_A joined TEAM_B\nPERSON_A joined TEAM_B effective 2026-10-22"
+              },
+              {
+                "uuid": "2877ec90-9033-458c-bc9c-b81c9f8242c3",
+                "name": "TEAM_B",
+                "labels": [
+                  "Entity"
+                ],
+                "summary": "PERSON_A joined TEAM_B\nPERSON_A joined TEAM_B effective 2026-10-22"
+              }
+            ],
+            "edges": [
+              {
+                "uuid": "ad8e6406-01ec-430d-83d6-25114ec79da3",
+                "source_node_uuid": "e979addf-506d-41ea-a6c9-bfdd1dbc0577",
+                "target_node_uuid": "2877ec90-9033-458c-bc9c-b81c9f8242c3",
+                "name": "JOINED_TEAM",
+                "fact": "PERSON_A joined TEAM_B effective 2026-10-22",
+                "valid_at": "2026-10-22T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:41:48.099704+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "1ce010ae-1e39-4bf1-9a90-bcef3982c619"
+                ],
+                "attributes": {},
+                "lifecycle_observation": {
+                  "uuid_status": "new",
+                  "invalidated": false,
+                  "expired": false
+                }
+              },
+              {
+                "uuid": "863d404b-bf99-437d-9423-ee092743c144",
+                "source_node_uuid": "e979addf-506d-41ea-a6c9-bfdd1dbc0577",
+                "target_node_uuid": "2877ec90-9033-458c-bc9c-b81c9f8242c3",
+                "name": "JOINED_TEAM",
+                "fact": "PERSON_A joined TEAM_B",
+                "valid_at": "2026-10-20T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:41:33.732198+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "71065e46-760f-41ed-a9ec-bb7d31a34c8b"
+                ],
+                "attributes": {},
+                "lifecycle_observation": {
+                  "uuid_status": "reused",
+                  "invalidated": false,
+                  "expired": false
+                }
+              }
+            ],
+            "ingestion": {
+              "episode_uuid": "1ce010ae-1e39-4bf1-9a90-bcef3982c619",
+              "reference_time_argument": "2026-10-22T12:00:00+00:00",
+              "edge_count_before": 1,
+              "edge_count_after": 2
+            }
+          }
+        ]
+      },
+      "retrieval": {
+        "searches": [
+          {
+            "query_id": "T2-1",
+            "query": "Was PERSON_A a member of TEAM_B at 2026-10-21T12:00:00Z?",
+            "result_count": 2,
+            "results": [
+              {
+                "uuid": "863d404b-bf99-437d-9423-ee092743c144",
+                "source_node_uuid": "e979addf-506d-41ea-a6c9-bfdd1dbc0577",
+                "target_node_uuid": "2877ec90-9033-458c-bc9c-b81c9f8242c3",
+                "name": "JOINED_TEAM",
+                "fact": "PERSON_A joined TEAM_B",
+                "valid_at": "2026-10-20T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:41:33.732198+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "71065e46-760f-41ed-a9ec-bb7d31a34c8b"
+                ],
+                "attributes": {}
+              },
+              {
+                "uuid": "ad8e6406-01ec-430d-83d6-25114ec79da3",
+                "source_node_uuid": "e979addf-506d-41ea-a6c9-bfdd1dbc0577",
+                "target_node_uuid": "2877ec90-9033-458c-bc9c-b81c9f8242c3",
+                "name": "JOINED_TEAM",
+                "fact": "PERSON_A joined TEAM_B effective 2026-10-22",
+                "valid_at": "2026-10-22T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:41:48.099704+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "1ce010ae-1e39-4bf1-9a90-bcef3982c619"
+                ],
+                "attributes": {}
+              }
+            ],
+            "warning": "Raw search candidates are not treated as a temporal answer.",
+            "oracle_expected_state": "NOT_MEMBER",
+            "raw_positive_membership_hit": true
+          },
+          {
+            "query_id": "T2-2",
+            "query": "Was PERSON_A a member of TEAM_B at 2026-10-23T12:00:00Z?",
+            "result_count": 2,
+            "results": [
+              {
+                "uuid": "863d404b-bf99-437d-9423-ee092743c144",
+                "source_node_uuid": "e979addf-506d-41ea-a6c9-bfdd1dbc0577",
+                "target_node_uuid": "2877ec90-9033-458c-bc9c-b81c9f8242c3",
+                "name": "JOINED_TEAM",
+                "fact": "PERSON_A joined TEAM_B",
+                "valid_at": "2026-10-20T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:41:33.732198+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "71065e46-760f-41ed-a9ec-bb7d31a34c8b"
+                ],
+                "attributes": {}
+              },
+              {
+                "uuid": "ad8e6406-01ec-430d-83d6-25114ec79da3",
+                "source_node_uuid": "e979addf-506d-41ea-a6c9-bfdd1dbc0577",
+                "target_node_uuid": "2877ec90-9033-458c-bc9c-b81c9f8242c3",
+                "name": "JOINED_TEAM",
+                "fact": "PERSON_A joined TEAM_B effective 2026-10-22",
+                "valid_at": "2026-10-22T00:00:00+00:00",
+                "invalid_at": null,
+                "created_at": "2026-09-15T14:41:48.099704+00:00",
+                "expired_at": null,
+                "episodes": [
+                  "1ce010ae-1e39-4bf1-9a90-bcef3982c619"
+                ],
+                "attributes": {}
+              }
+            ],
+            "warning": "Raw search candidates are not treated as a temporal answer.",
+            "oracle_expected_state": "MEMBER",
+            "raw_positive_membership_hit": true
+          }
+        ]
+      },
+      "diagnostics": {
+        "valid_time_checks": {
+          "2026-10-21T12:00:00Z": {
+            "at": "2026-10-21T12:00:00+00:00",
+            "is_member_from_valid_interval": true,
+            "matching_edge_ids": [
+              "ad8e6406-01ec-430d-83d6-25114ec79da3",
+              "863d404b-bf99-437d-9423-ee092743c144"
+            ],
+            "active_edge_ids": [
+              "863d404b-bf99-437d-9423-ee092743c144"
+            ],
+            "note": "expired_at was recorded but not reinterpreted as valid_to",
+            "expected": false,
+            "matches_oracle": false
+          },
+          "2026-10-23T12:00:00Z": {
+            "at": "2026-10-23T12:00:00+00:00",
+            "is_member_from_valid_interval": true,
+            "matching_edge_ids": [
+              "ad8e6406-01ec-430d-83d6-25114ec79da3",
+              "863d404b-bf99-437d-9423-ee092743c144"
+            ],
+            "active_edge_ids": [
+              "ad8e6406-01ec-430d-83d6-25114ec79da3",
+              "863d404b-bf99-437d-9423-ee092743c144"
+            ],
+            "note": "expired_at was recorded but not reinterpreted as valid_to",
+            "expected": true,
+            "matches_oracle": true
+          }
+        },
+        "construction": "FAIL",
+        "retrieval": "DOWNSTREAM_OF_WRONG_GRAPH"
+      },
+      "verdict": "FAIL_CONSTRUCTION",
+      "failure_tags": [
+        "I_TIME"
+      ],
+      "notes": [
+        "Negative temporal questions are not scored from raw search hits because search returns candidates, not a temporal truth value."
+      ],
+      "execution_status": "COMPLETED"
+    },
+    {
+      "test_id": "T3",
+      "name": "Retroactive correction to earlier valid_from",
+      "graphiti_version": "0.30.2",
+      "configuration": {
+        "graphiti_version": "0.30.2",
+        "kuzu_version": "0.11.3",
+        "backend": "KuzuDriver(:memory:)",
+        "llm_client": "GeminiClient",
+        "llm_model": "gemini-2.5-flash",
+        "embedder": "GeminiEmbedder",
+        "embedding_model": "gemini-embedding-001",
+        "embedding_dim": 768,
+        "reranker": "GeminiRerankerClient",
+        "ingestion_mode": "Mode B / Graphiti.add_episode"
+      },
+      "expected": {
+        "2026-10-21T12:00:00Z": true,
+        "2026-10-23T12:00:00Z": true
+      },
+      "observed_graph": {},
+      "retrieval": {},
+      "diagnostics": {},
+      "verdict": "AMBIGUOUS",
+      "failure_tags": [],
+      "notes": [
+        "Fixture exhausted rate-limit retries: Rate limit exceeded. Please try again later.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result."
+      ],
+      "error": "Traceback (most recent call last):\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 303, in _generate_response\n    response = await self.client.aio.models.generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 8451, in generate_content\n    response = await self._generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 6905, in _generate_content\n    response = await self._api_client.async_request(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1796, in async_request\n    result = await self._async_request(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1729, in _async_request\n    return await self._async_retry(  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1709, in _async_request_once\n    await errors.APIError.raise_for_async_response(client_response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 265, in raise_for_async_response\n    await cls.raise_error_async(status_code, response_json, response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 287, in raise_error_async\n    raise ClientError(status_code, response_json, response)\ngoogle.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\\nPlease retry in 57.549290342s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-2.5-flash', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '57s'}]}}\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 683, in main\n    result = await case()\n             ^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 192, in case_t3\n    return await run_membership_fixture(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 121, in run_membership_fixture\n    previous = await ingest_and_inspect(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\helpers\\graphiti_temporal_test_utils.py\", line 251, in ingest_and_inspect\n    response = await graphiti.add_episode(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1288, in add_episode\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1180, in add_episode\n    extracted_nodes, node_episode_index_map = await extract_nodes(\n                                              ^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 132, in extract_nodes\n    extracted_entities = await _extract_nodes_single(llm_client, primary_episode, context)\n                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 250, in _extract_nodes_single\n    llm_response = await _call_extraction_llm(llm_client, episode, context)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 275, in _call_extraction_llm\n    return await llm_client.generate_response(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 436, in generate_response\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 415, in generate_response\n    response, input_tokens, output_tokens = await self._generate_response(\n                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 358, in _generate_response\n    raise RateLimitError from e\ngraphiti_core.llm_client.errors.RateLimitError: Rate limit exceeded. Please try again later.\n",
+      "execution_status": "BLOCKED_RATE_LIMIT"
+    },
+    {
+      "test_id": "T4",
+      "name": "Future-effective state update",
+      "graphiti_version": "0.30.2",
+      "configuration": {
+        "graphiti_version": "0.30.2",
+        "kuzu_version": "0.11.3",
+        "backend": "KuzuDriver(:memory:)",
+        "llm_client": "GeminiClient",
+        "llm_model": "gemini-2.5-flash",
+        "embedder": "GeminiEmbedder",
+        "embedding_model": "gemini-embedding-001",
+        "embedding_dim": 768,
+        "reranker": "GeminiRerankerClient",
+        "ingestion_mode": "Mode B / Graphiti.add_episode"
+      },
+      "expected": {
+        "2026-10-24T12:00:00Z": false,
+        "2026-10-25T12:00:00Z": true
+      },
+      "observed_graph": {},
+      "retrieval": {},
+      "diagnostics": {},
+      "verdict": "AMBIGUOUS",
+      "failure_tags": [],
+      "notes": [
+        "Fixture raised RateLimitError: Rate limit exceeded. Please try again later.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result."
+      ],
+      "error": "Traceback (most recent call last):\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 303, in _generate_response\n    response = await self.client.aio.models.generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 8451, in generate_content\n    response = await self._generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 6905, in _generate_content\n    response = await self._api_client.async_request(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1796, in async_request\n    result = await self._async_request(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1729, in _async_request\n    return await self._async_retry(  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1709, in _async_request_once\n    await errors.APIError.raise_for_async_response(client_response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 265, in raise_for_async_response\n    await cls.raise_error_async(status_code, response_json, response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 287, in raise_error_async\n    raise ClientError(status_code, response_json, response)\ngoogle.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-2.5-flash\\nPlease retry in 54.535576249s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-2.5-flash', 'location': 'global'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '54s'}]}}\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 628, in main\n    result = await case()\n             ^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 211, in case_t4\n    return await run_membership_fixture(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 118, in run_membership_fixture\n    previous = await ingest_and_inspect(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\helpers\\graphiti_temporal_test_utils.py\", line 251, in ingest_and_inspect\n    response = await graphiti.add_episode(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1288, in add_episode\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1202, in add_episode\n    ) = await self._extract_and_resolve_edges(\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 676, in _extract_and_resolve_edges\n    extracted_edges = await extract_edges(\n                      ^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\edge_operations.py\", line 202, in extract_edges\n    llm_response = await llm_client.generate_response(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 436, in generate_response\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 415, in generate_response\n    response, input_tokens, output_tokens = await self._generate_response(\n                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 358, in _generate_response\n    raise RateLimitError from e\ngraphiti_core.llm_client.errors.RateLimitError: Rate limit exceeded. Please try again later.\n",
+      "execution_status": "BLOCKED_RATE_LIMIT"
+    },
+    {
+      "test_id": "T5",
+      "name": "Late-arriving event",
+      "graphiti_version": "0.30.2",
+      "configuration": {
+        "graphiti_version": "0.30.2",
+        "kuzu_version": "0.11.3",
+        "backend": "KuzuDriver(:memory:)",
+        "llm_client": "GeminiClient",
+        "llm_model": "gemini-2.5-flash",
+        "embedder": "GeminiEmbedder",
+        "embedding_model": "gemini-embedding-001",
+        "embedding_dim": 768,
+        "reranker": "GeminiRerankerClient",
+        "ingestion_mode": "Mode B / Graphiti.add_episode"
+      },
+      "expected": {
+        "business_valid_at": "2026-10-20T00:00:00+00:00",
+        "arrival_reference_time": "2026-10-25T12:00:00+00:00"
+      },
+      "observed_graph": {},
+      "retrieval": {},
+      "diagnostics": {},
+      "verdict": "AMBIGUOUS",
+      "failure_tags": [],
+      "notes": [
+        "Fixture raised RateLimitError: Rate limit exceeded. Please try again later.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result."
+      ],
+      "error": "Traceback (most recent call last):\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 303, in _generate_response\n    response = await self.client.aio.models.generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 8451, in generate_content\n    response = await self._generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 6905, in _generate_content\n    response = await self._api_client.async_request(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1796, in async_request\n    result = await self._async_request(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1729, in _async_request\n    return await self._async_retry(  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1709, in _async_request_once\n    await errors.APIError.raise_for_async_response(client_response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 265, in raise_for_async_response\n    await cls.raise_error_async(status_code, response_json, response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 287, in raise_error_async\n    raise ClientError(status_code, response_json, response)\ngoogle.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-2.5-flash\\nPlease retry in 49.531524675s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '49s'}]}}\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 628, in main\n    result = await case()\n             ^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 236, in case_t5\n    state = await ingest_and_inspect(\n            ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\helpers\\graphiti_temporal_test_utils.py\", line 251, in ingest_and_inspect\n    response = await graphiti.add_episode(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1288, in add_episode\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1202, in add_episode\n    ) = await self._extract_and_resolve_edges(\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 676, in _extract_and_resolve_edges\n    extracted_edges = await extract_edges(\n                      ^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\edge_operations.py\", line 202, in extract_edges\n    llm_response = await llm_client.generate_response(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 436, in generate_response\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 415, in generate_response\n    response, input_tokens, output_tokens = await self._generate_response(\n                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 358, in _generate_response\n    raise RateLimitError from e\ngraphiti_core.llm_client.errors.RateLimitError: Rate limit exceeded. Please try again later.\n",
+      "execution_status": "BLOCKED_RATE_LIMIT"
+    },
+    {
+      "test_id": "T6",
+      "name": "True bitemporal correction",
+      "graphiti_version": "0.30.2",
+      "configuration": {
+        "graphiti_version": "0.30.2",
+        "kuzu_version": "0.11.3",
+        "backend": "KuzuDriver(:memory:)",
+        "llm_client": "GeminiClient",
+        "llm_model": "gemini-2.5-flash",
+        "embedder": "GeminiEmbedder",
+        "embedding_model": "gemini-embedding-001",
+        "embedding_dim": 768,
+        "reranker": "GeminiRerankerClient",
+        "ingestion_mode": "Mode B / Graphiti.add_episode"
+      },
+      "expected": {
+        "2026-10-21T12:00:00Z|2026-10-21T23:00:00Z": true,
+        "2026-10-21T12:00:00Z|2026-10-26T12:00:00Z": false,
+        "2026-10-23T12:00:00Z|2026-10-24T12:00:00Z": true,
+        "2026-10-23T12:00:00Z|2026-10-26T12:00:00Z": true
+      },
+      "observed_graph": {},
+      "retrieval": {},
+      "diagnostics": {},
+      "verdict": "AMBIGUOUS",
+      "failure_tags": [],
+      "notes": [
+        "Fixture raised RateLimitError: Rate limit exceeded. Please try again later.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result."
+      ],
+      "error": "Traceback (most recent call last):\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 303, in _generate_response\n    response = await self.client.aio.models.generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 8451, in generate_content\n    response = await self._generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 6905, in _generate_content\n    response = await self._api_client.async_request(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1796, in async_request\n    result = await self._async_request(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1729, in _async_request\n    return await self._async_retry(  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1709, in _async_request_once\n    await errors.APIError.raise_for_async_response(client_response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 265, in raise_for_async_response\n    await cls.raise_error_async(status_code, response_json, response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 287, in raise_error_async\n    raise ClientError(status_code, response_json, response)\ngoogle.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-2.5-flash\\nPlease retry in 48.527559528s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '48s'}]}}\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 628, in main\n    result = await case()\n             ^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 291, in case_t6\n    state_before = await ingest_and_inspect(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\helpers\\graphiti_temporal_test_utils.py\", line 251, in ingest_and_inspect\n    response = await graphiti.add_episode(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1288, in add_episode\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1180, in add_episode\n    extracted_nodes, node_episode_index_map = await extract_nodes(\n                                              ^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 132, in extract_nodes\n    extracted_entities = await _extract_nodes_single(llm_client, primary_episode, context)\n                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 250, in _extract_nodes_single\n    llm_response = await _call_extraction_llm(llm_client, episode, context)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 275, in _call_extraction_llm\n    return await llm_client.generate_response(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 436, in generate_response\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 415, in generate_response\n    response, input_tokens, output_tokens = await self._generate_response(\n                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 358, in _generate_response\n    raise RateLimitError from e\ngraphiti_core.llm_client.errors.RateLimitError: Rate limit exceeded. Please try again later.\n",
+      "execution_status": "BLOCKED_RATE_LIMIT"
+    },
+    {
+      "test_id": "T7",
+      "name": "Retraction",
+      "graphiti_version": "0.30.2",
+      "configuration": {
+        "graphiti_version": "0.30.2",
+        "kuzu_version": "0.11.3",
+        "backend": "KuzuDriver(:memory:)",
+        "llm_client": "GeminiClient",
+        "llm_model": "gemini-2.5-flash",
+        "embedder": "GeminiEmbedder",
+        "embedding_model": "gemini-embedding-001",
+        "embedding_dim": 768,
+        "reranker": "GeminiRerankerClient",
+        "ingestion_mode": "Mode B / Graphiti.add_episode"
+      },
+      "expected": {
+        "2026-10-21T12:00:00Z": false,
+        "2026-10-23T12:00:00Z": false
+      },
+      "observed_graph": {},
+      "retrieval": {},
+      "diagnostics": {},
+      "verdict": "AMBIGUOUS",
+      "failure_tags": [],
+      "notes": [
+        "Fixture raised RateLimitError: Rate limit exceeded. Please try again later.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result."
+      ],
+      "error": "Traceback (most recent call last):\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 303, in _generate_response\n    response = await self.client.aio.models.generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 8451, in generate_content\n    response = await self._generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 6905, in _generate_content\n    response = await self._api_client.async_request(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1796, in async_request\n    result = await self._async_request(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1729, in _async_request\n    return await self._async_retry(  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1709, in _async_request_once\n    await errors.APIError.raise_for_async_response(client_response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 265, in raise_for_async_response\n    await cls.raise_error_async(status_code, response_json, response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 287, in raise_error_async\n    raise ClientError(status_code, response_json, response)\ngoogle.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-2.5-flash\\nPlease retry in 47.610830762s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '47s'}]}}\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 628, in main\n    result = await case()\n             ^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 368, in case_t7\n    return await run_membership_fixture(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 118, in run_membership_fixture\n    previous = await ingest_and_inspect(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\helpers\\graphiti_temporal_test_utils.py\", line 251, in ingest_and_inspect\n    response = await graphiti.add_episode(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1288, in add_episode\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1180, in add_episode\n    extracted_nodes, node_episode_index_map = await extract_nodes(\n                                              ^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 132, in extract_nodes\n    extracted_entities = await _extract_nodes_single(llm_client, primary_episode, context)\n                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 250, in _extract_nodes_single\n    llm_response = await _call_extraction_llm(llm_client, episode, context)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 275, in _call_extraction_llm\n    return await llm_client.generate_response(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 436, in generate_response\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 415, in generate_response\n    response, input_tokens, output_tokens = await self._generate_response(\n                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 358, in _generate_response\n    raise RateLimitError from e\ngraphiti_core.llm_client.errors.RateLimitError: Rate limit exceeded. Please try again later.\n",
+      "execution_status": "BLOCKED_RATE_LIMIT"
+    },
+    {
+      "test_id": "T8",
+      "name": "Conflicting independent sources",
+      "graphiti_version": "0.30.2",
+      "configuration": {
+        "graphiti_version": "0.30.2",
+        "kuzu_version": "0.11.3",
+        "backend": "KuzuDriver(:memory:)",
+        "llm_client": "GeminiClient",
+        "llm_model": "gemini-2.5-flash",
+        "embedder": "GeminiEmbedder",
+        "embedding_model": "gemini-embedding-001",
+        "embedding_dim": 768,
+        "reranker": "GeminiRerankerClient",
+        "ingestion_mode": "Mode B / Graphiti.add_episode"
+      },
+      "expected": {
+        "contract_status": "unresolved_conflict",
+        "source_claims": {
+          "S1": "2026-10-20",
+          "S2": "2026-10-22"
+        }
+      },
+      "observed_graph": {},
+      "retrieval": {},
+      "diagnostics": {},
+      "verdict": "AMBIGUOUS",
+      "failure_tags": [],
+      "notes": [
+        "Fixture raised RateLimitError: Rate limit exceeded. Please try again later.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result."
+      ],
+      "error": "Traceback (most recent call last):\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 303, in _generate_response\n    response = await self.client.aio.models.generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 8451, in generate_content\n    response = await self._generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 6905, in _generate_content\n    response = await self._api_client.async_request(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1796, in async_request\n    result = await self._async_request(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1729, in _async_request\n    return await self._async_retry(  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1709, in _async_request_once\n    await errors.APIError.raise_for_async_response(client_response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 265, in raise_for_async_response\n    await cls.raise_error_async(status_code, response_json, response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 287, in raise_error_async\n    raise ClientError(status_code, response_json, response)\ngoogle.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-2.5-flash\\nPlease retry in 46.70833128s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '46s'}]}}\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 628, in main\n    result = await case()\n             ^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 398, in case_t8\n    first = await ingest_and_inspect(\n            ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\helpers\\graphiti_temporal_test_utils.py\", line 251, in ingest_and_inspect\n    response = await graphiti.add_episode(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1288, in add_episode\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1180, in add_episode\n    extracted_nodes, node_episode_index_map = await extract_nodes(\n                                              ^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 132, in extract_nodes\n    extracted_entities = await _extract_nodes_single(llm_client, primary_episode, context)\n                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 250, in _extract_nodes_single\n    llm_response = await _call_extraction_llm(llm_client, episode, context)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 275, in _call_extraction_llm\n    return await llm_client.generate_response(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 436, in generate_response\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 415, in generate_response\n    response, input_tokens, output_tokens = await self._generate_response(\n                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 358, in _generate_response\n    raise RateLimitError from e\ngraphiti_core.llm_client.errors.RateLimitError: Rate limit exceeded. Please try again later.\n",
+      "execution_status": "BLOCKED_RATE_LIMIT"
+    },
+    {
+      "test_id": "T9",
+      "name": "Repeated point events must not collapse",
+      "graphiti_version": "0.30.2",
+      "configuration": {
+        "graphiti_version": "0.30.2",
+        "kuzu_version": "0.11.3",
+        "backend": "KuzuDriver(:memory:)",
+        "llm_client": "GeminiClient",
+        "llm_model": "gemini-2.5-flash",
+        "embedder": "GeminiEmbedder",
+        "embedding_model": "gemini-embedding-001",
+        "embedding_dim": 768,
+        "reranker": "GeminiRerankerClient",
+        "ingestion_mode": "Mode B / Graphiti.add_episode"
+      },
+      "expected": {
+        "distinct_business_events": [
+          "TRIP_001",
+          "TRIP_002"
+        ],
+        "duplicate_publication": "TRIP_001 repeated without creating a third business event"
+      },
+      "observed_graph": {},
+      "retrieval": {},
+      "diagnostics": {},
+      "verdict": "AMBIGUOUS",
+      "failure_tags": [],
+      "notes": [
+        "Fixture raised RateLimitError: Rate limit exceeded. Please try again later.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result."
+      ],
+      "error": "Traceback (most recent call last):\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 303, in _generate_response\n    response = await self.client.aio.models.generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 8451, in generate_content\n    response = await self._generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 6905, in _generate_content\n    response = await self._api_client.async_request(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1796, in async_request\n    result = await self._async_request(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1729, in _async_request\n    return await self._async_retry(  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1709, in _async_request_once\n    await errors.APIError.raise_for_async_response(client_response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 265, in raise_for_async_response\n    await cls.raise_error_async(status_code, response_json, response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 287, in raise_error_async\n    raise ClientError(status_code, response_json, response)\ngoogle.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-2.5-flash\\nPlease retry in 45.814945631s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '45s'}]}}\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 628, in main\n    result = await case()\n             ^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 493, in case_t9\n    previous = await ingest_and_inspect(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\helpers\\graphiti_temporal_test_utils.py\", line 251, in ingest_and_inspect\n    response = await graphiti.add_episode(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1288, in add_episode\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1180, in add_episode\n    extracted_nodes, node_episode_index_map = await extract_nodes(\n                                              ^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 132, in extract_nodes\n    extracted_entities = await _extract_nodes_single(llm_client, primary_episode, context)\n                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 250, in _extract_nodes_single\n    llm_response = await _call_extraction_llm(llm_client, episode, context)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 275, in _call_extraction_llm\n    return await llm_client.generate_response(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 436, in generate_response\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 415, in generate_response\n    response, input_tokens, output_tokens = await self._generate_response(\n                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 358, in _generate_response\n    raise RateLimitError from e\ngraphiti_core.llm_client.errors.RateLimitError: Rate limit exceeded. Please try again later.\n",
+      "execution_status": "BLOCKED_RATE_LIMIT"
+    },
+    {
+      "test_id": "T10",
+      "name": "Half-open interval boundary",
+      "graphiti_version": "0.30.2",
+      "configuration": {
+        "graphiti_version": "0.30.2",
+        "kuzu_version": "0.11.3",
+        "backend": "KuzuDriver(:memory:)",
+        "llm_client": "GeminiClient",
+        "llm_model": "gemini-2.5-flash",
+        "embedder": "GeminiEmbedder",
+        "embedding_model": "gemini-embedding-001",
+        "embedding_dim": 768,
+        "reranker": "GeminiRerankerClient",
+        "ingestion_mode": "Mode B / Graphiti.add_episode"
+      },
+      "expected": {
+        "2026-10-21T23:59:00Z": true,
+        "2026-10-22T00:00:00Z": false
+      },
+      "observed_graph": {},
+      "retrieval": {},
+      "diagnostics": {},
+      "verdict": "AMBIGUOUS",
+      "failure_tags": [],
+      "notes": [
+        "Fixture raised RateLimitError: Rate limit exceeded. Please try again later.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result.",
+        "This is an infrastructure outcome, not an ambiguous Graphiti capability result."
+      ],
+      "error": "Traceback (most recent call last):\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 303, in _generate_response\n    response = await self.client.aio.models.generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 8451, in generate_content\n    response = await self._generate_content(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\models.py\", line 6905, in _generate_content\n    response = await self._api_client.async_request(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1796, in async_request\n    result = await self._async_request(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1729, in _async_request\n    return await self._async_retry(  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\ADMIN\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\concurrent\\futures\\_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\tenacity\\asyncio\\__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\_api_client.py\", line 1709, in _async_request_once\n    await errors.APIError.raise_for_async_response(client_response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 265, in raise_for_async_response\n    await cls.raise_error_async(status_code, response_json, response)\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\google\\genai\\errors.py\", line 287, in raise_error_async\n    raise ClientError(status_code, response_json, response)\ngoogle.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-2.5-flash\\nPlease retry in 44.889340839s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '44s'}]}}\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 628, in main\n    result = await case()\n             ^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 555, in case_t10\n    return await run_membership_fixture(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\test_graphiti_temporal_conformance.py\", line 118, in run_membership_fixture\n    previous = await ingest_and_inspect(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\tests\\helpers\\graphiti_temporal_test_utils.py\", line 251, in ingest_and_inspect\n    response = await graphiti.add_episode(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1288, in add_episode\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\graphiti.py\", line 1180, in add_episode\n    extracted_nodes, node_episode_index_map = await extract_nodes(\n                                              ^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 132, in extract_nodes\n    extracted_entities = await _extract_nodes_single(llm_client, primary_episode, context)\n                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 250, in _extract_nodes_single\n    llm_response = await _call_extraction_llm(llm_client, episode, context)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\utils\\maintenance\\node_operations.py\", line 275, in _call_extraction_llm\n    return await llm_client.generate_response(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 436, in generate_response\n    raise e\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 415, in generate_response\n    response, input_tokens, output_tokens = await self._generate_response(\n                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\vinai\\memory\\.venv\\Lib\\site-packages\\graphiti_core\\llm_client\\gemini_client.py\", line 358, in _generate_response\n    raise RateLimitError from e\ngraphiti_core.llm_client.errors.RateLimitError: Rate limit exceeded. Please try again later.\n",
+      "execution_status": "BLOCKED_RATE_LIMIT"
+    }
+  ]
+}

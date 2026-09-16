@@ -1,0 +1,7 @@
+search trên document và KG -> accuracy cao + support reasoning cua agent
+KG xay dung profile/behavior tai xe
+ket hop 
+paper: a-mem, gpt-mem, paper lien quan KG retrieval
+implement + cai thien
+graphiti (timestamp superior)
+phan xuan quang linh, chu dinh duc

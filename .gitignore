@@ -1,0 +1,25 @@
+# Local Python environment and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets and local overrides
+.env
+.env.*
+!.env.example
+
+# Nested upstream checkout; the immutable source archive is kept in data/raw.
+external/policy_green_sm_corpus/
+
+# Rebuildable or high-volume runtime outputs
+artifacts/indexes/*
+artifacts/graphs/*
+runs/experiments/*
+
+# Keep the directory documentation files.
+!artifacts/indexes/README.md
+!artifacts/graphs/README.md
+!runs/experiments/README.md
