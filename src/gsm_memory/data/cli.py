@@ -7,7 +7,9 @@ import sys
 from pathlib import Path
 
 from .build import build_release, source_inventory, validate_build_config
+from .frozen import verify_frozen_release
 from .primitives import canonical_bytes, sha256_bytes, sha256_file, write_json
+from .sources import materialize_sources
 from .validation import ValidationFailure, compare_logical, semantic_inventory, validate_release
 
 
@@ -20,6 +22,8 @@ def parser() -> argparse.ArgumentParser:
     v=sub.add_parser("validate");v.add_argument("--candidate",type=Path,required=True);v.add_argument("--final-reproducibility",action="store_true")
     c=sub.add_parser("compare-logical");c.add_argument("--candidate-a",type=Path,required=True);c.add_argument("--candidate-b",type=Path,required=True);c.add_argument("--report",type=Path,required=True)
     f=sub.add_parser("freeze");f.add_argument("--candidate",type=Path,required=True);f.add_argument("--comparison",type=Path,required=True);f.add_argument("--target",type=Path,required=True);f.add_argument("--report",type=Path,required=True)
+    vf=sub.add_parser("verify-frozen");vf.add_argument("--release",type=Path,required=True);vf.add_argument("--certificate",type=Path,required=True);vf.add_argument("--comparison",type=Path,required=True)
+    ms=sub.add_parser("materialize-sources");ms.add_argument("--config",type=Path,required=True);ms.add_argument("--output",type=Path,required=True)
     return p
 
 
@@ -49,6 +53,10 @@ def main(argv:list[str]|None=None)->int:
             manifest_path=target/"private/eval/manifest.json";manifest=json.loads(manifest_path.read_text(encoding="utf-8"));manifest["state"]="FROZEN";manifest["logical_inventory_digest"]=comparison["inventory_digest"]
             files={p.relative_to(target).as_posix():sha256_file(p) for p in sorted(x for x in target.rglob("*") if x.is_file()) if p!=manifest_path};manifest["file_inventory"]=files;manifest["validation_sha256"]=sha256_file(target/"private/eval/validation.json");write_json(manifest_path,manifest)
             digest=sha256_file(manifest_path);freeze={"dataset_version":manifest["dataset_version"],"state":"FROZEN","manifest_sha256":digest,"logical_inventory_digest":comparison["inventory_digest"],"comparison_report_sha256":sha256_file(args.comparison),"dfg":validation["dfg"]};write_json(args.report,freeze);print(json.dumps(freeze,sort_keys=True));return 0
+        if args.command=="verify-frozen":
+            report=verify_frozen_release(args.release,args.certificate,args.comparison);print(json.dumps(report,ensure_ascii=False,sort_keys=True));return 0 if report["status"]=="pass" else 2
+        if args.command=="materialize-sources":
+            validate_build_config(args.config.resolve());report=materialize_sources(repo,args.config.resolve(),args.output.resolve());print(json.dumps(report,ensure_ascii=False,sort_keys=True));return 0
     except (ValueError,FileNotFoundError,FileExistsError,ValidationFailure) as exc:
         print(f"error: {exc}",file=sys.stderr);return 2
     return 2

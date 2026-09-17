@@ -9,6 +9,7 @@ from typing import Any
 import pyarrow.parquet as pq
 
 from gsm_memory.evaluation.formulas import auto_accept, cancel_rate, rating_condition, revenue_charge
+from gsm_memory.evaluation.assurance import run_aux_incident_check, run_counterfactual_checks, run_ex_checks
 from fractions import Fraction
 
 from .catalog import CASES
@@ -75,17 +76,19 @@ def validate_release(root:Path, repo:Path, final_reproducibility:bool=False) -> 
                len(read_jsonl(root/"private/eval/semantic_cases.jsonl"))==42 and len(read_jsonl(root/"private/eval/query_renderings.jsonl"))==42,
                len(snaps)==12,len({x["ledger_id"] for x in scenarios})==8,len(roots)==25 and len(scenarios)==32])
     for i,ok in enumerate(sm,1):checks.append(_result(f"SM{i:02d}","scenario_manifest",ok,True,ok))
-    ex_expected=[16000,0,0,"not_applicable","insufficient_evidence","insufficient_evidence",True,False,"insufficient_evidence",False,True,"insufficient_evidence",16000,8000,8000,"unresolved_conflict","insufficient_evidence",True,False,False,"customer_request_time","completed_delivery_points",Fraction(1,5),True,"insufficient_evidence"]
-    ex_actual=[revenue_charge(200000),revenue_charge(280000),revenue_charge(300000),"not_applicable","insufficient_evidence","insufficient_evidence",auto_accept("bike_partner",Fraction(49,100)),auto_accept("bike_partner",Fraction(1,2)),"insufficient_evidence",rating_condition(Fraction(97,20)),rating_condition(Fraction(49,10)),"insufficient_evidence",revenue_charge(200000),revenue_charge(240000),revenue_charge(240000),"unresolved_conflict","insufficient_evidence",True,False,False,"customer_request_time","completed_delivery_points",cancel_rate(2,8),True,"insufficient_evidence"]
-    for i,(e,a_) in enumerate(zip(ex_expected,ex_actual),1):checks.append(_result(f"EX{i:02d}","independent_fixture",e==a_,str(e),str(a_)))
+    for result in run_ex_checks():
+        checks.append(_result(result["check_id"],"independent_semantic_fixture",result["ok"],result["expected"],result["actual"],result["implicated_ids"]))
     aux_ids=["AUX_IDENTITY","AUX_TIME","AUX_EVENT","AUX_INCIDENT","AUX_REVISION","AUX_POLICY","AUX_ARTIFACT","AUX_CONTEXT","AUX_ACCESS"]
+    incident_result=run_aux_incident_check()
     aux_conditions=[len([x for x in pq.read_table(root/"private/oracle/entities.parquet").to_pylist() if x.get("entity_type")=="DRIVER"])==8,
                     any(x["known_as_of"]=="2026-08-04T00:00:00.000000Z" for x in snap_rows),len(pq.read_table(root/"private/oracle/events.parquet"))==80,
-                    True,actual_status["unresolved_conflict"]==1,any(x.get("source_mode")=="synthetic_control" for x in catalog),len(list((root/"public/operational/artifacts").glob("*.json")))==3,
+                    incident_result["ok"],actual_status["unresolved_conflict"]==1,any(x.get("source_mode")=="synthetic_control" for x in catalog),len(list((root/"public/operational/artifacts").glob("*.json")))==3,
                     all(p["status"]=="diagnostic" or p["minimal_atom_sets"] for p in proofs),all(x["access_scope"] and x["time_scope"]["mode"] in {"current","point","interval"} for x in runtime_queries)]
-    for cid,ok in zip(aux_ids,aux_conditions):checks.append(_result(cid,"auxiliary",ok,True,ok))
-    cf=[revenue_charge(195000)!=revenue_charge(200000),revenue_charge(200000)==revenue_charge(200000),True,sha256_bytes(canonical_bytes(sorted(x["query_id"] for x in gold)))==sha256_bytes(canonical_bytes(sorted(x["query_id"] for x in gold)))]
-    for i,ok in enumerate(cf,1):checks.append(_result(f"CF{i:02d}","counterfactual",ok,True,ok))
+    for cid,ok in zip(aux_ids,aux_conditions):
+        if cid=="AUX_INCIDENT":checks.append(_result(cid,"auxiliary",ok,incident_result["expected"],incident_result["actual"],incident_result["implicated_ids"]))
+        else:checks.append(_result(cid,"auxiliary",ok,True,ok))
+    for result in run_counterfactual_checks():
+        checks.append(_result(result["check_id"],"counterfactual",result["ok"],result["expected"],result["actual"],result["implicated_ids"]))
     dfg={"DFG01":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V05","V10"}),"DFG02":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V01","V02","V03","V04"} or x["check_id"].startswith("SM")),"DFG03":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V05","V06","V07"} or x["check_id"].startswith("EX") or x["check_id"].startswith("AUX")),"DFG04":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V08","V09","V10"}),"DFG05":all(x["status"]=="pass" for x in checks) and counts["dev_queries"]==42 and counts["test_queries"]==0,"DFG06":final_reproducibility and all(x["status"]=="pass" for x in checks)}
     report={"state":"VALIDATED" if all(x["status"]=="pass" for x in checks) else "FAILED","checks":checks,"summary":{"pass":sum(x["status"]=="pass" for x in checks),"fail":sum(x["status"]=="fail" for x in checks),"not_run":0},"dfg":{k:{"status":"pass" if v else "not_run" if k=="DFG06" and not final_reproducibility else "fail"} for k,v in dfg.items()}}
     write_json(root/"private/eval/validation.json",report)

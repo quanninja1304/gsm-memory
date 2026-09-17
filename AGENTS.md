@@ -11,8 +11,13 @@ These instructions are persistent repository guidance. A task-specific hand-off 
 ## 1. Project
 
 **Project:** Scalable Retrieval for Memory-Augmented AI Agents
-**Current dataset:** `gsm-dev-core-0.2`
-**Current phase:** deterministic dataset generation and **Data Freeze Gate (DFG)**.
+**Current dataset:** `gsm-dev-core-0.2.1`
+**Current phase:** **Phase A0 — Repository Assurance**, after the Data Freeze Gate (DFG) and before BRG.
+
+`gsm-dev-core-0.2` remains immutable, but it is deprecated because 17 public
+`RuntimeQuery` records leaked private aliases or time-scope metadata. Do not use
+`0.2` for new experiments. `gsm-dev-core-0.2.1` is the current corrective
+release; its schema and release-spec versions remain unchanged.
 
 The project evaluates:
 
@@ -36,12 +41,14 @@ The current dataset build must be independently valid before Graphiti, embedding
 Before changing code:
 
 1. Read this `AGENTS.md`.
-2. Read `README.md` and relevant local README files.
-3. Inspect the actual repository tree and Git state.
-4. Inspect dependency manifests/locks and the active Python environment.
-5. Read the normative documents below.
-6. Search existing code/tests before creating new modules.
-7. Preserve unrelated user changes.
+2. Read `docs/02_synthetic_schema_and_data_design.md`.
+3. Read `docs/05_dataset_release_spec.md`.
+4. Read `docs/01_problem_and_evaluation.md`.
+5. Read `README.md` and relevant local README files.
+6. Inspect the actual repository tree and Git state.
+7. Inspect dependency manifests/locks and the active Python environment.
+8. Search existing code/tests before creating new modules.
+9. Preserve unrelated user changes.
 
 Prefer:
 
@@ -95,9 +102,13 @@ Normative for the current release implementation:
 
 ```text
 release_spec_version = 0.2.0
-dataset_version      = gsm-dev-core-0.2
+dataset_version      = gsm-dev-core-0.2.1 (current corrective release)
 seed                 = 42
 ```
+
+The normative document was authored for `gsm-dev-core-0.2`; the corrective
+`0.2.1` release preserves its composition and business semantics while removing
+the public-query leakage described above.
 
 It defines:
 
@@ -175,22 +186,21 @@ just to make tests or a baseline pass.
 
 ## 5. Current Scope
 
-The current implementation target is:
+The current implementation target is repository assurance over the already
+frozen `gsm-dev-core-0.2.1` release:
 
 ```text
-DATA_G0
-→ DATA_G1
-→ DATA_G2
-→ DATA_G3
-→ DATA_G4
-→ DATA_G5
-→ DATA_G6
-→ Data Freeze Gate
+cross-platform frozen-byte checkout
+read-only frozen verification
+offline pinned-source materialization
+independent semantic/conformance fixtures
+clean-build reproducibility evidence
 ```
 
-The task is not complete after scaffolding, G0, or a successful import.
-
-Current work ends at a real DFG result.
+The completed DATA_G0–DATA_G6 and DFG pipeline remains the contract being
+assured. Candidate validation is a pre-freeze workflow and may write its
+candidate validation report. Post-freeze verification must be strictly
+read-only and must never invoke a mutating validator on a frozen release.
 
 After DFG, separate work may implement:
 
@@ -1440,10 +1450,11 @@ when declaring DFG PASS.
 
 Never overwrite an existing frozen release.
 
-If:
+If either:
 
 ```text
 data/gsm-dev-core-0.2/
+data/gsm-dev-core-0.2.1/
 ```
 
 already exists:
@@ -1666,23 +1677,22 @@ Do not stop after every milestone to ask for confirmation unless a genuine seman
 
 ## 47. Definition of Done for Current Phase
 
-The current phase is complete only when there is evidence for:
+Phase A0 is complete only when there is evidence for:
 
 ```text
-G0 complete
-G1 complete
-G2 complete
-G3 complete
-G4 complete
-G5 complete
-G6 complete
-
+no frozen-release modifications
+635/635 frozen inventory entries verified read-only
+portable EOL/binary checkout behavior
+225 pinned source Markdown files materialized offline
+executable EX01–EX25, AUX_INCIDENT, and counterfactual checks
 clean build A
 clean build B
 logical comparison
-
-DFG01–DFG06 evaluated
+full data test suite
 ```
+
+The historical DFG01–DFG06 certificate must remain valid and independently
+verifiable. Phase A0 does not re-freeze or rewrite the release.
 
 Expected release-level counts include:
 
