@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.1",
+  "release_spec_version": "0.2.0",
+  "dataset_version": "gsm-dev-core-0.2",
+  "seed": 42,
+  "seed_algorithm": "sha256-stream-v1",
+  "source_archive": "data/raw/archives/policy_green_sm_source.zip",
+  "source_archive_sha256": "cfe9e4555dbedf81396004c7a7d0ace52dcbb1deb758110c4aded3b6741ba9c9",
+  "normalization_version": "crlf-to-lf-v1",
+  "business_timezone": "Asia/Ho_Chi_Minh",
+  "canonical_timezone": "UTC",
+  "corpus_profiles": ["debug_core", "retrieval_full"]
+}

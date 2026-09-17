@@ -33,10 +33,27 @@ Research sources support decisions but do not override the project contract.
 Raw policy material and private oracle data must never be mounted directly into
 the runtime retriever.
 
-## Current implementation status
+## Offline dataset pipeline
 
-The repository currently contains planning/specification documents and a
-Graphiti Mode-B temporal conformance harness. Most `src/`, config, dataset,
-and evaluation paths are intentional placeholders for upcoming implementation.
+The current `gsm-dev-core-0.2.1` data implementation is under `src/gsm_memory/data/`.
+The frozen `gsm-dev-core-0.2` release is immutable but deprecated because 17
+RuntimeQuery records leaked private aliases or time-scope metadata.
+It is independent of Graphiti and provider credentials. The pinned Python
+toolchain is managed by `uv`.
 
-No root Git repository has been initialized by this organization step.
+```powershell
+uv sync --extra dev --extra graphiti
+.venv\Scripts\python.exe -m gsm_memory.data.cli --help
+.venv\Scripts\python.exe -m gsm_memory.data.cli inventory --config configs\datasets\gsm-dev-core-0.2.1.json
+.venv\Scripts\python.exe -m gsm_memory.data.cli build --config configs\datasets\gsm-dev-core-0.2.1.json --output artifacts\data_builds\candidate
+.venv\Scripts\python.exe -m gsm_memory.data.cli validate --candidate artifacts\data_builds\candidate
+```
+
+Build requires an empty output directory. Validation reads an existing
+candidate and never regenerates source data. `compare-logical` compares the
+complete declared semantic inventory, and `freeze` verifies validation and
+comparison evidence before refusing any existing target.
+
+The latest handoff status and exact commands are recorded in
+`reports/data_freeze/gsm-dev-core-0.2.1-DFG.md`. Graphiti ingestion, retrieval,
+embeddings, agent runs and BRG remain out of scope.

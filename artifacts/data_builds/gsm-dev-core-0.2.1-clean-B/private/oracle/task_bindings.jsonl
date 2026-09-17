@@ -1,0 +1,7 @@
+{"binding_id":"task_binding:B01@1.0","binding_version":"1.0","gold_track":"source_grounded","status":"included","task_id":"T01"}
+{"binding_id":"task_binding:B02@1.0","binding_version":"1.0","gold_track":"conditional_binding","status":"included","task_id":"T02"}
+{"binding_id":"task_binding:B03@1.0","binding_version":"1.0","gold_track":"conditional_binding","status":"included","task_id":"T03"}
+{"binding_id":"task_binding:B04@1.0","binding_version":"1.0","gold_track":"source_grounded","status":"included","task_id":"T04"}
+{"binding_id":"task_binding:B05@1.0","binding_version":"1.0","gold_track":"conditional_binding","status":"included","task_id":"T05"}
+{"binding_id":"task_binding:B06@1.0","binding_version":"1.0","gold_track":"source_grounded","status":"included","task_id":"T06"}
+{"binding_id":"task_binding:B07@1.0","binding_version":"1.0","gold_track":"conditional_binding","status":"included","task_id":"T07"}

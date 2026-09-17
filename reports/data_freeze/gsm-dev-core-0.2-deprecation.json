@@ -1,0 +1,30 @@
+{
+  "record_version": "1.0",
+  "recorded_at": "2026-09-16",
+  "dataset_version": "gsm-dev-core-0.2",
+  "release_path": "data/gsm-dev-core-0.2",
+  "release_state": "FROZEN",
+  "lifecycle_status": "DEPRECATED",
+  "immutable": true,
+  "reason": {
+    "finding_count": 17,
+    "finding_type": "RuntimeQuery alias/time-scope leakage",
+    "affected_surface": "public/runtime_queries/dev.jsonl",
+    "total_runtime_queries": 42
+  },
+  "integrity_evidence": {
+    "manifest_sha256": "ce7ff9edfaf116716551f5af4907b47c66bf4bd878df0cea4d89062b808ab190",
+    "freeze_certificate_sha256": "2859282953ac2dabe4187103c95431e4d6fe37b5a977d73be57aadfa4d6ae024",
+    "file_inventory_status": "verified_no_mismatches"
+  },
+  "superseded_by": {
+    "dataset_version": "gsm-dev-core-0.2.1",
+    "release_path": "data/gsm-dev-core-0.2.1",
+    "release_state": "FROZEN",
+    "runtime_query_leak_count": 0,
+    "manifest_sha256": "61dddfd6c9f078b9b8c8288562c6196ae28a7ece390cd6d61d03041183b515b5",
+    "logical_inventory_digest": "4ed08a35393912150ffb731946965c5adc827a403835d4c9a96e9c333df16d11",
+    "freeze_certificate": "reports/data_freeze/gsm-dev-core-0.2.1-freeze-certificate.json"
+  },
+  "note": "This record is external to the immutable deprecated release; no file under data/gsm-dev-core-0.2 was changed."
+}

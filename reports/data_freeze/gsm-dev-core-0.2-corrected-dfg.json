@@ -1,0 +1,18 @@
+{
+  "dataset_version": "gsm-dev-core-0.2",
+  "candidate": "artifacts/data_builds/gsm-dev-core-0.2-final-A",
+  "candidate_state": "DRAFT",
+  "validation": {"pass": 56, "fail": 0, "not_run": 0},
+  "logical_comparison": {"status": "pass", "compared_files": 635, "mismatches": 0, "inventory_digest": "033e274f7a94db34f71f890b0d27b28a5fb522cbd660b4d962acd4d7c08d54e3"},
+  "dfg": {
+    "DFG01": "pass",
+    "DFG02": "pass",
+    "DFG03": "pass",
+    "DFG04": "pass",
+    "DFG05": "pass",
+    "DFG06": "blocked_existing_frozen_target"
+  },
+  "release_state": "VALIDATED_NOT_PROMOTED",
+  "superseded_certificate": "reports/data_freeze/gsm-dev-core-0.2-freeze-certificate.json",
+  "blocker": "data/gsm-dev-core-0.2 exists with state FROZEN; overwrite refused"
+}
