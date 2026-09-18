@@ -41,7 +41,7 @@ MutationSpec = Annotated[dict | MaskSpec | ConflictSpec | RetractionSpec, Field(
 class ScenarioManifest(ClosedModel):
     schema_version: Literal["1.1"]
     release_spec_version: Literal["0.2.0"]
-    dataset_version: Literal["gsm-dev-core-0.2.1"]
+    dataset_version: Literal["gsm-dev-core-0.2.2"]
     world_id: str
     scenario_id: str
     scenario_variant_id: str

@@ -11,13 +11,15 @@ These instructions are persistent repository guidance. A task-specific hand-off 
 ## 1. Project
 
 **Project:** Scalable Retrieval for Memory-Augmented AI Agents
-**Current dataset:** `gsm-dev-core-0.2.1`
-**Current phase:** **Phase A0 — Repository Assurance**, after the Data Freeze Gate (DFG) and before BRG.
+**Current dataset:** `gsm-dev-core-0.2.2`
+**Current phase:** **Corrective DFG/A1 assurance**, before BRG.
 
 `gsm-dev-core-0.2` remains immutable, but it is deprecated because 17 public
 `RuntimeQuery` records leaked private aliases or time-scope metadata. Do not use
-`0.2` for new experiments. `gsm-dev-core-0.2.1` is the current corrective
-release; its schema and release-spec versions remain unchanged.
+`0.2` for new experiments. `gsm-dev-core-0.2.1` also remains immutable but is
+superseded because its provenance locators and task bindings were insufficient
+for independent semantic reconstruction. `gsm-dev-core-0.2.2` is the current
+corrective release; schema and release-spec versions remain unchanged.
 
 The project evaluates:
 
@@ -102,13 +104,13 @@ Normative for the current release implementation:
 
 ```text
 release_spec_version = 0.2.0
-dataset_version      = gsm-dev-core-0.2.1 (current corrective release)
+dataset_version      = gsm-dev-core-0.2.2 (current corrective release)
 seed                 = 42
 ```
 
-The normative document was authored for `gsm-dev-core-0.2`; the corrective
-`0.2.1` release preserves its composition and business semantics while removing
-the public-query leakage described above.
+The normative document was authored for `gsm-dev-core-0.2`; corrective releases
+preserve its composition and business semantics. `0.2.1` removed public-query
+leakage; `0.2.2` closes provenance, coverage and independent-assurance gaps.
 
 It defines:
 
@@ -187,7 +189,7 @@ just to make tests or a baseline pass.
 ## 5. Current Scope
 
 The current implementation target is repository assurance over the already
-frozen `gsm-dev-core-0.2.1` release:
+corrective `gsm-dev-core-0.2.2` release while preserving older frozen releases:
 
 ```text
 cross-platform frozen-byte checkout
@@ -1455,6 +1457,7 @@ If either:
 ```text
 data/gsm-dev-core-0.2/
 data/gsm-dev-core-0.2.1/
+data/gsm-dev-core-0.2.2/
 ```
 
 already exists:
@@ -1677,22 +1680,27 @@ Do not stop after every milestone to ask for confirmation unless a genuine seman
 
 ## 47. Definition of Done for Current Phase
 
-Phase A0 is complete only when there is evidence for:
+The corrective DFG/A1 phase is complete only when there is evidence for:
 
 ```text
-no frozen-release modifications
-635/635 frozen inventory entries verified read-only
+no modifications to the frozen 0.2/0.2.1 releases
+historical 0.2.1 inventory verified read-only
 portable EOL/binary checkout behavior
 225 pinned source Markdown files materialized offline
 executable EX01–EX25, AUX_INCIDENT, and counterfactual checks
+110/110 closed source-level support locators
+7/7 structured task bindings
+42/42 independent public-evidence reconstructions
+12/12 snapshot and 8/8 branch isolation audit
 clean build A
 clean build B
 logical comparison
 full data test suite
 ```
 
-The historical DFG01–DFG06 certificate must remain valid and independently
-verifiable. Phase A0 does not re-freeze or rewrite the release.
+The historical `0.2.1` DFG01–DFG06 certificate must remain valid and independently
+verifiable. The corrective workflow freezes only `0.2.2`; it never rewrites an
+older release.
 
 Expected release-level counts include:
 

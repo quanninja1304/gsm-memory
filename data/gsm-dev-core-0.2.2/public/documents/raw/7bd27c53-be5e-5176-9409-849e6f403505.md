@@ -1,0 +1,48 @@
+# Chính sách thu nhập và thưởng trách nhiệm doanh số Tài xế GF-VIP tại Đà Nẵng 1
+
+- **Ngày đăng:** 2025-10-04
+- **Chuyên mục:** Cẩm nang tài xế
+- **Nguồn bài viết:** [https://www.greensm.com/vn-vi/news/chinh-sach-thu-nhap-gf-vip-da-nang](https://www.greensm.com/vn-vi/news/chinh-sach-thu-nhap-gf-vip-da-nang)
+- **Có bảng biểu:** Không
+- **Có hình ảnh OCR:** Có
+
+---
+
+Bác tài thân mến,
+
+Với mục đích hỗ trợ Bác tài quản lý thu nhập một cách minh bạch và chủ động hơn, Green SM xin thông báo về việc cập nhậtChính sách thu nhập với tỷ lệ chia sẻ doanh số và tiêu chuẩn chấmcôngmới.
+
+👉 Thời gian áp dụng:Từ 04/10/2025cho đến khi có thông báo mới
+
+👉 Chi tiết chính sách: Bác tài vui lòng xem trong hình ảnh đính kèm.
+
+![Hình ảnh minh họa](https://cdn.xanhsm.com/2025/10/eb663ddf-gf_dnang1-749x1024.jpg)
+
+> **[Nội dung trích xuất từ ảnh]:**
+> # CẬP NHẬT CHÍNH SÁCH THU NHẬP VÀ THƯỞNG TRÁCH NHIỆM DOANH SỐ
+> 
+> *   **Đối tượng áp dụng:** Tài xế GF VIP tại Depot Đà Nẵng 1
+> *   **Thời gian áp dụng:** Từ ngày 04/10/2025 đến khi có thông báo mới
+> 
+> ## Nội dung chính sách
+> Cập nhật mức thưởng trách nhiệm doanh số và tiêu chuẩn chấm công
+> 
+> ## THƯỞNG TRÁCH NHIỆM VÀ DOANH SỐ
+> 
+> | Mức   | Doanh số (VNĐ/ngày)           | Tỷ lệ chia sẻ |
+> | :---- | :---------------------------- | :------------ |
+> | Mức 0 | Dưới 900.000                  | 25%           |
+> | Mức 1 | Từ 900.000 đến dưới 1.200.000 | 32%           |
+> | Mức 2 | Từ 1.200.000 đến dưới 1.400.000 | 37%           |
+> | Mức 3 | Từ 1.400.000 đến dưới 1.700.000 | 42%           |
+> | Mức 4 | Từ 1.700.000 đến dưới 2.000.000 | 45%           |
+> | Mức 5 | Từ 2.000.000 trở lên          | 48%           |
+> 
+> ## TIÊU CHUẨN CHẤM CÔNG
+> 
+> *   Tỷ lệ nhận cuốc và tỷ lệ hoàn thành cuốc của Bác tài cần đạt trên 85%.
+> *   Bác tài cần tuân thủ 100% lệnh điều phối của đội vận hành thuộc Depot/HUB.
+
+Mọi thắc mắc Bác tài vui lòng liên hệ Đội xe để được hỗ trợ.
+
+Trân trọng,Đội ngũ Green SM.

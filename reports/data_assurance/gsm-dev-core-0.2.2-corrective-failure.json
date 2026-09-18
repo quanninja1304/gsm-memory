@@ -1,0 +1,80 @@
+{
+  "schema_version": "corrective-release-failure-v1",
+  "proposed_dataset_version": "gsm-dev-core-0.2.2",
+  "implementation_commit": "75f819abae8dfeea63a136821b6b57c84156afb5",
+  "status": "blocked",
+  "stage": "preflight_public_provenance_audit",
+  "old_release": {
+    "dataset_version": "gsm-dev-core-0.2.1",
+    "verifier_status": "pass",
+    "inventory_checked": 635,
+    "manifest_sha256": "61dddfd6c9f078b9b8c8288562c6196ae28a7ece390cd6d61d03041183b515b5",
+    "logical_inventory_digest": "4ed08a35393912150ffb731946965c5adc827a403835d4c9a96e9c333df16d11"
+  },
+  "approved_locator_decision": {
+    "entity_catalog_atoms": 4,
+    "definition_artifact_atoms": 3,
+    "fake_ledger_assertions_added": false
+  },
+  "blocking_defect": {
+    "check_id": "PUBLIC_SYNTHETIC_RULE_PROVENANCE",
+    "stop_conditions": [
+      1,
+      10
+    ],
+    "message": "Three synthetic_rule support atoms have no canonical public source containing the rule semantics at their required snapshots.",
+    "affected_support_atoms": [
+      {
+        "atom_id": "c222c73a-66d4-52f4-8ad9-f2f4412bf35b",
+        "query_id": "fa424492-cb00-59b4-8106-7141d6c98e23",
+        "semantic_case_id": "783302e6-d636-525f-a38f-f55f698deafb",
+        "public_snapshot_id": "5d0afa9c-34ca-5473-9c16-f011609db8ab"
+      },
+      {
+        "atom_id": "f5043bfc-b87b-5236-bd4b-2d39c43fa255",
+        "query_id": "468151d8-c589-5fb4-8ef9-4afbba370ed3",
+        "semantic_case_id": "2f0b9271-f893-52a6-916f-a1d94d9a94ac",
+        "public_snapshot_id": "35eb4ddd-87e7-5584-8c89-6a1da19130c2"
+      },
+      {
+        "atom_id": "f8b07576-294c-5104-93a1-4a83a4fadaae",
+        "query_id": "e684b016-722f-59c6-a141-035f3c97832b",
+        "semantic_case_id": "660eaed8-1ede-5727-a0c5-c85d1cef17c6",
+        "public_snapshot_id": "5d0afa9c-34ca-5473-9c16-f011609db8ab"
+      }
+    ],
+    "source_evidence": {
+      "synthetic_document_alias": "S_BRIDGE:v1",
+      "document_revision_id": "147ffa90-1e68-5b12-b8ac-d125cb01bc6b",
+      "normalized_sha256": "53134f9a893a5f9050d027baba313f649ceaff6a36932c531867336356c945d4",
+      "document_character_count": 76,
+      "contains_fleet_region_rule": false,
+      "contains_incident_exception": false,
+      "visible_in_required_snapshot_documents": false,
+      "policy_publication_encodes_rule_content": false,
+      "rule_content_only_in_private_oracle": true
+    }
+  },
+  "corrective_release": {
+    "config_created": false,
+    "candidate_a_created": false,
+    "candidate_b_created": false,
+    "frozen_release_created": false,
+    "certificate_created": false
+  },
+  "gates": {
+    "DFG01": "not_run",
+    "DFG02": "not_run",
+    "DFG03": "blocked",
+    "DFG04": "blocked",
+    "DFG05": "not_run",
+    "DFG06": "not_run",
+    "A1_G1": "not_run",
+    "A1_G2": "not_run",
+    "A1_G3": "blocked",
+    "A1_G4": "blocked",
+    "A1_G5": "blocked",
+    "A1_G6": "not_run"
+  },
+  "required_decision": "Approve publication of deterministic synthetic rule documents/clauses in snapshot packages, or revise/remove the affected synthetic-rule cases and their gold under a separately reviewed semantic change."
+}

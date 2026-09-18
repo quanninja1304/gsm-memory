@@ -14,7 +14,8 @@ initial graph reference baseline, not an assumed source of temporal truth.
 | `src/gsm_memory/` | Implementation packages for data, adapters, retrieval, evaluation, and agent integration |
 | `configs/` | Versioned dataset, Graphiti, retrieval, and experiment configurations |
 | `data/raw/` | Immutable source archives owned by this workspace |
-| `data/gsm-dev-core-0.2.1/` | Current frozen corrective release |
+| `data/gsm-dev-core-0.2.2/` | Current corrective release with closed provenance and independent assurance |
+| `data/gsm-dev-core-0.2.1/` | Immutable superseded release; retained for audit/reproducibility |
 | `data/gsm-dev-core-0.2/` | Immutable deprecated release; do not use for new experiments |
 | `tests/` | Unit, integration, fixture, and external conformance tests |
 | `runs/` | Machine-readable outputs from ingestion, retrieval, and evaluation runs |
@@ -37,20 +38,22 @@ the runtime retriever.
 
 ## Offline dataset pipeline
 
-The current `gsm-dev-core-0.2.1` data implementation is under
+The current `gsm-dev-core-0.2.2` data implementation is under
 `src/gsm_memory/data/`. The frozen `gsm-dev-core-0.2` release remains immutable
 but is deprecated because 17 public RuntimeQuery records leaked private aliases
-or time-scope metadata. Do not use `0.2` for new experiments. The offline data
+or time-scope metadata. `0.2.1` also remains immutable, but is superseded because
+its support links and task bindings were not sufficient for independent semantic
+reconstruction. Do not use either older release for new experiments. The offline data
 workflow is independent of Graphiti and provider credentials. The pinned Python
 toolchain is managed by `uv`.
 
 ```powershell
 uv sync --extra dev
-uv run --extra dev python -m gsm_memory.data.cli materialize-sources --config configs/datasets/gsm-dev-core-0.2.1.json --output external/policy_green_sm_corpus
-uv run --extra dev python -m gsm_memory.data.cli inventory --config configs/datasets/gsm-dev-core-0.2.1.json
-uv run --extra dev python -m gsm_memory.data.cli build --config configs/datasets/gsm-dev-core-0.2.1.json --output artifacts/data_builds/candidate
+uv run --extra dev python -m gsm_memory.data.cli materialize-sources --config configs/datasets/gsm-dev-core-0.2.2.json --output external/policy_green_sm_corpus
+uv run --extra dev python -m gsm_memory.data.cli inventory --config configs/datasets/gsm-dev-core-0.2.2.json
+uv run --extra dev python -m gsm_memory.data.cli build --config configs/datasets/gsm-dev-core-0.2.2.json --output artifacts/data_builds/candidate
 uv run --extra dev python -m gsm_memory.data.cli validate --candidate artifacts/data_builds/candidate
-uv run --extra dev python -m gsm_memory.data.cli verify-frozen --release data/gsm-dev-core-0.2.1 --certificate reports/data_freeze/gsm-dev-core-0.2.1-freeze-certificate.json --comparison reports/data_freeze/gsm-dev-core-0.2.1-logical-comparison.json
+uv run --extra dev python -m gsm_memory.data.cli verify-frozen --release data/gsm-dev-core-0.2.2 --certificate reports/data_freeze/gsm-dev-core-0.2.2-freeze-certificate.json --comparison reports/data_freeze/gsm-dev-core-0.2.2-logical-comparison.json
 ```
 
 Source materialization verifies the pinned archive before extracting exactly
@@ -64,5 +67,5 @@ complete declared semantic inventory, and `freeze` verifies validation and
 comparison evidence before refusing any existing target.
 
 The latest handoff status and exact commands are recorded in
-`reports/data_freeze/gsm-dev-core-0.2.1-DFG.md`. Graphiti ingestion, retrieval,
+`reports/data_freeze/gsm-dev-core-0.2.2-DFG-A1.md`. Graphiti ingestion, retrieval,
 embeddings, agent runs and BRG remain out of scope.

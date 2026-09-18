@@ -14,7 +14,7 @@ from .validation import ValidationFailure, compare_logical, semantic_inventory, 
 
 
 def parser() -> argparse.ArgumentParser:
-    p=argparse.ArgumentParser(prog="python -m gsm_memory.data.cli",description="Offline gsm-dev-core-0.2.1 data pipeline")
+    p=argparse.ArgumentParser(prog="python -m gsm_memory.data.cli",description="Offline gsm-dev-core-0.2.2 data pipeline")
     p.add_argument("--repo",type=Path,default=Path.cwd())
     sub=p.add_subparsers(dest="command",required=True)
     i=sub.add_parser("inventory");i.add_argument("--config",type=Path,required=True)
@@ -43,6 +43,7 @@ def main(argv:list[str]|None=None)->int:
             if comparison["status"]!="pass" or str(candidate) not in {comparison["candidate_a"],comparison["candidate_b"]}: raise ValidationFailure("comparison does not approve candidate")
             validate_release(candidate,repo,True); validation=json.loads((candidate/"private/eval/validation.json").read_text(encoding="utf-8"))
             if any(x["status"]!="pass" for x in validation["dfg"].values()): raise ValidationFailure("DFG evidence incomplete")
+            if any(x["status"]!="pass" for x in validation.get("a1",{}).values()) or set(validation.get("a1",{}))!={f"A1_G{i}" for i in range(1,7)}: raise ValidationFailure("A1 evidence incomplete")
             candidate_manifest=json.loads((candidate/"private/eval/manifest.json").read_text(encoding="utf-8"))
             if target.name != candidate_manifest["dataset_version"]: raise ValidationFailure("freeze target name must match dataset_version")
             if target.exists():
@@ -52,7 +53,7 @@ def main(argv:list[str]|None=None)->int:
             shutil.copytree(candidate,target)
             manifest_path=target/"private/eval/manifest.json";manifest=json.loads(manifest_path.read_text(encoding="utf-8"));manifest["state"]="FROZEN";manifest["logical_inventory_digest"]=comparison["inventory_digest"]
             files={p.relative_to(target).as_posix():sha256_file(p) for p in sorted(x for x in target.rglob("*") if x.is_file()) if p!=manifest_path};manifest["file_inventory"]=files;manifest["validation_sha256"]=sha256_file(target/"private/eval/validation.json");write_json(manifest_path,manifest)
-            digest=sha256_file(manifest_path);freeze={"dataset_version":manifest["dataset_version"],"state":"FROZEN","manifest_sha256":digest,"logical_inventory_digest":comparison["inventory_digest"],"comparison_report_sha256":sha256_file(args.comparison),"dfg":validation["dfg"]};write_json(args.report,freeze);print(json.dumps(freeze,sort_keys=True));return 0
+            digest=sha256_file(manifest_path);freeze={"dataset_version":manifest["dataset_version"],"state":"FROZEN","manifest_sha256":digest,"logical_inventory_digest":comparison["inventory_digest"],"comparison_report_sha256":sha256_file(args.comparison),"dfg":validation["dfg"],"a1":validation["a1"]};write_json(args.report,freeze);print(json.dumps(freeze,sort_keys=True));return 0
         if args.command=="verify-frozen":
             report=verify_frozen_release(args.release,args.certificate,args.comparison);print(json.dumps(report,ensure_ascii=False,sort_keys=True));return 0 if report["status"]=="pass" else 2
         if args.command=="materialize-sources":

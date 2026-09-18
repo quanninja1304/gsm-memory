@@ -1,0 +1,106 @@
+{
+  "schema_version": "corrective-release-failure-v1",
+  "proposed_dataset_version": "gsm-dev-core-0.2.2",
+  "implementation_commit": "75f819abae8dfeea63a136821b6b57c84156afb5",
+  "status": "blocked",
+  "stage": "coverage_generation_operand_audit",
+  "approved_contract": {
+    "coverage_locator_type": "coverage_artifact",
+    "correction_class": "semantic_packaging_correction",
+    "world_facts_changed": false,
+    "member_sets_changed": false
+  },
+  "audit_result": {
+    "status": "blocked",
+    "source_location": "src/gsm_memory/data/build.py:223",
+    "reason": "The canonical generator contains private labels and member lists only; it does not contain the structured operands required to construct case-independent public CoverageSpec objects."
+  },
+  "artifacts": [
+    {
+      "artifact_id": "28afa3ef-0535-5323-8a83-e99345c7022a",
+      "member_count": 10,
+      "derivable_operands": [
+        "member_ids",
+        "member_count",
+        "subject_id_from_all_member event rows"
+      ],
+      "missing_operands": [
+        "valid_window",
+        "boundary_convention",
+        "source_set_id_and_version",
+        "public_structured_selector",
+        "inclusion_criteria",
+        "exclusion_criteria",
+        "completeness_cutoff",
+        "correction_retraction_policy"
+      ]
+    },
+    {
+      "artifact_id": "097e9c93-eabb-5dcd-b271-a5b2afa9e734",
+      "member_count": 0,
+      "derivable_operands": [
+        "empty_member_ids",
+        "member_count"
+      ],
+      "missing_operands": [
+        "subject_id",
+        "covered_domain",
+        "valid_window",
+        "boundary_convention",
+        "source_set_id_and_version",
+        "public_structured_selector",
+        "inclusion_criteria",
+        "exclusion_criteria",
+        "completeness_cutoff",
+        "correction_retraction_policy"
+      ]
+    },
+    {
+      "artifact_id": "75b8a22c-6d1c-526f-b817-f0f0de55a818",
+      "member_count": 0,
+      "derivable_operands": [
+        "empty_member_ids",
+        "member_count"
+      ],
+      "missing_operands": [
+        "subject_id",
+        "covered_domain",
+        "valid_window",
+        "boundary_convention",
+        "source_set_id_and_version",
+        "public_structured_selector",
+        "inclusion_criteria",
+        "exclusion_criteria",
+        "completeness_cutoff",
+        "correction_retraction_policy"
+      ]
+    }
+  ],
+  "rejected_derivations": [
+    "derive subject or domain from coverage_db, coverage_dh, or incident_db",
+    "derive a 30-day window from affected query or semantic case",
+    "derive completeness scope from support atom role",
+    "treat complete=true as a complete CoverageSpec",
+    "treat member event min/max as the declared coverage window"
+  ],
+  "stop_conditions": [
+    1,
+    2,
+    3,
+    9
+  ],
+  "old_release": {
+    "dataset_version": "gsm-dev-core-0.2.1",
+    "verifier_status": "pass",
+    "inventory_checked": 635,
+    "modified": false
+  },
+  "corrective_release": {
+    "config_created": false,
+    "candidate_a_created": false,
+    "candidate_b_created": false,
+    "frozen_release_created": false,
+    "certificate_created": false
+  },
+  "required_input": "Add an explicitly approved, case-independent structured coverage recipe to generator inputs/config for every artifact, including exact subject, domain, window, selector, source-set version, completeness cutoff, and revision policy."
+}

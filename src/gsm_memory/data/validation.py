@@ -10,11 +10,13 @@ import pyarrow.parquet as pq
 
 from gsm_memory.evaluation.formulas import auto_accept, cancel_rate, rating_condition, revenue_charge
 from gsm_memory.evaluation.assurance import run_aux_incident_check, run_counterfactual_checks, run_ex_checks
+from gsm_memory.evaluation.independent import reconstruct_release
 from fractions import Fraction
 
 from .catalog import CASES
 from .contracts import ScenarioManifest
 from .ledger import validate_ledger
+from .locators import resolve_public_locator
 from .primitives import ARCHIVE_SHA256, DATASET_VERSION, canonical_bytes, read_jsonl, sha256_bytes, sha256_file, write_json
 
 
@@ -89,8 +91,33 @@ def validate_release(root:Path, repo:Path, final_reproducibility:bool=False) -> 
         else:checks.append(_result(cid,"auxiliary",ok,True,ok))
     for result in run_counterfactual_checks():
         checks.append(_result(result["check_id"],"counterfactual",result["ok"],result["expected"],result["actual"],result["implicated_ids"]))
-    dfg={"DFG01":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V05","V10"}),"DFG02":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V01","V02","V03","V04"} or x["check_id"].startswith("SM")),"DFG03":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V05","V06","V07"} or x["check_id"].startswith("EX") or x["check_id"].startswith("AUX")),"DFG04":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V08","V09","V10"}),"DFG05":all(x["status"]=="pass" for x in checks) and counts["dev_queries"]==42 and counts["test_queries"]==0,"DFG06":final_reproducibility and all(x["status"]=="pass" for x in checks)}
-    report={"state":"VALIDATED" if all(x["status"]=="pass" for x in checks) else "FAILED","checks":checks,"summary":{"pass":sum(x["status"]=="pass" for x in checks),"fail":sum(x["status"]=="fail" for x in checks),"not_run":0},"dfg":{k:{"status":"pass" if v else "not_run" if k=="DFG06" and not final_reproducibility else "fail"} for k,v in dfg.items()}}
+    atoms={x["atom_id"]:x for x in read_jsonl(root/"private/eval/support_atoms.jsonl")};links=read_jsonl(root/"private/eval/support_links.jsonl")
+    locator_errors=[];locator_types=Counter()
+    for link in links:
+        types={ref["locator"].get("locator_type") for ref in link["canonical_source_refs"]}
+        if len(types)!=1: locator_errors.append(link["support_link_id"]);continue
+        locator_types[next(iter(types))]+=1
+        for ref in link["canonical_source_refs"]:
+            try:resolve_public_locator(root,ref["locator"])
+            except Exception as exc:locator_errors.append(f"{link['support_link_id']}:{exc}")
+    expected_locators={"document_clause":31,"ledger_assertion":67,"entity_catalog":4,"definition_artifact":3,"coverage_artifact":5}
+    locator_ok=len(links)==len(atoms)==110 and locator_types==Counter(expected_locators) and not locator_errors and {x["atom_id"] for x in links}==set(atoms)
+    checks.append(_result("V11","source_level_locators",locator_ok,expected_locators,dict(locator_types),locator_errors))
+    bindings=read_jsonl(root/"private/oracle/task_bindings.jsonl");required_binding_fields={"binding_id","binding_version","task_id","policy_snapshot_ids","allowed_clause_refs","audit_row_ids","public_definition_refs","convention_ids","formula_id","answer_scope","required_roles","evaluation_contract","status","gold_track"}
+    binding_errors=[x.get("binding_id","missing-id") for x in bindings if set(x)!=required_binding_fields or x["status"]!="included" or not x["allowed_clause_refs"] or not x["required_roles"]]
+    binding_ok=len(bindings)==7 and {x["task_id"] for x in bindings}=={f"T{i:02d}" for i in range(1,8)} and not binding_errors
+    checks.append(_result("V12","structured_bindings",binding_ok,"B01-B07 complete",len(bindings),binding_errors))
+    reconstructed=reconstruct_release(root);gold_by_query={x["query_id"]:x for x in gold};reconstruction_errors=[x["query_id"] for x in reconstructed if x["query_id"] not in gold_by_query or (x["status"],x["typed_value"])!=(gold_by_query[x["query_id"]]["expected_status"],gold_by_query[x["query_id"]]["typed_value"])]
+    reconstruction_ok=len(reconstructed)==42 and not reconstruction_errors
+    checks.append(_result("V13","independent_reconstruction",reconstruction_ok,"42/42",f"{42-len(reconstruction_errors)}/42",reconstruction_errors))
+    all_artifacts=[json.loads(p.read_text(encoding="utf-8")) for p in (root/"public/operational/artifacts").glob("*.json")];db_artifact=next(x for x in all_artifacts if x["coverage_spec"]["covered_domain"]["domain_id"]=="terminal_trip_population" and x["member_count"]==10)
+    scenario_no_cov=next(x for x in scenarios if x["mutation_type"]=="observation_mask" and db_artifact["publication_record_id"] in x["mutation_spec"].get("removed_record_ids",[]));no_cov_snapshot=next(x for x in snap_rows if x["ledger_id"]==scenario_no_cov["ledger_id"] and x["known_as_of"]=="2026-09-17T12:00:00.000000Z");no_cov_dir=root/"public/snapshots"/no_cov_snapshot["snapshot_id"]
+    no_cov_artifacts=read_jsonl(no_cov_dir/"artifacts.jsonl");no_cov_records=read_jsonl(no_cov_dir/"text_observations.jsonl");trip_count=sum(a["predicate"]=="TRIP_OUTCOME" and a["subject_id"]==db_artifact["coverage_spec"]["subject_id"] for r in no_cov_records for a in r["assertions"])
+    isolation_ok=db_artifact["artifact_id"] not in {x["artifact_id"] for x in no_cov_artifacts} and db_artifact["publication_record_id"] not in {x["record_id"] for x in no_cov_records} and trip_count==10
+    checks.append(_result("V14","snapshot_branch_isolation",isolation_ok,{"coverage_visible":False,"trip_records":10},{"coverage_visible":db_artifact["artifact_id"] in {x["artifact_id"] for x in no_cov_artifacts},"trip_records":trip_count}))
+    dfg={"DFG01":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V05","V10","V12"}),"DFG02":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V01","V02","V03","V04"} or x["check_id"].startswith("SM")),"DFG03":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V05","V06","V07","V13"} or x["check_id"].startswith("EX") or x["check_id"].startswith("AUX")),"DFG04":all(x["status"]=="pass" for x in checks if x["check_id"] in {"V08","V09","V10","V11","V14"}),"DFG05":all(x["status"]=="pass" for x in checks) and counts["dev_queries"]==42 and counts["test_queries"]==0,"DFG06":final_reproducibility and all(x["status"]=="pass" for x in checks)}
+    a1={"A1_G1":all(x["status"]=="pass" for x in checks if x["check_id"].startswith("CF")),"A1_G2":all(x["status"]=="pass" for x in checks if x["check_id"].startswith("AUX")),"A1_G3":locator_ok and binding_ok,"A1_G4":isolation_ok,"A1_G5":reconstruction_ok,"A1_G6":final_reproducibility and all(x["status"]=="pass" for x in checks)}
+    report={"state":"VALIDATED" if all(x["status"]=="pass" for x in checks) else "FAILED","checks":checks,"summary":{"pass":sum(x["status"]=="pass" for x in checks),"fail":sum(x["status"]=="fail" for x in checks),"not_run":0},"dfg":{k:{"status":"pass" if v else "not_run" if k=="DFG06" and not final_reproducibility else "fail"} for k,v in dfg.items()},"a1":{k:{"status":"pass" if v else "not_run" if k=="A1_G6" and not final_reproducibility else "fail"} for k,v in a1.items()}}
     write_json(root/"private/eval/validation.json",report)
     if report["state"]!="VALIDATED": raise ValidationFailure("required validation failed")
     return report

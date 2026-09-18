@@ -2,13 +2,16 @@
 # unless a narrower rule below declares the archive-native representation.
 data/gsm-dev-core-0.2/** -text
 data/gsm-dev-core-0.2.1/** -text
+data/gsm-dev-core-0.2.2/** -text
 
 # Raw source snapshots intentionally reproduce the pinned archive's CRLF bytes.
 # Git stores a normalized blob but every checkout must materialize CRLF.
 data/gsm-dev-core-0.2/public/documents/raw/*.md text eol=crlf
 data/gsm-dev-core-0.2.1/public/documents/raw/*.md text eol=crlf
+data/gsm-dev-core-0.2.2/public/documents/raw/*.md text eol=crlf
 
 # Be explicit for binary inputs/artifacts; never apply text conversion.
 data/raw/archives/*.zip binary
 data/gsm-dev-core-0.2/**/*.parquet binary
 data/gsm-dev-core-0.2.1/**/*.parquet binary
+data/gsm-dev-core-0.2.2/**/*.parquet binary

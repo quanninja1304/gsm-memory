@@ -1,0 +1,93 @@
+{
+  "schema_version": "a1-failure-report-v1",
+  "dataset_version": "gsm-dev-core-0.2.1",
+  "implementation_commit": "75f819abae8dfeea63a136821b6b57c84156afb5",
+  "status": "fail",
+  "frozen_evidence": {
+    "manifest_sha256": "61dddfd6c9f078b9b8c8288562c6196ae28a7ece390cd6d61d03041183b515b5",
+    "certificate_sha256": "e33158908c72d8c7cef9a96f9a5f3c0150fb5eecc187ac65c4d5f220950de67f",
+    "comparison_sha256": "cf1b105bd0beab4bd63cd774edf61460c49ad8ed6156ae9a734f205d5c721357",
+    "logical_inventory_digest": "4ed08a35393912150ffb731946965c5adc827a403835d4c9a96e9c333df16d11",
+    "a0_frozen_verifier": {
+      "status": "pass",
+      "checked": 635,
+      "missing": 0,
+      "mismatched": 0,
+      "unexpected": 0
+    }
+  },
+  "defects": {
+    "document_support_locators": {
+      "expected_valid": 28,
+      "actual_valid": 0,
+      "empty_clause_refs": 28,
+      "affected_case_count": 28,
+      "affected_tasks": {
+        "T01": 2,
+        "T02": 11,
+        "T03": 3,
+        "T04": 3,
+        "T05": 3,
+        "T06": 2,
+        "T07": 4
+      }
+    },
+    "operational_support_locators": {
+      "expected_valid": 82,
+      "actual_valid": 0,
+      "snapshot_only": 82,
+      "affected_query_count": 34,
+      "missing_fields": [
+        "world_id",
+        "ledger_id",
+        "scope_id",
+        "record_id",
+        "assertion_id",
+        "source_id",
+        "source_registry_identity",
+        "payload_hash",
+        "logical_fact_id",
+        "predicate",
+        "subject_id",
+        "valid_extent",
+        "known_at",
+        "known_to_at_prefix",
+        "revision_operation",
+        "target_assertion_ids"
+      ]
+    },
+    "task_bindings": {
+      "expected_valid": 7,
+      "actual_valid": 0,
+      "incomplete": 7,
+      "present_fields": [
+        "binding_id",
+        "binding_version",
+        "gold_track",
+        "status",
+        "task_id"
+      ]
+    },
+    "independent_gold_reconstruction": {
+      "planned": 42,
+      "evaluated": 0,
+      "blocked": 42,
+      "reason": "Structured task bindings and source-level locators are insufficient to reconstruct outcomes without hidden shortcuts."
+    }
+  },
+  "a1_gates": {
+    "A1_G1": "not_run",
+    "A1_G2": "not_run",
+    "A1_G3": "fail",
+    "A1_G4": "not_run",
+    "A1_G5": "blocked",
+    "A1_G6": "not_run"
+  },
+  "decision": {
+    "gold_values_proven_wrong": false,
+    "old_release_modified": false,
+    "corrective_release_required": true,
+    "proposed_dataset_version": "gsm-dev-core-0.2.2",
+    "note": "The failure establishes missing semantic provenance and binding metadata; it does not establish that the frozen expected values are incorrect."
+  }
+}

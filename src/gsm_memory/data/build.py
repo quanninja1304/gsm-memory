@@ -15,7 +15,10 @@ import pyarrow.parquet as pq
 
 from .catalog import A0, AC, A1, CASES, ROOT_VARIANTS
 from .contracts import ScenarioManifest
+from .coverage import CoverageConfig, coverage_digests, derive_coverage_members, resolved_source_set
 from .ledger import payload_hash
+from .provenance import support_source_refs
+from .synthetic import render_synthetic_policy, synthetic_policy_rules, verify_synthetic_render
 from gsm_memory.evaluation.oracle import evaluate_case
 from .primitives import (
     ARCHIVE_SHA256, DATASET_VERSION, ROOT_SEED, SCHEMA_VERSION, SPEC_VERSION,
@@ -42,6 +45,23 @@ DEFINITIONS = ["BC01","BC02","BC03","BC04","BC05","BC06","BC07","RM_REVENUE","RM
 PREDICATES = ["MEMBER_OF","BASED_IN","OPERATES_IN","USES_SERVICE","DRIVER_STATUS","DRIVER_CATEGORY","HAS_INCIDENT","INCIDENT_STATUS","TRIP_OUTCOME","ENTITY_NAME","POLICY_PUBLICATION","ARTIFACT_PUBLICATION","REPORTED_MEASURE","DRIVER_PROGRAM"]
 
 
+def _evaluation_request(spec:Any,entity_id:str|None,case_window:str|None)->dict[str,Any]:
+    if spec.task=="T01": return {"operation":"document_extract","fields":["group","region"] if spec.alias=="C001" else ["formula","unit"]}
+    if spec.task=="T02": return {"operation":"revenue_charge","entity_id":entity_id,"window":case_window}
+    if spec.task=="T03": return {"operation":"auto_accept","entity_id":entity_id,"window":case_window}
+    if spec.task=="T04": return {"operation":"document_extract","fields":{"C017":["customer_request_time"],"C018":["completed_delivery_points"],"C019":["unrated_is_zero","weeks_accumulate"]}[spec.alias]}
+    if spec.task=="T05": return {"operation":"rating_condition","entity_id":entity_id,"window":case_window}
+    if spec.task=="T06": return {"operation":"document_extract","fields":["group","depots","region"] if spec.alias=="C023" else ["payroll_period"]}
+    if spec.task=="T07": return {"operation":"notice_scope","entity_id":entity_id,"valid_at":"2026-09-14T03:00:00.000000Z"}
+    if spec.foundation=="aggregate": return {"operation":"cancel_rate","entity_id":entity_id,"window":{"start":"2026-08-16T17:00:00.000000Z","end":"2026-09-15T17:00:00.000000Z"}}
+    if spec.foundation=="bridge": return {"operation":"bridge_rule","entity_id":entity_id,"valid_at":"2026-09-15T17:00:00.000000Z"}
+    if spec.foundation=="entity_resolution": return {"operation":"entity_resolution","name":"Minh"}
+    if spec.foundation=="state": return {"operation":"state_at","entity_id":entity_id,"predicate":"OPERATES_IN" if spec.alias in {"C037","C038"} else "DRIVER_STATUS","valid_at":"2026-08-01T12:00:00.000000Z" if spec.alias in {"C037","C038"} else ("2026-09-17T16:59:59.999999Z" if spec.alias=="C033" else "2026-09-17T17:00:00.000000Z")}
+    if spec.foundation=="event": return {"operation":"event_outcome","entity_id":entity_id,"trip_id":stable_id("trip","D_G:0")}
+    if spec.foundation=="policy_version": return {"operation":"policy_version","valid_at":"2026-09-14T17:00:00.000000Z"}
+    raise ValueError(f"unsupported evaluation request: {spec.alias}")
+
+
 def validate_build_config(config_path: Path) -> dict[str, Any]:
     if not config_path.is_file():
         raise FileNotFoundError(f"missing dataset config: {config_path}")
@@ -60,6 +80,10 @@ def validate_build_config(config_path: Path) -> dict[str, Any]:
     }
     if mismatches:
         raise ValueError(f"dataset config identity mismatch: {mismatches}")
+    CoverageConfig.model_validate({
+        "coverage_contract_version":config.get("coverage_contract_version"),
+        "coverage_recipes":config.get("coverage_recipes"),
+    })
     return config
 
 
@@ -123,7 +147,7 @@ def _world() -> tuple[list[dict[str,Any]],list[dict[str,Any]],list[dict[str,Any]
     names={"D_A":"An","D_B":"Bình","D_C":"Chi","D_D":"Dũng","D_E":"Minh","D_F":"Minh","D_G":"Giang","D_H":"Hà",
            "F1":"Depot Hồ Chí Minh 1","F2":"Depot Hồ Chí Minh 2","F6":"Depot Hồ Chí Minh 6","F7":"Depot Hồ Chí Minh 7","HN":"Hà Nội","HCM_OLD":"TP.HCM theo địa giới cũ","SERVICE":"Dịch vụ tổng hợp","I_F":"Sự cố F"}
     types={**{f"D_{x}":"DRIVER" for x in "ABCDEFGH"},**{f:"FLEET" for f in ["F1","F2","F6","F7"]},"HN":"REGION","HCM_OLD":"REGION","SERVICE":"SERVICE","I_F":"INCIDENT"}
-    entities=[{"schema_version":SCHEMA_VERSION,"world_id":world,"entity_id":ids[k],"entity_type":types[k],"scope_id":scope,
+    entities=[{"schema_version":SCHEMA_VERSION,"world_id":world,"entity_id":ids[k],"entity_type":types[k],"scope_id":scope,"semantic_code":k if types[k]=="REGION" else None,
                "existence":{"kind":"interval","from":"2026-07-01T00:00:00.000000Z","to":{"kind":"unbounded"}},
                "name":{"name_id":stable_id("name",k),"text":names[k],"kind":"display","locale":"vi-VN"}} for k in ids]
     counts=[12,10,14,14,10,10,10,0]; events=[]
@@ -172,7 +196,7 @@ def _record(key:str,source_id:str,scope_id:str,known_at:str,operation:str,assert
     row["payload_hash"]=payload_hash(row); return row
 
 
-def _ledgers(ids:dict[str,str],events:list[dict[str,Any]],sources:list[dict[str,Any]],docs:list[dict[str,Any]]) -> tuple[dict[str,list[dict[str,Any]]],dict[str,dict[str,Any]]]:
+def _ledgers(ids:dict[str,str],events:list[dict[str,Any]],sources:list[dict[str,Any]],docs:list[dict[str,Any]],config:dict[str,Any]) -> tuple[dict[str,list[dict[str,Any]]],dict[str,dict[str,Any]],dict[str,dict[str,Any]]]:
     sm={s["alias"]:s["source_id"] for s in sources}; scope=ids["scope"]; base=[]; rec={}
     unbounded={"kind":"interval","from":"2026-07-01T00:00:00.000000Z","to":{"kind":"unbounded"}}
     for d in "ABCDEFGH":
@@ -204,7 +228,10 @@ def _ledgers(ids:dict[str,str],events:list[dict[str,Any]],sources:list[dict[str,
     base.append(_record("INCIDENT:D_F",sm["incident"],scope,"2026-09-01T00:00:00.000000Z","assert",[incident_owner,incident_open]))
     for policy,version,valid_from,valid_to in [("S_BRIDGE","v1","2026-07-01T00:00:00.000000Z",None),("S_VERSION","v1","2026-08-31T17:00:00.000000Z","2026-09-14T17:00:00.000000Z"),("S_VERSION","v2","2026-09-14T17:00:00.000000Z",None)]:
         key=f"POLICY:{policy}:{version}"; valid={"kind":"interval","from":valid_from,"to":{"kind":"finite","at":valid_to} if valid_to else {"kind":"unbounded"}}
-        base.append(_record(key,sm["policy"],scope,"2026-07-01T00:00:00.000000Z" if policy=="S_BRIDGE" or version=="v1" else "2026-09-10T00:00:00.000000Z","assert",[_assertion(key,stable_id("policy_version",f"{policy}:{version}"),"POLICY_PUBLICATION",{"type":"enum","value":"issued"},valid)]))
+        policy_version_id=stable_id("policy_version",f"{policy}:{version}")
+        source_refs=[{"document_revision_id":stable_id("document_revision",f"{policy}:{version}"),"clause_ids":[stable_id("policy_clause",f"{policy_version_id}:{kind}") for kind in (["scope","exception"] if policy=="S_BRIDGE" else ["region"])]}]
+        base.append(_record(key,sm["policy"],scope,"2026-07-01T00:00:00.000000Z" if policy=="S_BRIDGE" or version=="v1" else "2026-09-10T00:00:00.000000Z","assert",[_assertion(key,policy_version_id,"POLICY_PUBLICATION",{"type":"enum","value":"issued"},valid,{"artifact_kind":"synthetic_policy_document","document_revision_id":source_refs[0]["document_revision_id"]})]))
+        base[-1]["assertions"][0]["source_refs"]=source_refs;base[-1]["payload_hash"]=payload_hash(base[-1])
     for e in events:
         key=f"TRIP:{e['trip_id']}"; known=AC if e["driver_id"]==ids["D_G"] and e["trip_id"]==stable_id("trip","D_G:0") else utc(datetime.fromisoformat(e["event_time"].replace("Z","+00:00"))+timedelta(hours=1))
         a=_assertion(key,e["driver_id"],"TRIP_OUTCOME",{"type":"entity_ref","value":e["service_id"]},{"kind":"point","at":e["event_time"]},{"trip_id":e["trip_id"],"outcome":e["outcome"],"region_id":e["region_id"],"reason_code":e["reason_code"]},e["event_time"])
@@ -219,10 +246,33 @@ def _ledgers(ids:dict[str,str],events:list[dict[str,Any]],sources:list[dict[str,
     old=rec["RM:REVENUE:D_A:W14"][1]; new=_assertion("RM:REVENUE:D_A:W14@r2",ids["D_A"],"REPORTED_MEASURE",{"type":"integer","value":240000},old["valid"],old["qualifiers"]); replacement=_record("RM:REVENUE:D_A:W14@r2",sm["feed_a"],scope,AC,"replace",[new],[old["assertion_id"]]);base.append(replacement)
     for d in docs:
         key=f"DOC:{d['snapshot_id']}"; a=_assertion(key,d["snapshot_id"],"ARTIFACT_PUBLICATION",{"type":"enum","value":"available"},{"kind":"not_applicable"},{"artifact_kind":"source_snapshot","content_sha256":d["raw_sha256"]});base.append(_record(key,sm["policy"],scope,"2026-09-16T00:00:00.000000Z","assert",[a]))
-    artifacts={}
-    for label,members in [("coverage_db",[e["trip_id"] for e in events if e["driver_id"]==ids["D_B"]]),("coverage_dh",[]),("incident_db",[])]:
-        aid=stable_id("artifact",label); artifacts[label]={"artifact_id":aid,"artifact_type":"coverage","member_ids":sorted(members),"member_count":len(members),"complete":True,"content_hash":sha256_bytes(canonical_bytes(sorted(members)))}
-        key=f"ART:{label}"; base.append(_record(key,sm["derived"],scope,"2026-09-16T03:00:00.000000Z","assert",[_assertion(key,aid,"ARTIFACT_PUBLICATION",{"type":"enum","value":"available"},{"kind":"not_applicable"},{"artifact_kind":"coverage"})])); rec[key]=(base[-1],base[-1]["assertions"][0])
+    coverage_config=CoverageConfig.model_validate({"coverage_contract_version":config["coverage_contract_version"],"coverage_recipes":config["coverage_recipes"]})
+    resolved={"W0":ids["world"],"S0":scope,**{k:v for k,v in ids.items() if k.startswith("D_")},**sm}
+    provisional=sorted(base,key=lambda x:(x["known_at"],x["source_id"],x["record_id"]))
+    provisional=[{**row,"commit_seq":index+1} for index,row in enumerate(provisional)]
+    artifacts={};source_sets={}
+    for recipe in coverage_config.coverage_recipes:
+        source_set=resolved_source_set(recipe,resolved)
+        source_sets[source_set["source_set_id"]]=source_set
+        members,outcomes=derive_coverage_members(recipe,provisional,{x["source_id"]:x for x in sources},resolved)
+        derived=coverage_digests(recipe,members,resolved,source_set)
+        artifact={
+            "artifact_id":derived["artifact_id"],"artifact_revision":"1.0","artifact_type":"coverage",
+            "coverage_spec_id":derived["coverage_spec_id"],"coverage_spec_version":recipe.recipe_version,
+            "coverage_spec":derived["coverage_spec"],"coverage_content_digest_v1":derived["coverage_content_digest_v1"],
+            "members_digest":derived["members_digest"],"member_ids":members,"member_count":len(members),
+            "outcome_counts":outcomes,"complete":True,"source_set":source_set,
+        }
+        key=f"COVERAGE:{derived['coverage_content_digest_v1']}"
+        qualifiers={
+            "artifact_kind":"coverage","artifact_revision":"1.0","coverage_spec_id":derived["coverage_spec_id"],
+            "coverage_spec_version":recipe.recipe_version,"coverage_content_digest_v1":derived["coverage_content_digest_v1"],
+            "members_digest":derived["members_digest"],"member_count":len(members),"complete":True,
+        }
+        assertion=_assertion(key,derived["artifact_id"],"ARTIFACT_PUBLICATION",{"type":"enum","value":"available"},{"kind":"not_applicable"},qualifiers)
+        publication=_record(key,sm[recipe.publication.publisher_source_ref],scope,recipe.publication.known_at,"assert",[assertion])
+        artifact.update({"publication_record_id":publication["record_id"],"publication_assertion_id":assertion["assertion_id"],"published_at":recipe.publication.known_at})
+        base.append(publication);rec[recipe.recipe_key]=(publication,assertion);artifacts[recipe.recipe_key]=artifact
     conflict=_assertion("RM:REVENUE:D_A:W14@conflict",ids["D_A"],"REPORTED_MEASURE",{"type":"integer","value":240000},old["valid"],old["qualifiers"])
     conflict_r=_record("RM:REVENUE:D_A:W14@conflict",sm["feed_b"],scope,AC,"assert",[conflict])
     retract_r=_record("RM:REVENUE:D_A:W14@retract",sm["feed_a"],scope,AC,"retract",[],[old["assertion_id"]])
@@ -231,7 +281,7 @@ def _ledgers(ids:dict[str,str],events:list[dict[str,Any]],sources:list[dict[str,
     branches["L_WRONG_DRIVER"]=[x for x in base if x["record_id"]!=rec["RM:REVENUE:D_A:W11"][0]["record_id"]]
     branches["L_WRONG_WINDOW"]=[x for x in base if x["record_id"]!=rec["RM:ACCEPTANCE:D_A:WA14"][0]["record_id"]]
     branches["L_NO_BRIDGE"]=[x for x in base if x["record_id"]!=stable_id("source_record","BASED_IN:F6")]
-    branches["L_NO_COVERAGE"]=[x for x in base if x["record_id"]!=rec["ART:coverage_db"][0]["record_id"]]
+    branches["L_NO_COVERAGE"]=[x for x in base if x["record_id"]!=rec["terminal_trips_db_w30"][0]["record_id"]]
     branches["L_CONFLICT"]=[x for x in base if x["record_id"]!=replacement["record_id"]]+[conflict_r]
     branches["L_RETRACT"]=[x for x in base if x["record_id"]!=replacement["record_id"]]+[retract_r]
     union={r["record_id"]:r for rows in branches.values() for r in rows}
@@ -239,10 +289,10 @@ def _ledgers(ids:dict[str,str],events:list[dict[str,Any]],sources:list[dict[str,
     seq={r["record_id"]:i+1 for i,r in enumerate(order)}
     for name,rows in branches.items():
         branches[name]=sorted([{**r,"commit_seq":seq[r["record_id"]]} for r in rows],key=lambda r:(r["known_at"],r["commit_seq"]))
-    return branches,artifacts
+    return branches,artifacts,source_sets
 
 
-def _case_outputs(ids:dict[str,str],ledger_ids:dict[str,str],snapshot_ids:dict[tuple[str,str],str],docs_by_alias:dict[str,dict[str,Any]],branches:dict[str,list[dict[str,Any]]],sources:list[dict[str,Any]]) -> dict[str,list[dict[str,Any]]]:
+def _case_outputs(ids:dict[str,str],ledger_ids:dict[str,str],snapshot_ids:dict[tuple[str,str],str],docs_by_alias:dict[str,dict[str,Any]],synthetic_by_version:dict[str,dict[str,Any]],definition_rows:list[dict[str,Any]],artifacts:dict[str,dict[str,Any]],entities:list[dict[str,Any]],branches:dict[str,list[dict[str,Any]]],sources:list[dict[str,Any]]) -> dict[str,list[dict[str,Any]]]:
     split_group=stable_id("split_group","W0-cohort"); cases=[];renders=[];gold=[];queries=[];proofs=[];atoms=[];links=[];splits=[]
     for spec in CASES:
         cid=stable_id("semantic_case",spec.alias); qid=stable_id("query",spec.alias); sid=snapshot_ids[(spec.ledger,spec.known)]
@@ -256,6 +306,7 @@ def _case_outputs(ids:dict[str,str],ledger_ids:dict[str,str],snapshot_ids:dict[t
             query_text=query_text.replace(label,docs_by_alias[key]["snapshot_id"])
         rendered_windows={"W10":("2026-09-09T17:00:00.000000Z","2026-09-10T17:00:00.000000Z"),"W11":("2026-09-10T17:00:00.000000Z","2026-09-11T17:00:00.000000Z"),"W12":("2026-09-11T17:00:00.000000Z","2026-09-12T17:00:00.000000Z"),"W13":("2026-09-12T17:00:00.000000Z","2026-09-13T17:00:00.000000Z"),"W14":("2026-09-13T17:00:00.000000Z","2026-09-14T17:00:00.000000Z"),"WA14":("2026-09-13T17:00:00.000000Z","2026-09-14T03:00:00.000000Z"),"WA15":("2026-09-14T17:00:00.000000Z","2026-09-15T03:00:00.000000Z"),"WW0":("2026-09-06T17:00:00.000000Z","2026-09-13T17:00:00.000000Z"),"WW1":("2026-08-30T17:00:00.000000Z","2026-09-06T17:00:00.000000Z"),"WW2":("2026-08-23T17:00:00.000000Z","2026-08-30T17:00:00.000000Z")}
         case_window={"C003":"W11","C004":"W12","C005":"W13","C006":"W10","C007":"W11","C008":"W11","C009":"W14","C010":"W14","C011":"W14","C012":"W14","C013":"W14","C014":"WA14","C015":"WA15","C016":"WA14","C020":"WW0","C021":"WW1","C022":"WW2"}.get(spec.alias)
+        cases[-1]["evaluation_request"]=_evaluation_request(spec,ids[entity_alias] if entity_alias else None,case_window)
         for label,(start,end) in sorted(rendered_windows.items(),key=lambda item:-len(item[0])):
             query_text=query_text.replace(label,f"[{start},{end})")
         query_text=query_text.replace("S_BRIDGE",stable_id("policy_version","S_BRIDGE:v1")).replace("S_VERSION",stable_id("policy_version","S_VERSION:v2"))
@@ -292,9 +343,9 @@ def _case_outputs(ids:dict[str,str],ledger_ids:dict[str,str],snapshot_ids:dict[t
             if role in missing: continue
             atom_id=stable_id("support_atom",f"{spec.alias}:{role}");atom_ids.append(atom_id)
             atoms.append({"atom_id":atom_id,"semantic_type":"source_support","role":role,"entity_constraints":public["entity_refs"],"time_constraints":{"known_as_of":spec.known},"source_constraints":source_refs})
-            is_document=role.startswith("document")
-            source_id=source_refs[0] if is_document and source_refs else sid
-            links.append({"support_link_id":stable_id("support_link",f"{spec.alias}:{role}"),"atom_id":atom_id,"query_id":qid,"canonical_source_refs":[{"source_kind":"document" if is_document else "operational","source_id":source_id,"locator":{"clause_refs":[]} if is_document else {"public_snapshot_id":sid}}]})
+            provenance_docs={**docs_by_alias,"__entities__":entities}
+            refs=support_source_refs(spec,role,ids,sid,ledger_ids[spec.ledger],branches[spec.ledger],sources,provenance_docs,synthetic_by_version,{x["definition_id"]:x for x in definition_rows},artifacts)
+            links.append({"support_link_id":stable_id("support_link",f"{spec.alias}:{role}"),"atom_id":atom_id,"query_id":qid,"canonical_source_refs":refs})
         proofs.append({"proof_id":stable_id("proof",spec.alias),"query_id":qid,"status":"sufficient" if spec.status=="answerable" else "diagnostic","operator":"AND","minimal_atom_sets":[atom_ids] if spec.status=="answerable" else [],"available_atom_ids":atom_ids,"missing_roles":missing,"conflict_groups":gold[-1]["conflict_groups"]})
         splits.append({"query_id":qid,"scenario_id":stable_id("scenario",spec.root),"split_group":split_group,"split":"dev"})
     scenarios=[]
@@ -309,7 +360,7 @@ def _case_outputs(ids:dict[str,str],ledger_ids:dict[str,str],snapshot_ids:dict[t
             elif mutation=="source_conflict": ms={"logical_fact_id":stable_id("logical_fact","RM:REVENUE:D_A:W14"),"removed_record_ids":[stable_id("source_record","RM:REVENUE:D_A:W14@r2")],"added_record_ids":[stable_id("source_record","RM:REVENUE:D_A:W14@conflict")],"invariant_refs":["I07"]}
             elif mutation=="retraction_branch": ms={"target_assertion_ids":[stable_id("assertion","RM:REVENUE:D_A:W14")],"removed_record_ids":[stable_id("source_record","RM:REVENUE:D_A:W14@r2")],"added_record_ids":[stable_id("source_record","RM:REVENUE:D_A:W14@retract")],"invariant_refs":["I03","I04"]}
             else:
-                keys={"L_NO_OPDAY":"RM:OPDAY:D_A:W11","L_WRONG_DRIVER":"RM:REVENUE:D_A:W11","L_WRONG_WINDOW":"RM:ACCEPTANCE:D_A:WA14","L_NO_BRIDGE":"BASED_IN:F6","L_NO_COVERAGE":"ART:coverage_db"}; rid=stable_id("source_record",keys[ledger]);ms={"seed_record_ids":[rid],"removed_record_ids":[rid],"closure_policy":"remove_dependents","invariant_refs":["I10"]}
+                keys={"L_NO_OPDAY":"RM:OPDAY:D_A:W11","L_WRONG_DRIVER":"RM:REVENUE:D_A:W11","L_WRONG_WINDOW":"RM:ACCEPTANCE:D_A:WA14","L_NO_BRIDGE":"BASED_IN:F6"}; rid=artifacts["terminal_trips_db_w30"]["publication_record_id"] if ledger=="L_NO_COVERAGE" else stable_id("source_record",keys[ledger]);ms={"seed_record_ids":[rid],"removed_record_ids":[rid],"closure_policy":"remove_dependents","invariant_refs":["I10"]}
             task_source = "P154" if exemplar.task in ("T01","T02") else "P151" if exemplar.task=="T03" else "P005" if exemplar.task in ("T04","T05") else "P023" if exemplar.task in ("T06","T07") else None
             policy_refs = [{"kind":"real_snapshot","id":docs_by_alias[task_source]["snapshot_id"]}] if task_source else ([{"kind":"synthetic_version","id":stable_id("policy_version","S_BRIDGE:v1")}] if exemplar.foundation=="bridge" else [{"kind":"synthetic_version","id":stable_id("policy_version","S_VERSION:v2")}] if exemplar.foundation=="policy_version" else [])
             row={"schema_version":SCHEMA_VERSION,"release_spec_version":SPEC_VERSION,"dataset_version":DATASET_VERSION,"world_id":ids["world"],"scenario_id":stable_id("scenario",root),"scenario_variant_id":stable_id("scenario_variant",f"{root}:{ledger}"),"parent_variant_id":None if ledger=="L0" else baseid,"mutation_type":mutation,"mutation_spec":ms,"ledger_id":ledger_ids[ledger],"scope_id":ids["scope"],"gold_track":"synthetic_control" if exemplar.foundation else "source_grounded" if exemplar.task in ("T01","T04","T06") else "conditional_binding","task_id":exemplar.task,"foundation_task":exemplar.foundation,"policy_snapshot_refs":policy_refs,"public_snapshot_refs":sorted({snapshot_ids[(x.ledger,x.known)] for x in members}),"semantic_case_ids":sorted(stable_id("semantic_case",x.alias) for x in members),"query_ids":sorted(stable_id("query",x.alias) for x in members),"split_group":split_group,"seed":ROOT_SEED}
@@ -318,16 +369,37 @@ def _case_outputs(ids:dict[str,str],ledger_ids:dict[str,str],snapshot_ids:dict[t
 
 
 def build_release(repo:Path,output:Path,config_path:Path) -> dict[str,Any]:
-    validate_build_config(config_path)
+    config=validate_build_config(config_path)
     if output.exists() and any(output.iterdir()): raise FileExistsError(f"output is not empty: {output}")
     output.mkdir(parents=True,exist_ok=True)
-    docs=source_inventory(repo); entities,events,facts,ids=_world(); sources=_sources(ids); branches,artifacts=_ledgers(ids,events,sources,docs)
+    docs=source_inventory(repo); entities,events,facts,ids=_world(); sources=_sources(ids); branches,artifacts,source_sets=_ledgers(ids,events,sources,docs,config)
     ledger_ids={x:stable_id("ledger",x) for x in LEDGERS}; cutoffs={"L0":[A0,AC,A1,"2026-08-04T00:00:00.000000Z","2026-08-06T00:00:00.000000Z"],**{x:[A1] for x in LEDGERS if x!="L0"}}
     snapshot_ids={(ledger,known):stable_id("public_snapshot",f"{DATASET_VERSION}|{ids['world']}|{ledger_ids[ledger]}|{ids['scope']}|{known}") for ledger,values in cutoffs.items() for known in values}
     _parquet(output/"private/oracle/entities.parquet",entities);_parquet(output/"private/oracle/events.parquet",events);_parquet(output/"private/oracle/temporal_facts.parquet",facts)
     _parquet(output/"private/oracle/world_metrics.parquet",[{"world_metric_id":stable_id("world_metric","D_B:W30"),"driver_id":ids["D_B"],"definition_id":"M01","numerator":2,"denominator":10,"value":rational(1,5)},{"world_metric_id":stable_id("world_metric","D_H:W30"),"driver_id":ids["D_H"],"definition_id":"M01","numerator":0,"denominator":0,"value":None}])
-    write_jsonl(output/"private/oracle/policy_rules.jsonl",[{"rule_id":stable_id("rule","S_BRIDGE:v1"),"policy_version_id":stable_id("policy_version","S_BRIDGE:v1"),"policy_id":"S_BRIDGE","version":"v1","requires":{"fleet_region":"HCM_OLD"},"exceptions":[{"incident_open":True}]},{"rule_id":stable_id("rule","S_VERSION:v1"),"policy_version_id":stable_id("policy_version","S_VERSION:v1"),"policy_id":"S_VERSION","version":"v1","requires":{"operating_region":"HN"}},{"rule_id":stable_id("rule","S_VERSION:v2"),"policy_version_id":stable_id("policy_version","S_VERSION:v2"),"policy_id":"S_VERSION","version":"v2","requires":{"operating_region":"HCM_OLD"}}])
-    bindings=[{"binding_id":f"task_binding:B{i:02d}@1.0","binding_version":"1.0","task_id":f"T{i:02d}","status":"included","gold_track":"source_grounded" if i in (1,4,6) else "conditional_binding"} for i in range(1,8)]
+    policy_rules=synthetic_policy_rules(ids)
+    write_jsonl(output/"private/oracle/policy_rules.jsonl",policy_rules)
+    binding_specs={
+        1:("P154",["s154.date","s154.scope","s154.region","s154.day","s154.revenue","s154.charge"],None,"policy_content_only",["document_clause"]),
+        2:("P154",["s154.date","s154.scope","s154.region","s154.day","s154.revenue","s154.charge"],"F_REV","specified_rule_under_supplied_premises",["document_rule","driver_program","operating_region","operating_day","reported_revenue"]),
+        3:("P151",["s151.scope","s151.auto"],"F_AUTO","specified_rule_under_supplied_premises",["document_rule","driver_program","reported_acceptance"]),
+        4:("P005",["s05.clock","s05.units","s05.rating","s05.unrated","s05.week"],None,"faq_content_only",["document_clause"]),
+        5:("P005",["s05.rating","s05.week","s05.unrated"],"F_RATING","rating_condition_only",["document_rule","reported_rating"]),
+        6:("P023",["s23.scope","s23.date"],None,"notice_content_only",["document_clause"]),
+        7:("P023",["s23.scope"],"F_SCOPE","notice_scope_only",["document_clause","driver_program","membership","fleet_registry"]),
+    }
+    bindings=[]
+    for i,(alias,clauses,formula,answer_scope,roles) in binding_specs.items():
+        contracts={
+            1:{"extract_values":{"group":"bike_partner","region":"Hà Nội","formula":"max(280000-R,0)/5","unit":"VND"}},
+            2:{"eligible_program":"bike_partner","eligible_region_id":ids["HN"],"minimum_revenue":280000,"shortfall_fraction":rational(1,5)},
+            3:{"eligible_program":"bike_partner","acceptance_operator":"lt","acceptance_threshold":rational(1,2),"action_until_literal":"23h59"},
+            4:{"extract_values":{"customer_request_time":"customer_request_time","completed_delivery_points":"completed_delivery_points","unrated_is_zero":False,"weeks_accumulate":False}},
+            5:{"rating_operator":"gt","rating_threshold":rational(97,20)},
+            6:{"extract_values":{"group":"taxi_driver","depots":[1,6,7],"region":"HCM_OLD","payroll_period":"tháng 6/2026"}},
+            7:{"eligible_program":"taxi_driver","listed_fleet_ids":[ids["F1"],ids["F6"],ids["F7"]]},
+        }
+        bindings.append({"binding_id":f"task_binding:B{i:02d}@1.0","binding_version":"1.0","task_id":f"T{i:02d}","policy_snapshot_ids":[next(d["snapshot_id"] for d in docs if d["alias"]==alias)],"allowed_clause_refs":clauses,"audit_row_ids":[f"C{x:02d}" for x in ({1:[1,2,3,4,5,6,7],2:[1,2,3,4,5,6,7],3:[11,12,13,14],4:[21,22,23,26],5:[24,25,26],6:[31,36],7:[32,33,34,35]}[i])],"public_definition_refs":[stable_id("definition",x) for x in DEFINITIONS],"convention_ids":[stable_id("definition",f"BC{x:02d}") for x in range(1,8)],"formula_id":formula,"answer_scope":answer_scope,"required_roles":roles,"evaluation_contract":contracts[i],"status":"included","gold_track":"source_grounded" if i in (1,4,6) else "conditional_binding"})
     reported_values=[{"record_id":r["record_id"],"assertion":a,"planned_operation":r["operation"],"known_at":r["known_at"]} for r in branches["L0"] for a in r["assertions"] if a["predicate"]=="REPORTED_MEASURE"]
     write_jsonl(output/"private/oracle/task_bindings.jsonl",bindings);write_jsonl(output/"private/oracle/reported_values.jsonl",reported_values);write_jsonl(output/"private/oracle/observation_plan.jsonl",[{"ledger_alias":x,"ledger_id":ledger_ids[x],"record_ids":[r["record_id"] for r in rows]} for x,rows in branches.items()])
     write_jsonl(output/"public/operational/entity_catalog.jsonl",entities);write_jsonl(output/"public/operational/source_registry.jsonl",sources)
@@ -336,14 +408,23 @@ def build_release(repo:Path,output:Path,config_path:Path) -> dict[str,Any]:
         narratives=[{"record_id":r["record_id"],"source_id":r["source_id"],"scope_id":r["scope_id"],"known_at":r["known_at"],"commit_seq":r["commit_seq"],"operation":r["operation"],"target_assertion_ids":r["target_assertion_ids"],"assertions":r["assertions"],"raw_payload":r["raw_payload"],"payload_hash":r["payload_hash"],"text":f"Bản ghi nguồn {r['record_id']} công bố {len(r['assertions'])} assertion."} for r in rows]
         write_jsonl(output/("public/operational/text_observations.jsonl" if alias=="L0" else f"public/operational/variants/{ledger_ids[alias]}/text_observations.jsonl"),narratives)
     for a in artifacts.values():write_json(output/f"public/operational/artifacts/{a['artifact_id']}.json",a)
+    write_jsonl(output/"public/operational/source_sets.jsonl",source_sets.values())
     catalog=[]; docs_by_alias={}
     for d in docs:
         (output/f"public/documents/raw/{d['snapshot_id']}.md").parent.mkdir(parents=True,exist_ok=True);(output/f"public/documents/raw/{d['snapshot_id']}.md").write_bytes(d["raw_bytes"])
         (output/f"public/documents/normalized/{d['document_revision_id']}.md").parent.mkdir(parents=True,exist_ok=True);(output/f"public/documents/normalized/{d['document_revision_id']}.md").write_bytes(d["normalized_bytes"])
-        clauses=[{"clause_id":cid,"line":v[0],"span_start":v[1],"span_end":v[2],"coordinate_system":"unicode_codepoints_half_open","source_mode":"TEXT"} for cid,v in CLAUSES.get(d["article_number"],{}).items()]
+        normalized_text=d["normalized_bytes"].decode("utf-8")
+        clauses=[{"clause_id":cid,"line":v[0],"span_start":v[1],"span_end":v[2],"coordinate_system":"unicode_codepoints_half_open","source_mode":"TEXT","content_sha256":sha256_bytes(canonical_bytes(normalized_text[v[1]:v[2]]))} for cid,v in CLAUSES.get(d["article_number"],{}).items()]
         row={k:d[k] for k in ["alias","article_number","snapshot_id","document_revision_id","archive_member_path","raw_sha256","normalized_sha256","posted_date","review_state"]};row.update({"normalization_version":"crlf-to-lf-v1","captured_at":{"kind":"unknown"},"dataset_release_at":"2026-09-16T00:00:00.000000Z","clauses":clauses,"publication_assertion_id":stable_id("assertion",f"DOC:{d['snapshot_id']}")});catalog.append(row);docs_by_alias[d["alias"]]=row
-    for policy,version in [("S_BRIDGE","v1"),("S_VERSION","v1"),("S_VERSION","v2")]:
-        rid=stable_id("document_revision",f"{policy}:{version}"); text=f"# {policy} {version}\n\nTài liệu kiểm soát tổng hợp, không phải chính sách GSM thực.\n"; (output/f"public/documents/normalized/{rid}.md").write_text(text,encoding="utf-8",newline="\n");catalog.append({"alias":f"{policy}:{version}","snapshot_id":None,"policy_version_id":stable_id("policy_version",f"{policy}:{version}"),"document_revision_id":rid,"normalized_sha256":sha256_bytes(text.encode()),"source_mode":"synthetic_control","review_state":"generated"})
+    synthetic_by_version={}
+    for rule in policy_rules:
+        rendered=render_synthetic_policy(rule);verify_synthetic_render(rule,rendered)
+        policy,version=rule["policy_key"],rule["version"]
+        rid=stable_id("document_revision",f"{policy}:{version}");text=rendered["text"]
+        (output/f"public/documents/normalized/{rid}.md").write_text(text,encoding="utf-8",newline="\n")
+        available_at="2026-07-01T00:00:00.000000Z" if policy=="S_BRIDGE" or version=="v1" else "2026-09-10T00:00:00.000000Z"
+        row={"snapshot_id":None,"policy_version_id":rule["policy_version_id"],"version_label":version,"document_revision_id":rid,"normalized_sha256":sha256_bytes(text.encode()),"source_mode":"synthetic_control","review_state":"generated_from_canonical_ast","renderer_version":rendered["renderer_version"],"clauses":rendered["clauses"],"publication_assertion_id":stable_id("assertion",f"POLICY:{policy}:{version}"),"available_at":available_at}
+        catalog.append(row);synthetic_by_version[rule["policy_version_id"]]=row
     write_jsonl(output/"public/documents/catalog.jsonl",catalog)
     definition_rows=[]
     definition_bodies={"BC01":"Ngày và tuần dùng Asia/Ho_Chi_Minh; khoảng thời gian là [from,to).","BC02":"Reported measure là giá trị nguồn đã tính; không suy raw-event lineage.","BC03":"Program và operating region phải phủ toàn measurement window.","BC04":"Checkpoint acceptance dùng đúng window được yêu cầu.","BC05":"Số học rational chính xác; không áp settlement rounding.","BC06":"Tên Depot được registry ánh xạ sang ID; tên không phải identity.","BC07":"Câu hỏi policy đọc đúng edition/snapshot được chỉ định, không suy current policy.","RM_REVENUE":"Reported revenue: integer không âm, unit VND, một driver và ngày local.","RM_OPDAY":"Reported operating day: boolean cho đúng ngày local.","RM_ACCEPTANCE":"Reported acceptance rate: rational fraction cho exact checkpoint window.","RM_RATING":"Reported weekly rating: rational stars_5 hoặc explicit undefined.","M01":"cancel_rate_30d=N_cancelled/(N_cancelled+N_completed); denominator zero là undefined; exact result cần complete coverage."}
@@ -353,13 +434,18 @@ def build_release(repo:Path,output:Path,config_path:Path) -> dict[str,Any]:
     source_catalog_hash=sha256_file(output/"public/documents/catalog.jsonl"); synthetic_ids=sorted(x["document_revision_id"] for x in catalog if x.get("source_mode")=="synthetic_control"); definition_ids=sorted(x["definition_id"] for x in definition_rows)
     for profile,members in [("debug_core",[docs_by_alias[x]["snapshot_id"] for x in ["P154","P151","P005","P023","P172","P026"]]),("retrieval_full",[x["snapshot_id"] for x in catalog if x.get("snapshot_id")])]:
         manifest={"schema_version":SCHEMA_VERSION,"release_spec_version":SPEC_VERSION,"dataset_version":DATASET_VERSION,"corpus_profile_id":profile,"corpus_profile_version":"1.0","real_snapshot_ids":sorted(members),"shared_document_revision_ids":synthetic_ids,"definition_ids":definition_ids,"source_catalog_sha256":source_catalog_hash,"source_archive_sha256":ARCHIVE_SHA256,"normalization_version":"crlf-to-lf-v1","counts":{"real_articles":len(members),"synthetic_versions":3,"definitions":12}};write_json(output/f"public/corpus_profiles/{profile}/manifest.json",manifest)
-    outputs=_case_outputs(ids,ledger_ids,snapshot_ids,docs_by_alias,branches,sources)
+    outputs=_case_outputs(ids,ledger_ids,snapshot_ids,docs_by_alias,synthetic_by_version,definition_rows,artifacts,entities,branches,sources)
     for name,rows in outputs.items():write_jsonl(output/f"private/eval/{name}.jsonl",rows)
     write_jsonl(output/"private/eval/entity_resolution.jsonl",[{"query_id":stable_id("query","C032"),"expected_candidate_ids":sorted([ids["D_E"],ids["D_F"]]),"expected_resolved_ids":[],"expected_status":"ambiguous_request"}])
     write_json(output/"private/eval/policy_audit.json",{"audit_id":"gsm-policy-compat-20260916-v1","amendments":["AM1","AM2","AM3","AM4"],"status":"reviewed"});write_json(output/"private/eval/review_manifest.json",{"audited_sources":6,"primary_gold_sources":4,"reviewed_text_only":True})
     roles=[{"snapshot_id":d["snapshot_id"],"audited":d["article_number"] in AUDITED,"primary_gold":d["article_number"] in {154,151,5,23},"reviewed_span_refs":sorted(CLAUSES.get(d["article_number"],{}))} for d in docs];write_jsonl(output/"private/eval/corpus_roles.jsonl",roles);write_jsonl(output/"private/eval/relevance_judgments.jsonl",[]);write_json(output/"private/eval/relevance_protocol.json",{"protocol_version":"1.0","relevance_unit":"canonical_source_span","unjudged_policy":"explicit_na","qrels_universe_description":"reviewed supports only; missing rows are unjudged","pool_run_refs":[],"pool_depth":None})
     for (ledger,known),sid in snapshot_ids.items():
-        rows=[r for r in branches[ledger] if r["known_at"]<=known]; base=output/f"public/snapshots/{sid}";_parquet(base/"record_ledger.parquet",rows);write_jsonl(base/"entity_catalog.jsonl",entities);write_jsonl(base/"source_registry.jsonl",sources);write_jsonl(base/"text_observations.jsonl",[{"record_id":r["record_id"],"source_id":r["source_id"],"known_at":r["known_at"],"assertions":r["assertions"],"target_assertion_ids":r["target_assertion_ids"]} for r in rows]);visible_docs=[x for x in catalog if x.get("snapshot_id") and known>="2026-09-16T00:00:00.000000Z"];write_jsonl(base/"documents.jsonl",visible_docs);write_jsonl(base/"definitions.jsonl",definition_rows);write_jsonl(base/"artifacts.jsonl",list(artifacts.values()) if known>="2026-09-16T03:00:00.000000Z" else []);manifest={"snapshot_id":sid,"dataset_version":DATASET_VERSION,"world_id":ids["world"],"ledger_id":ledger_ids[ledger],"scope_id":ids["scope"],"known_as_of":known,"record_count":len(rows),"document_ref_count":len(visible_docs),"complete":True};write_json(base/"manifest.json",manifest);write_json(output/f"public/graph_inputs/mode_a/{sid}.json",{"snapshot_id":sid,"mode":"A","structured_ledger":f"public/snapshots/{sid}/record_ledger.parquet","source_identity_preserved":True});write_json(output/f"public/graph_inputs/mode_b/{sid}.json",{"snapshot_id":sid,"mode":"B","text_observations":f"public/snapshots/{sid}/text_observations.jsonl","source_identity_preserved":True})
+        rows=[r for r in branches[ledger] if r["known_at"]<=known]; base=output/f"public/snapshots/{sid}";_parquet(base/"record_ledger.parquet",rows);write_jsonl(base/"entity_catalog.jsonl",entities);write_jsonl(base/"source_registry.jsonl",sources);write_jsonl(base/"text_observations.jsonl",rows)
+        visible_assertions={a["assertion_id"] for r in rows for a in r["assertions"]}
+        visible_docs=[x for x in catalog if x.get("publication_assertion_id") in visible_assertions and (x.get("available_at",x.get("dataset_release_at")) or "")<=known]
+        visible_artifacts=[x for x in artifacts.values() if x["publication_assertion_id"] in visible_assertions]
+        write_jsonl(base/"documents.jsonl",visible_docs);write_jsonl(base/"definitions.jsonl",definition_rows);write_jsonl(base/"artifacts.jsonl",visible_artifacts)
+        manifest={"snapshot_id":sid,"dataset_version":DATASET_VERSION,"world_id":ids["world"],"ledger_id":ledger_ids[ledger],"scope_id":ids["scope"],"known_as_of":known,"record_count":len(rows),"document_ref_count":len(visible_docs),"artifact_ref_count":len(visible_artifacts),"complete":True};write_json(base/"manifest.json",manifest);write_json(output/f"public/graph_inputs/mode_a/{sid}.json",{"snapshot_id":sid,"mode":"A","structured_ledger":f"public/snapshots/{sid}/record_ledger.parquet","source_identity_preserved":True});write_json(output/f"public/graph_inputs/mode_b/{sid}.json",{"snapshot_id":sid,"mode":"B","text_observations":f"public/snapshots/{sid}/text_observations.jsonl","source_identity_preserved":True})
     public_queries=[r["public_request"] for r in outputs["query_renderings"]];write_jsonl(output/"public/runtime_queries/dev.jsonl",public_queries);(output/"public/runtime_queries/test.jsonl").parent.mkdir(parents=True,exist_ok=True);(output/"public/runtime_queries/test.jsonl").write_bytes(b"")
     write_json(output/"public/runtime_manifest.json",{"schema_version":SCHEMA_VERSION,"release_spec_version":SPEC_VERSION,"dataset_version":DATASET_VERSION,"dev_query_count":42,"test_query_count":0,"query_routes":[{"query_id":q["query_id"],"public_snapshot_id":q["public_snapshot_id"]} for q in public_queries]})
     write_json(output/"private/eval/validation.json",{"state":"not_run","checks":[]})

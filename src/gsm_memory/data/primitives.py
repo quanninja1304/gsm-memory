@@ -9,7 +9,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any, Iterable
 
-DATASET_VERSION = "gsm-dev-core-0.2.1"
+DATASET_VERSION = "gsm-dev-core-0.2.2"
 SCHEMA_VERSION = "1.1"
 SPEC_VERSION = "0.2.0"
 ROOT_SEED = 42

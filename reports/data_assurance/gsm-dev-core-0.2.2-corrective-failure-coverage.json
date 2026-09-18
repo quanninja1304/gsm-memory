@@ -1,0 +1,96 @@
+{
+  "schema_version": "corrective-release-failure-v1",
+  "proposed_dataset_version": "gsm-dev-core-0.2.2",
+  "implementation_commit": "75f819abae8dfeea63a136821b6b57c84156afb5",
+  "status": "blocked",
+  "stage": "preflight_complete_public_provenance_audit",
+  "resolved_prior_blocker": {
+    "check_id": "PUBLIC_SYNTHETIC_RULE_PROVENANCE",
+    "status": "approved_for_implementation",
+    "publishable_selection_rule": "Select every private synthetic policy rule that has both a matching public synthetic-control catalog identity and a matching POLICY_PUBLICATION assertion; do not inspect cases, queries, gold, or support atoms.",
+    "selected_policy_versions": [
+      "S_BRIDGE:v1",
+      "S_VERSION:v1",
+      "S_VERSION:v2"
+    ]
+  },
+  "blocking_defect": {
+    "check_id": "COVERAGE_ARTIFACT_SEMANTIC_PROVENANCE",
+    "message": "Coverage artifacts do not declare the subject, covered predicate/domain, valid window, source-set universe, or completeness boundary needed by five support atoms.",
+    "affected_support_atoms": [
+      {
+        "atom_id": "5e2d543e-5d1e-5fe8-abb2-46ca14e44519",
+        "role": "complete_coverage",
+        "semantic_case_id": "1b4e1382-d744-5227-9993-3f4ad1c3bce6"
+      },
+      {
+        "atom_id": "e6127e6b-24f3-51ed-8502-b66c4e8065df",
+        "role": "incident_evidence",
+        "semantic_case_id": "783302e6-d636-525f-a38f-f55f698deafb"
+      },
+      {
+        "atom_id": "b50703ea-0763-5253-8ad7-28a17a15c831",
+        "role": "incident_evidence",
+        "semantic_case_id": "2f0b9271-f893-52a6-916f-a1d94d9a94ac"
+      },
+      {
+        "atom_id": "70bf20f5-6a0b-5a99-8f51-c1cebe184b90",
+        "role": "terminal_population",
+        "semantic_case_id": "468b3880-3e4b-5e80-b374-3320b234ae69"
+      },
+      {
+        "atom_id": "f9741e6c-594c-5c25-9129-2e876d2d3e50",
+        "role": "complete_coverage",
+        "semantic_case_id": "468b3880-3e4b-5e80-b374-3320b234ae69"
+      }
+    ],
+    "artifacts": [
+      {
+        "private_recipe_alias": "coverage_db",
+        "artifact_id": "28afa3ef-0535-5323-8a83-e99345c7022a",
+        "member_count": 10,
+        "content_hash": "63acbd25c879b5a2d621e411d5cf3462d5d91d19e0816d8c12127087142b3b17"
+      },
+      {
+        "private_recipe_alias": "coverage_dh",
+        "artifact_id": "097e9c93-eabb-5dcd-b271-a5b2afa9e734",
+        "member_count": 0,
+        "content_hash": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+        "private_recipe_alias": "incident_db",
+        "artifact_id": "75b8a22c-6d1c-526f-b817-f0f0de55a818",
+        "member_count": 0,
+        "content_hash": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    ],
+    "missing_semantics": [
+      "subject_id",
+      "covered_predicate_or_domain",
+      "valid_window",
+      "source_set_identity",
+      "completeness_boundary",
+      "scope_id"
+    ],
+    "unsafe_shortcuts_rejected": [
+      "infer coverage subject from private recipe alias",
+      "infer coverage domain from affected case",
+      "treat empty member list as universal absence",
+      "treat ARTIFACT_PUBLICATION as proof of coverage semantics"
+    ]
+  },
+  "old_release": {
+    "dataset_version": "gsm-dev-core-0.2.1",
+    "verifier_status": "pass",
+    "inventory_checked": 635,
+    "modified": false
+  },
+  "corrective_release": {
+    "config_created": false,
+    "candidate_a_created": false,
+    "candidate_b_created": false,
+    "frozen_release_created": false,
+    "certificate_created": false
+  },
+  "required_decision": "Approve an explicit, source-grounded coverage artifact contract and exact coverage scopes for the affected artifacts, or revise the affected cases/proofs under a separately reviewed semantic change."
+}
