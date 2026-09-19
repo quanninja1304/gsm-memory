@@ -1,0 +1,28 @@
+{
+  "schema_version": "phase-b-baseline-v1",
+  "release": "data/gsm-dev-core-0.2.2",
+  "profiles": {
+    "micro": "debug_core",
+    "measured": "retrieval_full"
+  },
+  "document": {
+    "chunker": "gsm-word-span-v1",
+    "tokenizer": "unicode-word-regex-v1",
+    "max_tokens": 180,
+    "overlap": 30,
+    "bm25": {"k1": 1.2, "b": 0.75, "top_k": 10},
+    "dense": {"status": "unsupported", "model": null},
+    "reranker": {"status": "unsupported", "model": null}
+  },
+  "graph": {
+    "library": "graphiti-core==0.30.2",
+    "backend": "kuzu==0.11.3",
+    "mode_a": "deterministic-custom-writer",
+    "mode_b": "blocked_provider",
+    "capability_probe_embedding": "offline-hash-1024-v1"
+  },
+  "reader": {"status": "blocked_provider", "provider": null, "model": null},
+  "cache_policy": "cold in-memory construction; no runtime cache",
+  "cost_basis": {"date": "2026-09-18", "provider_calls": 0, "actual_cost_usd": 0}
+}
+

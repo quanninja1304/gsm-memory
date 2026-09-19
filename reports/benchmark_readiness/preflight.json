@@ -1,0 +1,17 @@
+{
+  "backend": "kuzu==0.11.3 (deprecated upstream)",
+  "branch": "main",
+  "credentials": {
+    "ANTHROPIC_API_KEY": false,
+    "GEMINI_API_KEY": false,
+    "OPENAI_API_KEY": false
+  },
+  "dense_model": "unavailable",
+  "graphiti": "0.30.2",
+  "head": "372e4d1ada9bb0f0c604106483fa6e5fdc86b337",
+  "machine": "AMD64",
+  "os": "Windows-10-10.0.19045-SP0",
+  "python": "3.12.14",
+  "reader": "blocked_provider",
+  "reranker": "unavailable"
+}

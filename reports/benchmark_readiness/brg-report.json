@@ -1,0 +1,43 @@
+{
+  "schema_version": "brg-report-v2",
+  "phase_b_status": "partial",
+  "phase_b_1_offline_closure": "pass",
+  "release": "gsm-dev-core-0.2.2",
+  "initial_checkpoint": "reports/benchmark_readiness/README.md",
+  "offline_closure_report": "reports/benchmark_readiness/phase-b-offline-closure.json",
+  "sub_gates": [
+    {"gate": "BRG01", "sub_gate": "frozen input and pinned environment", "status": "pass", "reason_code": "VERIFIED_636_OF_636", "evidence_refs": ["reports/data_freeze/gsm-dev-core-0.2.2-freeze-certificate.json", "uv.lock"], "required_for_full_gate": true},
+    {"gate": "BRG02", "sub_gate": "document construction", "status": "pass", "reason_code": "DETERMINISTIC_CONSTRUCTION", "evidence_refs": ["reports/benchmark_readiness/phase-b-offline-closure.json"], "required_for_full_gate": true},
+    {"gate": "BRG02", "sub_gate": "ProjectionLinks", "status": "pass", "reason_code": "SOURCE_LOCATORS_RESOLVE", "evidence_refs": ["reports/benchmark_readiness/phase-b-offline-closure.json"], "required_for_full_gate": true},
+    {"gate": "BRG02", "sub_gate": "Graphiti Mode A", "status": "pass", "reason_code": "TWELVE_ISOLATED_SNAPSHOTS", "evidence_refs": ["reports/benchmark_readiness/phase-b-offline-closure.json", "reports/benchmark_readiness/graphiti-capability.json"], "required_for_full_gate": true},
+    {"gate": "BRG02", "sub_gate": "Mode B native", "status": "blocked_provider", "reason_code": "PROVIDER_CREDENTIALS_ABSENT", "evidence_refs": ["reports/benchmark_readiness/mode-b-status.json"], "required_for_full_gate": true},
+    {"gate": "BRG03", "sub_gate": "BM25 42-query execution", "status": "pass", "reason_code": "FORTY_TWO_TERMINAL_TRACES", "evidence_refs": ["reports/benchmark_readiness/retrieval-full-evaluation.json"], "required_for_full_gate": true},
+    {"gate": "BRG03", "sub_gate": "Mode A KG 42-query execution", "status": "pass", "reason_code": "FORTY_TWO_TERMINAL_TRACES", "evidence_refs": ["reports/benchmark_readiness/phase-b-offline-closure.json"], "required_for_full_gate": true},
+    {"gate": "BRG03", "sub_gate": "hybrid candidate and selection run", "status": "pass", "reason_code": "FORTY_TWO_CANDIDATE_AND_SELECTED_TRACES", "evidence_refs": ["reports/benchmark_readiness/phase-b-offline-closure.json"], "required_for_full_gate": true},
+    {"gate": "BRG03", "sub_gate": "dense and reranker", "status": "blocked_model_artifact", "reason_code": "NO_REPOSITORY_PINNED_LICENSED_RUNTIME_READY_MODEL", "evidence_refs": ["reports/benchmark_readiness/phase-b-offline-closure.json"], "required_for_full_gate": true},
+    {"gate": "BRG03", "sub_gate": "live reader and C0", "status": "blocked_provider", "reason_code": "PROVIDER_CREDENTIALS_ABSENT", "evidence_refs": ["reports/benchmark_readiness/phase-b-offline-closure.json"], "required_for_full_gate": true},
+    {"gate": "BRG04", "sub_gate": "candidate-stage evaluation", "status": "pass", "reason_code": "MODALITY_AWARE_ATTRIBUTION_COMPLETE", "evidence_refs": ["reports/benchmark_readiness/retrieval-full-mode-a-evaluation.json"], "required_for_full_gate": true},
+    {"gate": "BRG04", "sub_gate": "selected-context attribution", "status": "pass", "reason_code": "SELECTION_LOSS_ATTRIBUTED", "evidence_refs": ["reports/benchmark_readiness/retrieval-full-mode-a-evaluation.json"], "required_for_full_gate": true},
+    {"gate": "BRG04", "sub_gate": "reasoning attribution", "status": "blocked_provider", "reason_code": "READER_NOT_RUN", "evidence_refs": ["reports/benchmark_readiness/phase-b-offline-closure.json"], "required_for_full_gate": true},
+    {"gate": "BRG05", "sub_gate": "offline instrumentation", "status": "pass", "reason_code": "LATENCY_COUNTS_RECEIPTS_COMPLETE", "evidence_refs": ["reports/benchmark_readiness/phase-b-offline-closure.json"], "required_for_full_gate": true},
+    {"gate": "BRG05", "sub_gate": "provider instrumentation", "status": "blocked_provider", "reason_code": "PROVIDER_NOT_CALLED", "evidence_refs": ["reports/benchmark_readiness/phase-b-offline-closure.json"], "required_for_full_gate": true}
+  ],
+  "gates": {
+    "BRG01": {"status": "pass"},
+    "BRG02": {"status": "blocked", "reason_code": "MODE_B_BLOCKED_PROVIDER"},
+    "BRG03": {"status": "blocked", "reason_code": "READER_AND_DENSE_RERANKER_BLOCKED"},
+    "BRG04": {"status": "blocked", "reason_code": "REASONING_ATTRIBUTION_BLOCKED_PROVIDER"},
+    "BRG05": {"status": "blocked", "reason_code": "PROVIDER_INSTRUMENTATION_BLOCKED_PROVIDER"}
+  },
+  "evaluation": {
+    "bm25_only_full_proof_complete": 7,
+    "mode_a_hybrid_candidate_proof_complete": 30,
+    "mode_a_hybrid_selected_proof_complete": 15,
+    "denominator": 42,
+    "selection_loss": 15,
+    "precision": null,
+    "ndcg": null,
+    "ranking_metric_reason": "incomplete_judgments"
+  },
+  "limitations": ["held-out test release: absent", "production readiness: not claimed", "scale validation: not_run"]
+}

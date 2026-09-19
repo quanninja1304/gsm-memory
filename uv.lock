@@ -235,6 +235,7 @@ graphiti = [
     { name = "google-genai" },
     { name = "graphiti-core" },
     { name = "httpx2" },
+    { name = "kuzu" },
     { name = "neo4j" },
     { name = "openai" },
     { name = "posthog" },
@@ -245,6 +246,7 @@ requires-dist = [
     { name = "google-genai", marker = "extra == 'graphiti'", specifier = "==2.23.0" },
     { name = "graphiti-core", marker = "extra == 'graphiti'", specifier = "==0.30.2" },
     { name = "httpx2", marker = "extra == 'graphiti'", specifier = "==2.12.0" },
+    { name = "kuzu", marker = "extra == 'graphiti'", specifier = "==0.11.3" },
     { name = "neo4j", marker = "extra == 'graphiti'", specifier = "==6.3.0" },
     { name = "openai", marker = "extra == 'graphiti'", specifier = "==3.13.0" },
     { name = "posthog", marker = "extra == 'graphiti'", specifier = "==7.53.0" },
@@ -372,6 +374,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/28/30/879570ecf82574eaea77c5eb10309f4b630dece5f2a556e9814a90ba3f2d/jiter-0.17.0-graalpy312-graalpy250_312_native-macosx_11_0_arm64.whl", hash = "sha256:40d2c240f8f80b5b0f201b29f0ae129c81448c60c772227a41747b5e0026f6a2", size = 279113, upload-time = "2026-09-12T15:14:10.117Z" },
     { url = "https://files.pythonhosted.org/packages/77/7a/1f0b8a35fbd079a4f1752c31a15dc99cf277f863747c459be0af39e900e5/jiter-0.17.0-graalpy312-graalpy250_312_native-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3e05f5adbf68c4bd11e1610f394034d984152988e84be6f8314235ce6f2139e5", size = 303708, upload-time = "2026-09-12T15:14:11.445Z" },
     { url = "https://files.pythonhosted.org/packages/e1/8b/d76219ebdbcf3d4209d9d21a0810db4c8d0a6f88e3ee87d30bdea4e90d30/jiter-0.17.0-graalpy312-graalpy250_312_native-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d2c0bf24c72fd0491405dce5d40194f2070e9021ce648c1a1d46234b93d848ff", size = 307147, upload-time = "2026-09-12T15:14:12.897Z" },
+]
+
+[[package]]
+name = "kuzu"
+version = "0.11.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/96/0c/f141a81485729a072dc527b474e7580d5632309c68ad1a5aa6ed9ac45387/kuzu-0.11.3.tar.gz", hash = "sha256:e7bea3ca30c4bb462792eedcaa7f2125c800b243bb4a872e1eedc16917c1967a", size = 19430620, upload-time = "2025-10-10T13:36:54.984Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/64/88/ed193fd0ddfdbdde6c79e96b96df3b760fe48b2626e7151d81a1ed90fd9f/kuzu-0.11.3-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:d865ca31506867cf1ccf50c094c44de96de94bc77ffb350bfcaca0e4c5e469da", size = 4093637, upload-time = "2025-10-10T13:36:04.206Z" },
+    { url = "https://files.pythonhosted.org/packages/d6/6d/06e02828b78297d6d99ff3dfb0ab7b5ec5d075053aae33b53189437bbb66/kuzu-0.11.3-cp312-cp312-macosx_11_0_x86_64.whl", hash = "sha256:109372bc16ce6724f88e0312bc686e34145e330d69b163b22ba92f4d3d96b48f", size = 4520482, upload-time = "2025-10-10T13:36:06.302Z" },
+    { url = "https://files.pythonhosted.org/packages/72/d5/0939a953860a8b373bef7b8a66a4571b27ff9faeb22672d2cd2cf3b6ba15/kuzu-0.11.3-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:d6274da6c470c001b7d332ec78a076395b009c2f267914640884fd6fa78bf47d", size = 6795398, upload-time = "2025-10-10T13:36:08Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/5d/8e3dfb89aa3f70f63aa283c523f2dd2ac90a1b3ed990643e3a89909236f9/kuzu-0.11.3-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:1bb3b833ca2d1d919423cb3e0150592c2587562ab85259277f622e6f06e0b487", size = 7615389, upload-time = "2025-10-10T13:36:09.809Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/19/c8e93185d6142f01b2e6daec4ad537dfd32afd1f69894889769b725b08c1/kuzu-0.11.3-cp312-cp312-win_amd64.whl", hash = "sha256:605909f744763775b8647014a03526d7f928a7b5a62a8b8c1d1e7bbdaf9dbb6c", size = 4714355, upload-time = "2025-10-10T13:36:11.527Z" },
 ]
 
 [[package]]

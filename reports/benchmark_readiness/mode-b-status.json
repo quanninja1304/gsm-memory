@@ -1,0 +1,9 @@
+{
+  "status": "blocked_provider",
+  "cohort": "not_run",
+  "episodes_attempted": 0,
+  "provider_calls": 0,
+  "reason": "OPENAI_API_KEY, GEMINI_API_KEY and ANTHROPIC_API_KEY were absent; native extraction was not invoked",
+  "semantic_result": "not_scored"
+}
+

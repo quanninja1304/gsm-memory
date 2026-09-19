@@ -1,0 +1,113 @@
+{
+  "schema_version": "phase-b-offline-closure-report-v1",
+  "phase_b_1_status": "pass",
+  "phase_b_status": "partial",
+  "release": "gsm-dev-core-0.2.2",
+  "baseline_head": "372e4d1ada9bb0f0c604106483fa6e5fdc86b337",
+  "integrity": {
+    "frozen_verifier": "pass",
+    "inventory_checked": 636,
+    "missing": 0,
+    "mismatched": 0,
+    "unexpected": 0,
+    "manifest_sha256": "f2eb6919d9a30541e804af5f51dc27b005f8332e8109a8eb0ddeffdc2a8d2737",
+    "comparison_sha256": "8438acb3f0e42a41b90f547003e4eea7d1abd79e78a0261bf94018444c11ddb7",
+    "logical_inventory_digest": "cf738397417b7644a51fd6ed11b17b2bc5cac64ea2c9402e75707aad6452aa49",
+    "private_runtime_isolation": "pass",
+    "frozen_path_diff": "empty"
+  },
+  "construction": {
+    "snapshots": 12,
+    "ledgers": 8,
+    "cache_status": "cold",
+    "repeat_write_idempotent": true,
+    "document_chunks": 1575,
+    "document_projection_links": 1575,
+    "document_construction_digest": "27e05a70215304b9e543a577b7eeb2f6024e171f9c199f0962537fd251ca30bf",
+    "chunk_config_hash": "5ef583cee8ebdefcf8104e9710afb61d50b313a0a6f916b9734b3a8a7b0b2651",
+    "implementation_hash": "9234f9b325edf39e380779bb5044bcbcdc2a9b20751a548bffe385b766d8bed0"
+  },
+  "execution": {
+    "queries": 42,
+    "terminal_traces": 42,
+    "terminal_status_counts": {"completed_retrieval": 42},
+    "document_candidates": 621,
+    "kg_raw_candidates": 2666,
+    "kg_eligible_and_catalog_candidates": 1152,
+    "computation_candidates": 4,
+    "hybrid_candidates": 1777,
+    "selected_evidence": 504,
+    "errors": 0,
+    "retries": 0
+  },
+  "aggregate_computation": {
+    "status": "pass",
+    "complete_nonempty": {"members": 10, "cancelled": 2, "typed_value": {"n": 1, "d": 5}},
+    "complete_empty": {"members": 0, "typed_value": null, "status_semantics": "undefined"},
+    "missing_coverage": {"status": "missing_coverage", "members_enumerated": 0, "completeness_reconstructed": false}
+  },
+  "evaluation": {
+    "candidate_proof_complete": 30,
+    "selected_proof_complete": 15,
+    "denominator": 42,
+    "selection_loss": 15,
+    "document_support_link_recall_candidate": 0.9032258064516129,
+    "document_support_link_recall_selected": 0.8387096774193549,
+    "ledger_assertion_recall_candidate": 0.9701492537313433,
+    "entity_catalog_recall_candidate": 0.75,
+    "definition_artifact_recall_candidate": 1.0,
+    "coverage_artifact_recall_candidate": 0.6,
+    "correct_entity_rate": 1.0,
+    "valid_time_eligibility_rate": 1.0,
+    "known_time_eligibility_rate": 1.0,
+    "correct_branch_snapshot_rate": 1.0,
+    "source_locator_resolution_rate": 1.0,
+    "precision": null,
+    "ndcg": null,
+    "ranking_metric_reason": "incomplete_judgments"
+  },
+  "instrumentation": {
+    "latency_ms": {
+      "document_median": 16.2895,
+      "kg_search_median": 64.6695,
+      "eligibility_median": 0.607,
+      "computation_median": 0.002,
+      "hybrid_merge_median": 0.295,
+      "selection_median": 0.047,
+      "total_pre_reader_median": 17.5135,
+      "total_pre_reader_p95": 22.79
+    },
+    "provider_calls": 0,
+    "tokens": null,
+    "token_reason": "provider_not_called",
+    "provider_cost": null,
+    "cost_reason": "provider_not_called",
+    "reader_latency": null,
+    "reader_reason": "reader_not_run"
+  },
+  "determinism": {
+    "status": "pass",
+    "logical_digest_a": "be01038f1cf831283c62c7a299bc07a82b770cf5cadbdd7f6bd2e2dc7b6f93fa",
+    "logical_digest_b": "be01038f1cf831283c62c7a299bc07a82b770cf5cadbdd7f6bd2e2dc7b6f93fa",
+    "artifact_a_sha256": "7641c0e3724c4fa0ec614926084fe21996ea97427588c8b3ae4bd4566372a038",
+    "artifact_b_sha256": "0d9c017cc0c9e9c18def4fb0ade50801a4ddd2172c5a94919fe0a12a31ec2db3",
+    "byte_hash_note": "expected to differ because measured latency is retained"
+  },
+  "dense_reranker_audit": {
+    "status": "blocked_model_artifact",
+    "local_cache_candidate": "keepitreal/vietnamese-sbert",
+    "local_revision": "a9467ef2ef47caa6448edeabfd8e5e5ce0fa2a23",
+    "local_bytes": 542105898,
+    "reason": "local cache is not a repository-pinned approved artifact, its model card declares no license, and required transformer runtime dependencies are absent"
+  },
+  "verification": {
+    "data_frozen_tests": {"passed": 39, "failed": 0, "seconds": 41.58},
+    "phase_b_tests": {"passed": 15, "failed": 0, "seconds": 19.29},
+    "git_diff_check": "pass",
+    "provider_credentials_required": false
+  },
+  "runtime_artifacts": [
+    {"path": "runs/experiments/phase-b/offline-closure-a.json", "sha256": "7641c0e3724c4fa0ec614926084fe21996ea97427588c8b3ae4bd4566372a038"},
+    {"path": "runs/experiments/phase-b/offline-closure-b.json", "sha256": "0d9c017cc0c9e9c18def4fb0ade50801a4ddd2172c5a94919fe0a12a31ec2db3"}
+  ]
+}
