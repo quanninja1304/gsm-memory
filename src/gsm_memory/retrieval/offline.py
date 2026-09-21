@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import statistics
 import time
 from collections import Counter, defaultdict
 from dataclasses import asdict
@@ -68,9 +69,74 @@ def select_public(query: dict[str, Any], candidates: list[dict[str, Any]], *,
                 remaining.append(kind)
         order = remaining
     selected_ids = {row["evidence_id"] for row in selected}
-    excluded = [{"evidence_id": row["evidence_id"], "reason": "context_budget_or_cap"}
-                for row in candidates if row["evidence_id"] not in selected_ids]
+    excluded = []
+    for row in candidates:
+        if row["evidence_id"] in selected_ids:
+            continue
+        cost = row.get("token_cost", 1)
+        reason = "token_budget_exceeded" if spent + cost > token_budget else "selected_item_cap_reached"
+        excluded.append({"evidence_id": row["evidence_id"], "reason": reason,
+                         "source_kind": row["source_kind"], "rank": row.get("rank"),
+                         "score": row.get("score"), "token_cost": cost,
+                         "budget_state": {"tokens_spent": spent, "token_budget": token_budget,
+                                          "selected_items": len(selected), "max_items": max_items,
+                                          "candidate_would_fit_tokens": spent + cost <= token_budget}})
     return selected, excluded
+
+
+def _percentile(values: list[float], fraction: float) -> float:
+    """Nearest-rank percentile over a declared finite aggregation unit."""
+    ordered = sorted(values)
+    index = max(0, min(len(ordered) - 1, int(fraction * (len(ordered) - 1))))
+    return ordered[index]
+
+
+def _latency_statistics(traces: list[dict[str, Any]], graph_receipts: list[dict[str, Any]]) -> dict[str, Any]:
+    stage_contract = {
+        "document": ("query", "cold", ["document"]),
+        "kg_search": ("query_search_call", "cold", ["kg_search"]),
+        "eligibility_normalization": ("query", "cold", ["eligibility_normalization"]),
+        "computation": ("query", "cold", ["computation"]),
+        "hybrid_merge": ("query", "cold", ["hybrid_merge"]),
+        "selection": ("query", "cold", ["selection"]),
+        "total_pre_reader": (
+            "query", "cold",
+            ["document", "kg_search", "eligibility_normalization", "computation", "hybrid_merge", "selection"],
+        ),
+        "observed_query_assembly": (
+            "query", "cold",
+            ["document", "eligibility_normalization", "computation", "hybrid_merge", "selection"],
+        ),
+    }
+    summary = {}
+    for stage, (unit, cache_status, included) in stage_contract.items():
+        values = [trace["latency_ms"][stage] for trace in traces]
+        summary[stage] = {
+            "aggregation_unit": unit,
+            "denominator": len(values),
+            "included_count": len(values),
+            "cache_status": cache_status,
+            "included_stages": included,
+            "min_ms": min(values),
+            "median_ms": statistics.median(values),
+            "p95_ms": _percentile(values, 0.95),
+            "max_ms": max(values),
+            "mean_ms": sum(values) / len(values),
+        }
+    construction = [row["construction_ms"] for row in graph_receipts]
+    summary["graph_construction"] = {
+        "aggregation_unit": "snapshot_graph",
+        "denominator": len(construction),
+        "included_count": len(construction),
+        "cache_status": "cold",
+        "included_stages": ["graph_construction"],
+        "min_ms": min(construction),
+        "median_ms": statistics.median(construction),
+        "p95_ms": _percentile(construction, 0.95),
+        "max_ms": max(construction),
+        "mean_ms": sum(construction) / len(construction),
+    }
+    return summary
 
 
 def _document_candidates(query: dict[str, Any], chunks: list[Chunk], index: BM25Index,
@@ -287,6 +353,18 @@ async def run_offline_closure(release: Path, profile: str = "retrieval_full", *,
         computation_ms = (time.perf_counter() - tick) * 1000
         tick = time.perf_counter(); hybrid = hybrid_union(docs, kg, computation); merge_ms = (time.perf_counter() - tick) * 1000
         tick = time.perf_counter(); selected, selector_excluded = select_public(query, hybrid, token_budget=token_budget); selection_ms = (time.perf_counter() - tick) * 1000
+        observed_query_assembly_ms = (time.perf_counter() - started) * 1000
+        included_stage_ms = {
+            "document": round(document_ms, 3),
+            "kg_search": graph["search_latency_ms"],
+            "eligibility_normalization": round(eligibility_ms, 3),
+            "computation": round(computation_ms, 3),
+            "hybrid_merge": round(merge_ms, 3),
+            "selection": round(selection_ms, 3),
+        }
+        total_pre_reader_ms = round(sum(included_stage_ms.values()), 3)
+        if total_pre_reader_ms + 1e-9 < max(included_stage_ms.values()):
+            raise AssertionError("sequential total_pre_reader latency invariant violated")
         excluded_reasons = Counter(row["exclusion_reason"] for row in graph["excluded_candidates"])
         excluded_reasons.update(row["reason"] for row in selector_excluded)
         traces.append({"query_id": query["query_id"], "snapshot_id": query["public_snapshot_id"],
@@ -298,11 +376,16 @@ async def run_offline_closure(release: Path, profile: str = "retrieval_full", *,
                        "counts": {"document": len(docs), "kg_raw": len(graph["raw_candidates"]),
                                   "kg_eligible": len(kg), "computation": len(computation),
                                   "hybrid": len(hybrid), "selected": len(selected)},
-                       "latency_ms": {"document": round(document_ms, 3), "kg_search": graph["search_latency_ms"],
-                                      "eligibility_normalization": round(eligibility_ms, 3),
-                                      "computation": round(computation_ms, 3), "hybrid_merge": round(merge_ms, 3),
-                                      "selection": round(selection_ms, 3),
-                                      "total_pre_reader": round((time.perf_counter() - started) * 1000, 3)},
+                       "latency_ms": {**included_stage_ms,
+                                      "total_pre_reader": total_pre_reader_ms,
+                                      "observed_query_assembly": round(observed_query_assembly_ms, 3)},
+                       "latency_contract": {"execution_mode": "sequential_accounting",
+                                            "aggregation_unit": "query",
+                                            "cache_status": "cold",
+                                            "included_stages": list(included_stage_ms),
+                                            "invariant": "total_pre_reader >= sum(included stage durations)",
+                                            "invariant_pass": total_pre_reader_ms + 1e-9 >= sum(included_stage_ms.values()),
+                                            "note": "KG search was executed during snapshot graph processing; total_pre_reader is the modeled per-query sequential sum. observed_query_assembly excludes that precomputed search wall time."},
                        "computation_receipt": computation_receipt, "cache_status": "cold",
                        "limits": {"document_top_k": document_top_k, "graph_top_k": graph_top_k,
                                   "token_budget": token_budget, "selected_cap": 12},
@@ -316,6 +399,7 @@ async def run_offline_closure(release: Path, profile: str = "retrieval_full", *,
             "snapshot_count": len(grouped), "ledger_count": len({row["ledger_id"] for row in graph_receipts}),
             "graph_receipts": graph_receipts, "document_inventory": inventory,
             "projection_link_count": len(links), "traces": traces,
+            "latency_statistics": _latency_statistics(traces, graph_receipts),
             "logical_digest": canonical_hash(logical),
             "instrumentation": {"total_wall_ms": round((time.perf_counter() - run_started) * 1000, 3),
                                 "provider_calls": 0, "tokens": None, "token_reason": "provider_not_called",

@@ -66,6 +66,28 @@ without repairing or regenerating anything. `compare-logical` compares the
 complete declared semantic inventory, and `freeze` verifies validation and
 comparison evidence before refusing any existing target.
 
-The latest handoff status and exact commands are recorded in
-`reports/data_freeze/gsm-dev-core-0.2.2-DFG-A1.md`. Graphiti ingestion, retrieval,
-embeddings, agent runs and BRG remain out of scope.
+The dataset handoff status and exact assurance commands are recorded in
+`reports/data_freeze/gsm-dev-core-0.2.2-DFG-A1.md`.
+
+## Benchmark readiness status
+
+```text
+Current release: gsm-dev-core-0.2.2
+Phase B.1 offline closure: PASS
+Phase B overall: PARTIAL
+BRG01: PASS
+BRG02–BRG05: BLOCKED
+```
+
+The provider-independent baseline now runs document retrieval, snapshot-isolated
+Graphiti Mode A retrieval, hybrid candidate construction and deterministic
+selection for all 42 development queries, followed by private post-runtime
+candidate-versus-selected attribution. The immediate measured bottleneck is
+proof preservation during selection: 30/42 queries are candidate-complete but
+only 15/42 remain selected-complete. Mode B, the live reader/C0 and reasoning
+attribution are `BLOCKED_PROVIDER`; dense/reranker is
+`BLOCKED_MODEL_ARTIFACT`. Full BRG and production readiness are not claimed.
+
+See `reports/benchmark_readiness/phase-b-offline-closure.md` for current
+metrics, corrected latency accounting, error inventories and reproduction
+commands.

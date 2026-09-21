@@ -25,7 +25,7 @@
     "document_projection_links": 1575,
     "document_construction_digest": "27e05a70215304b9e543a577b7eeb2f6024e171f9c199f0962537fd251ca30bf",
     "chunk_config_hash": "5ef583cee8ebdefcf8104e9710afb61d50b313a0a6f916b9734b3a8a7b0b2651",
-    "implementation_hash": "9234f9b325edf39e380779bb5044bcbcdc2a9b20751a548bffe385b766d8bed0"
+    "implementation_hash": "f43fcfdc9ddd8f170f2dcca3cfe967ee34249256b88d651ffe5c893ea3b2100a"
   },
   "execution": {
     "queries": 42,
@@ -51,6 +51,11 @@
     "selected_proof_complete": 15,
     "denominator": 42,
     "selection_loss": 15,
+    "candidate_incomplete": 12,
+    "candidate_incomplete_expected_visible": 2,
+    "candidate_incomplete_intentionally_unavailable": 10,
+    "candidate_incomplete_inventory": "reports/benchmark_readiness/retrieval-full-mode-a-evaluation.json#/candidate_incomplete_inventory",
+    "selection_loss_inventory": "reports/benchmark_readiness/retrieval-full-mode-a-evaluation.json#/selection_loss_inventory",
     "document_support_link_recall_candidate": 0.9032258064516129,
     "document_support_link_recall_selected": 0.8387096774193549,
     "ledger_assertion_recall_candidate": 0.9701492537313433,
@@ -67,15 +72,20 @@
     "ranking_metric_reason": "incomplete_judgments"
   },
   "instrumentation": {
+    "execution_mode": "sequential_accounting",
+    "latency_invariant": "total_pre_reader >= sum(document, kg_search, eligibility_normalization, computation, hybrid_merge, selection)",
+    "latency_invariant_passed_queries": 42,
+    "latency_statistics_source": "runs/experiments/phase-b/offline-closure-a.json#/latency_statistics",
     "latency_ms": {
-      "document_median": 16.2895,
-      "kg_search_median": 64.6695,
-      "eligibility_median": 0.607,
-      "computation_median": 0.002,
-      "hybrid_merge_median": 0.295,
-      "selection_median": 0.047,
-      "total_pre_reader_median": 17.5135,
-      "total_pre_reader_p95": 22.79
+      "document": {"median": 16.8015, "p95": 30.386, "aggregation_unit": "query", "denominator": 42, "included_count": 42, "cache_status": "cold"},
+      "kg_search": {"median": 62.455, "p95": 93.522, "aggregation_unit": "query_search_call", "denominator": 42, "included_count": 42, "cache_status": "cold"},
+      "eligibility_normalization": {"median": 0.6025, "p95": 1.869, "aggregation_unit": "query", "denominator": 42, "included_count": 42, "cache_status": "cold"},
+      "computation": {"median": 0.003, "p95": 0.004, "aggregation_unit": "query", "denominator": 42, "included_count": 42, "cache_status": "cold"},
+      "hybrid_merge": {"median": 0.29, "p95": 0.472, "aggregation_unit": "query", "denominator": 42, "included_count": 42, "cache_status": "cold"},
+      "selection": {"median": 0.055, "p95": 0.083, "aggregation_unit": "query", "denominator": 42, "included_count": 42, "cache_status": "cold"},
+      "total_pre_reader": {"median": 85.6245, "p95": 118.01, "aggregation_unit": "query", "denominator": 42, "included_count": 42, "cache_status": "cold", "included_stages": ["document", "kg_search", "eligibility_normalization", "computation", "hybrid_merge", "selection"]},
+      "observed_query_assembly": {"median": 18.817, "p95": 35.149, "aggregation_unit": "query", "denominator": 42, "included_count": 42, "cache_status": "cold", "excluded_precomputed_stage": "kg_search"},
+      "graph_construction": {"median": 8534.6795, "p95": 10685.483, "aggregation_unit": "snapshot_graph", "denominator": 12, "included_count": 12, "cache_status": "cold"}
     },
     "provider_calls": 0,
     "tokens": null,
@@ -87,10 +97,10 @@
   },
   "determinism": {
     "status": "pass",
-    "logical_digest_a": "be01038f1cf831283c62c7a299bc07a82b770cf5cadbdd7f6bd2e2dc7b6f93fa",
-    "logical_digest_b": "be01038f1cf831283c62c7a299bc07a82b770cf5cadbdd7f6bd2e2dc7b6f93fa",
-    "artifact_a_sha256": "7641c0e3724c4fa0ec614926084fe21996ea97427588c8b3ae4bd4566372a038",
-    "artifact_b_sha256": "0d9c017cc0c9e9c18def4fb0ade50801a4ddd2172c5a94919fe0a12a31ec2db3",
+    "logical_digest_a": "c03dd779cc646f7635d780f5bb762e909dc057bfb695c67984ad74154d461c53",
+    "logical_digest_b": "c03dd779cc646f7635d780f5bb762e909dc057bfb695c67984ad74154d461c53",
+    "artifact_a_sha256": "7590bbfad1dab32864a6462a89e63848bbe281e8eb63c27880ab4ae28a33f415",
+    "artifact_b_sha256": "fb8e628e668155073e4e96f9b880e2cf4a583ef51630f8bf7cda83c26cd8bbb1",
     "byte_hash_note": "expected to differ because measured latency is retained"
   },
   "dense_reranker_audit": {
@@ -101,13 +111,13 @@
     "reason": "local cache is not a repository-pinned approved artifact, its model card declares no license, and required transformer runtime dependencies are absent"
   },
   "verification": {
-    "data_frozen_tests": {"passed": 39, "failed": 0, "seconds": 41.58},
-    "phase_b_tests": {"passed": 15, "failed": 0, "seconds": 19.29},
+    "data_frozen_tests": {"passed": 39, "failed": 0, "seconds": 42.74},
+    "phase_b_tests": {"passed": 16, "failed": 0, "seconds": 19.39},
     "git_diff_check": "pass",
     "provider_credentials_required": false
   },
   "runtime_artifacts": [
-    {"path": "runs/experiments/phase-b/offline-closure-a.json", "sha256": "7641c0e3724c4fa0ec614926084fe21996ea97427588c8b3ae4bd4566372a038"},
-    {"path": "runs/experiments/phase-b/offline-closure-b.json", "sha256": "0d9c017cc0c9e9c18def4fb0ade50801a4ddd2172c5a94919fe0a12a31ec2db3"}
+    {"path": "runs/experiments/phase-b/offline-closure-a.json", "sha256": "7590bbfad1dab32864a6462a89e63848bbe281e8eb63c27880ab4ae28a33f415"},
+    {"path": "runs/experiments/phase-b/offline-closure-b.json", "sha256": "fb8e628e668155073e4e96f9b880e2cf4a583ef51630f8bf7cda83c26cd8bbb1"}
   ]
 }

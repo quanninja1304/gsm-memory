@@ -60,6 +60,8 @@ def test_public_selector_is_deterministic_balanced_and_preserves_pin():
     assert sum(row["token_cost"] for row in selected_a) <= 30
     assert "definition" in {row["evidence_id"] for row in selected_a}
     assert len({row["source_kind"] for row in selected_a}) == 3
+    assert excluded_a[0]["reason"] == "token_budget_exceeded"
+    assert excluded_a[0]["budget_state"]["tokens_spent"] == 30
 
 
 def test_document_retrieval_keeps_zero_overlap_public_definition_pin():

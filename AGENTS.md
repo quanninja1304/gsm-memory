@@ -12,7 +12,8 @@ These instructions are persistent repository guidance. A task-specific hand-off 
 
 **Project:** Scalable Retrieval for Memory-Augmented AI Agents
 **Current dataset:** `gsm-dev-core-0.2.2`
-**Current phase:** **Corrective DFG/A1 assurance**, before BRG.
+**Current phase:** **Phase B benchmark readiness**. Phase B.1 provider-independent
+retrieval closure is complete; full Phase B remains `PARTIAL`.
 
 `gsm-dev-core-0.2` remains immutable, but it is deprecated because 17 public
 `RuntimeQuery` records leaked private aliases or time-scope metadata. Do not use
@@ -34,7 +35,11 @@ The primary research object is **retrieval and evidence construction**, not a ne
 
 Graphiti is the temporal KG reference baseline, but Graphiti belongs to the later **Benchmark Readiness Gate (BRG)**.
 
-The current dataset build must be independently valid before Graphiti, embeddings, rerankers, or an LLM reader are introduced.
+The dataset is independently frozen and assured. The implemented offline BRG
+path includes document construction, BM25, Graphiti Mode A retrieval, hybrid
+candidate construction, deterministic evidence selection and post-runtime
+candidate/selected attribution. Mode B and the live reader remain provider-
+blocked; dense/reranker remains model-artifact-blocked.
 
 ---
 
@@ -188,15 +193,15 @@ just to make tests or a baseline pass.
 
 ## 5. Current Scope
 
-The current implementation target is repository assurance over the already
-corrective `gsm-dev-core-0.2.2` release while preserving older frozen releases:
+Repository assurance over `gsm-dev-core-0.2.2` is complete and remains an
+immutable prerequisite. The active implementation target is Phase B retrieval
+and context-construction assurance:
 
 ```text
-cross-platform frozen-byte checkout
-read-only frozen verification
-offline pinned-source materialization
-independent semantic/conformance fixtures
-clean-build reproducibility evidence
+proof-preserving public-only hybrid selection
+candidate-versus-selected failure attribution
+snapshot/branch-safe temporal KG retrieval
+reproducible offline latency and receipt instrumentation
 ```
 
 The completed DATA_G0–DATA_G6 and DFG pipeline remains the contract being
@@ -204,18 +209,20 @@ assured. Candidate validation is a pre-freeze workflow and may write its
 candidate validation report. Post-freeze verification must be strictly
 read-only and must never invoke a mutating validator on a frozen release.
 
-After DFG, separate work may implement:
+Current gate status is:
 
 ```text
-document baseline
-Graphiti adapters
-retrieval
-agent reader
-runtime experiments
-Benchmark Readiness Gate
+BRG01 = PASS
+BRG02 = BLOCKED (offline construction/Mode A pass; Mode B blocked_provider)
+BRG03 = BLOCKED (BM25/KG/hybrid pass; dense/reranker and reader blocked)
+BRG04 = BLOCKED (candidate/selected attribution pass; reasoning blocked_provider)
+BRG05 = BLOCKED (offline instrumentation pass; provider instrumentation blocked)
 ```
 
-Do not begin those unless explicitly requested.
+Do not claim full BRG PASS until every required provider/model-dependent path
+actually runs. The next offline optimization target is proof-preserving
+selection; runtime selection must remain public-only and must never consult
+private support atoms, links, roles, proofs or expected answers.
 
 ---
 

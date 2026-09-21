@@ -79,13 +79,43 @@ known-time, public entity anchoring and source-locator resolution rates are
 100% over eligible KG candidates. Precision and nDCG remain
 `N/A (incomplete_judgments)`; unjudged documents are not implicit negatives.
 
+The evaluation report now exposes two machine-readable tables:
+
+- `candidate_incomplete_inventory`: 12 rows with query ID, missing locator
+  types and roles, affected document/KG/computation stages, earliest failure,
+  expected status, and visibility classification. Ten rows are intentionally
+  unavailable diagnostic cases; two are expected-visible retrieval misses.
+- `selection_loss_inventory`: 15 rows with the candidate-complete proof option,
+  dropped atom and support role, matching evidence type/origin/rank/score/token
+  cost, exact selector exclusion reason, and final token/item budget state.
+
+The inventory shows all 15 observed selection losses hit the 12-item cap while
+the dropped evidence still fit the 1,800-token budget. This identifies packing
+policy, rather than token exhaustion, as the immediate selector bottleneck.
+
 ## Instrumentation
 
-Median per-query latency in run A was 16.290 ms document retrieval, 64.670 ms
-KG search, 0.607 ms eligibility normalization, 0.002 ms computation, 0.295 ms
-hybrid merge, 0.047 ms selection and 17.514 ms total pre-reader; total
-pre-reader p95 was 22.790 ms. Graph construction time is recorded separately
-for every snapshot. All graph caches were cold. Errors and retries were zero.
+Latency uses explicit sequential accounting. `total_pre_reader` is the sum of
+document retrieval, KG search, eligibility normalization, computation, hybrid
+merge and selection for each query; the invariant is checked on all 42 traces.
+The previously reported 17.514 ms mixed incompatible execution scopes and has
+been withdrawn. `observed_query_assembly` is retained separately and explicitly
+excludes KG search, which ran earlier during snapshot graph processing.
+
+| Statistic | Median ms | p95 ms | Unit / denominator | Cache |
+| --- | ---: | ---: | --- | --- |
+| Document | 16.802 | 30.386 | query / 42 | cold |
+| KG search | 62.455 | 93.522 | query search call / 42 | cold |
+| Eligibility | 0.603 | 1.869 | query / 42 | cold |
+| Computation | 0.003 | 0.004 | query / 42 | cold |
+| Hybrid merge | 0.290 | 0.472 | query / 42 | cold |
+| Selection | 0.055 | 0.083 | query / 42 | cold |
+| Total pre-reader | 85.625 | 118.010 | query / 42 | cold |
+| Observed assembly (excludes KG search) | 18.817 | 35.149 | query / 42 | cold |
+| Graph construction | 8,534.680 | 10,685.483 | snapshot graph / 12 | cold |
+
+Every machine-readable statistic also records aggregation unit, denominator,
+included count, included stages and cold/warm status. Errors and retries were zero.
 
 Provider calls are 0. Tokens and provider cost are N/A with reason
 `provider_not_called`; reader latency is N/A with reason `reader_not_run`.
@@ -93,11 +123,11 @@ Provider calls are 0. Tokens and provider cost are N/A with reason
 ## Determinism
 
 Two independent cold constructions produced identical logical digest:
-`be01038f1cf831283c62c7a299bc07a82b770cf5cadbdd7f6bd2e2dc7b6f93fa`.
+`c03dd779cc646f7635d780f5bb762e909dc057bfb695c67984ad74154d461c53`.
 Their byte hashes differ because measured latency is intentionally retained.
 
-- Run A SHA-256: `7641c0e3724c4fa0ec614926084fe21996ea97427588c8b3ae4bd4566372a038`.
-- Run B SHA-256: `0d9c017cc0c9e9c18def4fb0ade50801a4ddd2172c5a94919fe0a12a31ec2db3`.
+- Run A SHA-256: `7590bbfad1dab32864a6462a89e63848bbe281e8eb63c27880ab4ae28a33f415`.
+- Run B SHA-256: `fb8e628e668155073e4e96f9b880e2cf4a583ef51630f8bf7cda83c26cd8bbb1`.
 
 ## Dense/reranker audit
 
@@ -111,8 +141,8 @@ only, not a semantic dense baseline.
 
 ## Verification
 
-- Data/frozen suite: 39 passed in 41.58 seconds.
-- Phase B unit/conformance/integration suite: 15 passed in 19.29 seconds.
+- Data/frozen suite: 39 passed in 42.74 seconds.
+- Phase B unit/conformance/integration suite: 16 passed in 19.39 seconds.
 - Final frozen verifier: PASS 636/636.
 - Frozen-path diff: empty; `git diff --check`: PASS.
 - Provider credentials were unset for the test and closure workflows.

@@ -55,5 +55,14 @@ def test_offline_closure_emits_complete_terminal_traces_without_private_tree(
     assert report["ledger_count"] == 8
     assert report["terminal_status_counts"] == {"completed_retrieval": 42}
     assert all(required <= trace.keys() for trace in report["traces"])
+    included = ["document", "kg_search", "eligibility_normalization",
+                "computation", "hybrid_merge", "selection"]
+    assert all(trace["latency_contract"]["invariant_pass"] for trace in report["traces"])
+    assert all(trace["latency_ms"]["total_pre_reader"] + 1e-9
+               >= sum(trace["latency_ms"][stage] for stage in included)
+               for trace in report["traces"])
+    assert report["latency_statistics"]["kg_search"]["aggregation_unit"] == "query_search_call"
+    assert report["latency_statistics"]["kg_search"]["denominator"] == 42
+    assert report["latency_statistics"]["graph_construction"]["denominator"] == 12
     assert report["instrumentation"]["provider_calls"] == 0
     assert not (release / "private").exists()

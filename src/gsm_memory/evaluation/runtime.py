@@ -43,12 +43,24 @@ def _proof_complete(proof: dict[str, Any], covered: set[str]) -> bool:
     return bool(alternatives) and any(set(option).issubset(covered) for option in alternatives)
 
 
+def _stages_for_locators(locator_types: set[str]) -> list[str]:
+    stages = set()
+    if locator_types & {"document_clause", "definition_artifact"}:
+        stages.add("document")
+    if locator_types & {"ledger_assertion", "entity_catalog"}:
+        stages.add("kg")
+    if "coverage_artifact" in locator_types:
+        stages.add("computation")
+    return sorted(stages)
+
+
 def evaluate_offline_closure(release: Path, run: dict[str, Any], runtime_report: Path) -> dict[str, Any]:
     private = release / "private" / "eval"
     links_by_query: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for link in read_jsonl(private / "support_links.jsonl"):
         links_by_query[link["query_id"]].append(link)
     proofs = {row["query_id"]: row for row in read_jsonl(private / "proofs.jsonl")}
+    gold = {row["query_id"]: row for row in read_jsonl(private / "gold_answers.jsonl")}
     atoms = {row["atom_id"]: row for row in read_jsonl(private / "support_atoms.jsonl")}
     modality_by_locator = {"document_clause": "document", "ledger_assertion": "ledger_assertion",
                            "entity_catalog": "entity_catalog", "definition_artifact": "definition_artifact",
@@ -69,6 +81,8 @@ def evaluate_offline_closure(release: Path, run: dict[str, Any], runtime_report:
         if candidate.get("eligibility") == "eligible"
     )
     rows = []
+    candidate_incomplete_inventory = []
+    selection_loss_inventory = []
     for trace in run["traces"]:
         query_id = trace["query_id"]
         links = links_by_query.get(query_id, [])
@@ -79,8 +93,9 @@ def evaluate_offline_closure(release: Path, run: dict[str, Any], runtime_report:
         selected_complete = _proof_complete(proof, selected_atoms)
         required_atoms = set().union(*(set(option) for option in proof.get("minimal_atom_sets", []))) if proof.get("minimal_atom_sets") else set()
         roles = {atom_id: atoms[atom_id]["role"] for atom_id in required_atoms}
-        candidate_missing = sorted({roles[a] for a in required_atoms - candidate_atoms})
-        selected_missing = sorted({roles[a] for a in required_atoms - selected_atoms})
+        declared_missing_roles = set(proof.get("missing_roles", []))
+        candidate_missing = sorted({roles[a] for a in required_atoms - candidate_atoms} | declared_missing_roles)
+        selected_missing = sorted({roles[a] for a in required_atoms - selected_atoms} | declared_missing_roles)
         missing_locator_types = {
             source["locator"]["locator_type"]
             for link in links
@@ -116,6 +131,62 @@ def evaluate_offline_closure(release: Path, run: dict[str, Any], runtime_report:
                      "earliest_failing_stage": earliest,
                      "candidate_atom_count": len(candidate_atoms), "selected_atom_count": len(selected_atoms),
                      "wrong_source_roles": [], "wrong_entity_roles": [], "wrong_time_roles": []})
+        if not candidate_complete:
+            availability = "expected_visible" if proof.get("minimal_atom_sets") else "intentionally_unavailable"
+            candidate_incomplete_inventory.append({
+                "query_id": query_id,
+                "missing_locator_types": sorted(missing_locator_types),
+                "missing_support_roles": candidate_missing,
+                "affected_stages": _stages_for_locators(missing_locator_types),
+                "earliest_failure": earliest,
+                "availability_class": availability,
+                "expected_status": gold[query_id]["expected_status"],
+                "note": ("required support is declared by a minimal proof but absent from candidates"
+                         if availability == "expected_visible"
+                         else "gold intentionally declares missing/conflicting/ambiguous observable evidence; no sufficient minimal proof exists"),
+            })
+        if candidate_complete and not selected_complete:
+            candidate_options = [set(option) for option in proof["minimal_atom_sets"]
+                                 if set(option).issubset(candidate_atoms)]
+            retained_option = min(candidate_options,
+                                  key=lambda option: (len(option - selected_atoms), sorted(option)))
+            excluded_by_id = {item["evidence_id"]: item for item in trace["selector_excluded"]}
+            dropped_atoms = []
+            for atom_id in sorted(retained_option - selected_atoms):
+                atom_links = [link for link in links if link["atom_id"] == atom_id]
+                evidence = []
+                for candidate in trace["hybrid_candidates"]:
+                    if candidate["evidence_id"] in {item["evidence_id"] for item in trace["selected_evidence"]}:
+                        continue
+                    if not any(_candidate_supports(candidate, source)
+                               for link in atom_links for source in link["canonical_source_refs"]):
+                        continue
+                    exclusion = excluded_by_id.get(candidate["evidence_id"], {})
+                    evidence.append({
+                        "evidence_id": candidate["evidence_id"],
+                        "evidence_type": candidate["source_kind"],
+                        "origin_stage": candidate.get("origin_stage"),
+                        "rank": candidate.get("rank"),
+                        "score": candidate.get("score"),
+                        "token_cost": candidate.get("token_cost"),
+                        "exclusion_reason": exclusion.get("reason", "not_selected"),
+                        "budget_state": exclusion.get("budget_state"),
+                    })
+                dropped_atoms.append({"atom_id": atom_id, "support_role": atoms[atom_id]["role"],
+                                      "evidence": evidence})
+            selection_loss_inventory.append({
+                "query_id": query_id,
+                "candidate_proof_complete": True,
+                "selected_proof_complete": False,
+                "atoms_dropped_by_selector": dropped_atoms,
+                "selected_budget_state": {
+                    "tokens_spent": sum(item.get("token_cost", 1) for item in trace["selected_evidence"]),
+                    "token_budget": trace["limits"]["token_budget"],
+                    "selected_items": len(trace["selected_evidence"]),
+                    "max_items": trace["limits"]["selected_cap"],
+                },
+                "earliest_failure": "selection_dropped_required_evidence",
+            })
     metrics = {}
     for modality in sorted(totals):
         metrics[modality] = {"required_links": totals[modality],
@@ -130,6 +201,8 @@ def evaluate_offline_closure(release: Path, run: dict[str, Any], runtime_report:
             "query_count": len(rows), "candidate_proof_complete": sum(r["candidate_proof_complete"] for r in rows),
             "selected_proof_complete": sum(r["selected_proof_complete"] for r in rows),
             "selection_loss_count": sum(r["selection_loss"] for r in rows),
+            "candidate_incomplete_inventory": candidate_incomplete_inventory,
+            "selection_loss_inventory": selection_loss_inventory,
             "modality_metrics": metrics,
             "document_metrics": {"document_support_links_required": document["required_links"],
                                  "document_support_links_resolved_candidate": document["candidate_links_resolved"],
