@@ -23,3 +23,6 @@ runs/experiments/*
 !artifacts/indexes/README.md
 !artifacts/graphs/README.md
 !runs/experiments/README.md
+
+data/kuzu_storage
+reports/kuzu_probe.json

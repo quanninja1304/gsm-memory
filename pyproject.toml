@@ -28,4 +28,4 @@ packages = ["src/gsm_memory"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
-testpaths = ["tests/unit/data", "tests/conformance/data", "tests/integration/data"]
+testpaths = ["tests/unit/data", "tests/unit/agent", "tests/conformance/data", "tests/integration/data"]
