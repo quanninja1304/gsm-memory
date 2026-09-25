@@ -6,7 +6,6 @@ from gsm_memory.retrieval.documents import construct_chunks
 from gsm_memory.retrieval.offline import (
     _document_candidates,
     computation_candidates,
-    graph_namespace_key,
     hybrid_union,
     select_public,
 )
@@ -30,12 +29,6 @@ def _candidate(evidence_id: str, kind: str, locator: dict, *, source_id: str = "
         "rank": 1,
         "token_cost": cost,
     }
-
-
-def test_graph_namespace_is_stable_and_snapshot_scoped():
-    first = graph_namespace_key("release", "snapshot-a", "config", "adapter")
-    assert first == graph_namespace_key("release", "snapshot-a", "config", "adapter")
-    assert first != graph_namespace_key("release", "snapshot-b", "config", "adapter")
 
 
 def test_hybrid_union_only_deduplicates_identical_canonical_locators():

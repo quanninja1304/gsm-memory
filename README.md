@@ -85,8 +85,67 @@ selection for all 42 development queries, followed by private post-runtime
 candidate-versus-selected attribution. The immediate measured bottleneck is
 proof preservation during selection: 30/42 queries are candidate-complete but
 only 15/42 remain selected-complete. Mode B, the live reader/C0 and reasoning
-attribution are `BLOCKED_PROVIDER`; dense/reranker is
+attribution remain `BLOCKED_PROVIDER`; dense/reranker is
 `BLOCKED_MODEL_ARTIFACT`. Full BRG and production readiness are not claimed.
+
+The native Mode B Graphiti runner is implemented but has not been executed. It
+uses the public snapshot narratives, Graphiti `add_episode()` and Graphiti
+`search()` with OpenAI and persistent Neo4j. One Neo4j database contains an
+isolated group for each public snapshot. Ingestion and search are separate so a
+search never silently rebuilds or changes the graph.
+
+Configure a local Neo4j server or Neo4j Aura connection, then start with one
+bounded ingestion:
+
+```powershell
+$env:OPENAI_API_KEY = "..."
+$env:NEO4J_URI = "bolt://localhost:7687"
+$env:NEO4J_USER = "neo4j"
+$env:NEO4J_PASSWORD = "..."
+$env:NEO4J_DATABASE = "neo4j"
+
+uv run --extra graphiti python -m gsm_memory.benchmark graphiti-ingest `
+  --release data/gsm-dev-core-0.2.2 `
+  --snapshot-id 25b69c05-6a60-51e3-9209-74e5d49816fa `
+  --max-episodes 10 `
+  --output runs/experiments/graphiti-smoke-ingestion.json
+
+uv run --extra graphiti python -m gsm_memory.benchmark graphiti-search `
+  --release data/gsm-dev-core-0.2.2 `
+  --snapshot-id 25b69c05-6a60-51e3-9209-74e5d49816fa `
+  --max-queries 1 `
+  --allow-partial `
+  --output runs/experiments/graphiti-smoke.json
+
+uv run --extra graphiti python -m gsm_memory.benchmark evaluate `
+  --release data/gsm-dev-core-0.2.2 `
+  --runtime-report runs/experiments/graphiti-smoke.json `
+  --output runs/experiments/graphiti-smoke-evaluation.json
+```
+
+`NEO4J_USERNAME` from an Aura-generated environment file is also accepted as
+an alias for `NEO4J_USER`. Values containing spaces, such as an optional Aura
+instance name, must be quoted or removed because they are not used by the
+baseline.
+
+When the bounded run succeeds, run `graphiti-ingest` without snapshot or episode
+limits. The command resumes only an exact episode prefix, reuses complete groups
+and rejects mixed database state. Then run `graphiti-search` without snapshot,
+query or partial flags for all 42 development queries. Full ingestion may
+consume substantial provider quota. Runtime code never reads the private
+evaluation directory; the separate `evaluate` command reads gold only after
+retrieval has finished.
+
+```powershell
+uv run --extra graphiti python -m gsm_memory.benchmark graphiti-ingest `
+  --release data/gsm-dev-core-0.2.2 `
+  --output runs/experiments/graphiti-full-ingestion.json
+
+uv run --extra graphiti python -m gsm_memory.benchmark graphiti-search `
+  --release data/gsm-dev-core-0.2.2 `
+  --search-limit 10 `
+  --output runs/experiments/graphiti-dev-42.json
+```
 
 See `reports/benchmark_readiness/phase-b-offline-closure.md` for current
 metrics, corrected latency accounting, error inventories and reproduction

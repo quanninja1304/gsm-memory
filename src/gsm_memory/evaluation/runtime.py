@@ -229,10 +229,81 @@ def evaluate_offline_closure(release: Path, run: dict[str, Any], runtime_report:
             "precision": None, "ndcg": None, "ranking_metric_reason": "incomplete_judgments", "rows": rows}
 
 
+def evaluate_graphiti_baseline(
+    release: Path, run: dict[str, Any], runtime_report: Path
+) -> dict[str, Any]:
+    """Evaluate native Graphiti candidates after runtime has completed."""
+    private = release / "private" / "eval"
+    links_by_query: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for link in read_jsonl(private / "support_links.jsonl"):
+        links_by_query[link["query_id"]].append(link)
+    proofs = {row["query_id"]: row for row in read_jsonl(private / "proofs.jsonl")}
+    gold = {row["query_id"]: row for row in read_jsonl(private / "gold_answers.jsonl")}
+    atoms = {row["atom_id"]: row for row in read_jsonl(private / "support_atoms.jsonl")}
+
+    rows = []
+    locator_totals = Counter()
+    locator_covered = Counter()
+    for trace in run["traces"]:
+        query_id = trace["query_id"]
+        links = links_by_query.get(query_id, [])
+        covered = _covered_atoms(trace["candidates"], links)
+        proof = proofs[query_id]
+        alternatives = proof.get("minimal_atom_sets", [])
+        required = set().union(*(set(option) for option in alternatives)) if alternatives else set()
+        for link in links:
+            locator_type = link["canonical_source_refs"][0]["locator"]["locator_type"]
+            locator_totals[locator_type] += 1
+            locator_covered[locator_type] += link["atom_id"] in covered
+        missing_roles = sorted({
+            atoms[atom_id]["role"] for atom_id in required - covered
+        } | set(proof.get("missing_roles", [])))
+        rows.append({
+            "query_id": query_id,
+            "snapshot_id": trace["snapshot_id"],
+            "expected_status": gold[query_id]["expected_status"],
+            "candidate_count": len(trace["candidates"]),
+            "candidate_atom_count": len(covered),
+            "required_union_count": len(required),
+            "candidate_evidence_coverage": (
+                len(covered & required) / len(required) if required else None
+            ),
+            "candidate_proof_complete": _proof_complete(proof, covered),
+            "missing_roles": missing_roles,
+            "selection_evaluated": False,
+            "reader_evaluated": False,
+        })
+
+    locator_metrics = {
+        locator_type: {
+            "required_links": locator_totals[locator_type],
+            "resolved_links": locator_covered[locator_type],
+            "recall": locator_covered[locator_type] / locator_totals[locator_type],
+        }
+        for locator_type in sorted(locator_totals)
+    }
+    return {
+        "schema_version": "graphiti-native-evaluation-v1",
+        "runtime_report": runtime_report.as_posix(),
+        "run_status": run["status"],
+        "planned_query_count": run["planned_query_count"],
+        "query_count": len(rows),
+        "candidate_proof_complete": sum(row["candidate_proof_complete"] for row in rows),
+        "locator_metrics": locator_metrics,
+        "selection_complete": None,
+        "reader_accuracy": None,
+        "ranking_metrics": None,
+        "ranking_metric_reason": "incomplete relevance judgments",
+        "rows": rows,
+    }
+
+
 def evaluate_run(release: Path, runtime_report: Path) -> dict[str, Any]:
     run = json.loads(runtime_report.read_text("utf-8"))
     if run.get("schema_version") == "phase-b-offline-closure-v1":
         return evaluate_offline_closure(release, run, runtime_report)
+    if run.get("schema_version") == "graphiti-native-baseline-v1":
+        return evaluate_graphiti_baseline(release, run, runtime_report)
     chunks, _, _ = construct_chunks(release, run["profile"])
     chunk_by_id = {chunk.chunk_id: chunk for chunk in chunks}
     private = release / "private" / "eval"

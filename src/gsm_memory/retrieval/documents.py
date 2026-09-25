@@ -31,11 +31,6 @@ class ChunkConfig:
     tokenizer_version: str = TOKENIZER_VERSION
     normalization: str = "frozen-normalized-utf8"
 
-    @property
-    def config_hash(self) -> str:
-        return canonical_hash(asdict(self))
-
-
 @dataclass(frozen=True)
 class Chunk:
     chunk_id: str
@@ -52,7 +47,6 @@ class Chunk:
     normalized_sha256: str
     raw_sha256: str | None
     clause_ids: tuple[str, ...]
-    config_hash: str
 
 
 @dataclass(frozen=True)
@@ -62,7 +56,6 @@ class ProjectionLink:
     source_id: str
     source_locator: str
     runtime_id: str
-    config_hash: str
 
 
 def _raw_offset(text: str, offset: int, raw_uses_crlf: bool) -> int:
@@ -133,12 +126,16 @@ def construct_chunks(
                 raw_uses_crlf = b"\r\n" in raw_data
         for start, end, count in _spans(text, config):
             clause_ids = tuple(sorted(str(c["clause_id"]) for c in clauses if c.get("span_start", end) < end and c.get("span_end", start) > start))
-            identity = {"revision": revision, "start": start, "end": end, "config_hash": config.config_hash}
+            identity = {"revision": revision, "start": start, "end": end,
+                        "chunking": asdict(config)}
             chunk_id = canonical_hash(identity)
             raw_start = _raw_offset(text, start, raw_uses_crlf) if kind == "document" else start
             raw_end = _raw_offset(text, end, raw_uses_crlf) if kind == "document" else end
-            chunks.append(Chunk(chunk_id, kind, source_id, revision, profile_id, start, end, raw_start, raw_end, count, text[start:end], normalized_hash, row.get("raw_sha256"), clause_ids, config.config_hash))
-            links.append(ProjectionLink("document_chunk", kind, source_id, path.relative_to(release).as_posix(), chunk_id, config.config_hash))
+            chunks.append(Chunk(chunk_id, kind, source_id, revision, profile_id, start, end,
+                                raw_start, raw_end, count, text[start:end], normalized_hash,
+                                row.get("raw_sha256"), clause_ids))
+            links.append(ProjectionLink("document_chunk", kind, source_id,
+                                        path.relative_to(release).as_posix(), chunk_id))
     chunks.sort(key=lambda c: c.chunk_id)
     links.sort(key=lambda link: link.runtime_id)
     inventory = {
@@ -148,7 +145,5 @@ def construct_chunks(
         "definition_count": len(definition_ids),
         "chunk_count": len(chunks),
         "config": asdict(config),
-        "config_hash": config.config_hash,
-        "logical_digest": canonical_hash([asdict(c) for c in chunks]),
     }
     return chunks, links, inventory

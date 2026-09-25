@@ -13,7 +13,7 @@ def test_chunk_ids_and_inventory_are_deterministic():
     b, links_b, inventory_b = construct_chunks(RELEASE, "debug_core", ChunkConfig())
     assert a == b
     assert links_a == links_b
-    assert inventory_a["logical_digest"] == inventory_b["logical_digest"]
+    assert inventory_a == inventory_b
     assert inventory_a["document_count"] == 9
     assert inventory_a["definition_count"] == 12
 

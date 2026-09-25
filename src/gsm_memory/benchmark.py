@@ -13,21 +13,12 @@ from pathlib import Path
 from typing import Any
 
 from gsm_memory.retrieval import BM25Index, ChunkConfig, construct_chunks
-from gsm_memory.retrieval.documents import canonical_hash, read_jsonl
+from gsm_memory.retrieval.documents import read_jsonl
 
 
 def _write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n", "utf-8")
-
-
-def _implementation_hash() -> str:
-    package = Path(__file__).resolve().parent
-    paths = [Path(__file__), *(package / "retrieval").glob("*.py"),
-             package / "adapters" / "graphiti.py", package / "evaluation" / "runtime.py"]
-    inventory = [(path.relative_to(package).as_posix(), canonical_hash(path.read_text("utf-8")))
-                 for path in sorted(paths) if path.exists()]
-    return canonical_hash(inventory)
 
 
 def construct_documents(release: Path, profile: str, output: Path) -> dict[str, Any]:
@@ -69,8 +60,8 @@ def run_queries(release: Path, profile: str, output: Path, top_k: int) -> dict[s
         })
     report = {"release": release.name, "profile": profile, "query_count": len(queries), "terminal_count": len(traces),
               "completed": sum(t["terminal_status"] == "completed" for t in traces), "top_k": top_k,
-              "config_hash": canonical_hash({"profile": profile, "top_k": top_k, "chunk": inventory["config_hash"]}),
-              "implementation_hash": _implementation_hash(),
+              "configuration": {"profile": profile, "top_k": top_k,
+                                "chunking": inventory["config"]},
               "provider_credentials": {key: bool(os.getenv(key)) for key in ("OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY")},
               "total_ms": round((time.perf_counter() - started) * 1000, 3), "traces": traces}
     _write_json(output, report)
@@ -82,7 +73,8 @@ def preflight(output: Path) -> dict[str, Any]:
         return subprocess.check_output(args, text=True).strip()
     report = {"head": command("git", "rev-parse", "HEAD"), "branch": command("git", "branch", "--show-current"),
               "python": platform.python_version(), "os": platform.platform(), "machine": platform.machine(),
-              "graphiti": "0.30.2", "backend": "kuzu==0.11.3 (deprecated upstream)",
+              "graphiti": "0.30.2", "mode_a_backend": "kuzu==0.11.3 (deprecated upstream)",
+              "mode_b_backend": "neo4j==6.3.0",
               "dense_model": "unavailable", "reranker": "unavailable", "reader": "blocked_provider",
               "credentials": {key: bool(os.getenv(key)) for key in ("OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY")}}
     _write_json(output, report)
@@ -92,29 +84,101 @@ def preflight(output: Path) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(prog="python -m gsm_memory.benchmark")
     sub = parser.add_subparsers(dest="command", required=True)
-    p = sub.add_parser("preflight"); p.add_argument("--output", type=Path, required=True)
-    p = sub.add_parser("construct-documents"); p.add_argument("--release", type=Path, required=True); p.add_argument("--profile", required=True); p.add_argument("--output", type=Path, required=True)
-    p = sub.add_parser("probe-graphiti"); p.add_argument("--snapshot", type=Path, required=True); p.add_argument("--output", type=Path, required=True); p.add_argument("--database", default=":memory:")
-    p = sub.add_parser("run"); p.add_argument("--release", type=Path, required=True); p.add_argument("--profile", required=True); p.add_argument("--output", type=Path, required=True); p.add_argument("--top-k", type=int, default=10)
-    p = sub.add_parser("evaluate"); p.add_argument("--release", type=Path, required=True); p.add_argument("--runtime-report", type=Path, required=True); p.add_argument("--output", type=Path, required=True)
-    p = sub.add_parser("offline-closure"); p.add_argument("--release", type=Path, required=True); p.add_argument("--profile", default="retrieval_full"); p.add_argument("--output", type=Path, required=True); p.add_argument("--document-top-k", type=int, default=10); p.add_argument("--graph-top-k", type=int, default=40); p.add_argument("--token-budget", type=int, default=1800)
+    preflight_parser = sub.add_parser("preflight")
+    preflight_parser.add_argument("--output", type=Path, required=True)
+
+    documents_parser = sub.add_parser("construct-documents")
+    documents_parser.add_argument("--release", type=Path, required=True)
+    documents_parser.add_argument("--profile", required=True)
+    documents_parser.add_argument("--output", type=Path, required=True)
+
+    graphiti_parser = sub.add_parser("probe-graphiti")
+    graphiti_parser.add_argument("--snapshot", type=Path, required=True)
+    graphiti_parser.add_argument("--output", type=Path, required=True)
+    graphiti_parser.add_argument("--database", default=":memory:")
+
+    run_parser = sub.add_parser("run")
+    run_parser.add_argument("--release", type=Path, required=True)
+    run_parser.add_argument("--profile", required=True)
+    run_parser.add_argument("--output", type=Path, required=True)
+    run_parser.add_argument("--top-k", type=int, default=10)
+
+    evaluation_parser = sub.add_parser("evaluate")
+    evaluation_parser.add_argument("--release", type=Path, required=True)
+    evaluation_parser.add_argument("--runtime-report", type=Path, required=True)
+    evaluation_parser.add_argument("--output", type=Path, required=True)
+
+    closure_parser = sub.add_parser("offline-closure")
+    closure_parser.add_argument("--release", type=Path, required=True)
+    closure_parser.add_argument("--profile", default="retrieval_full")
+    closure_parser.add_argument("--output", type=Path, required=True)
+    closure_parser.add_argument("--document-top-k", type=int, default=10)
+    closure_parser.add_argument("--graph-top-k", type=int, default=40)
+    closure_parser.add_argument("--token-budget", type=int, default=1800)
+
+    graphiti_ingest_parser = sub.add_parser("graphiti-ingest")
+    graphiti_ingest_parser.add_argument("--release", type=Path, required=True)
+    graphiti_ingest_parser.add_argument("--output", type=Path, required=True)
+    graphiti_ingest_parser.add_argument("--snapshot-id")
+    graphiti_ingest_parser.add_argument("--max-episodes", type=int)
+
+    graphiti_search_parser = sub.add_parser("graphiti-search")
+    graphiti_search_parser.add_argument("--release", type=Path, required=True)
+    graphiti_search_parser.add_argument("--output", type=Path, required=True)
+    graphiti_search_parser.add_argument("--snapshot-id")
+    graphiti_search_parser.add_argument("--max-queries", type=int)
+    graphiti_search_parser.add_argument("--search-limit", type=int, default=10)
+    graphiti_search_parser.add_argument("--allow-partial", action="store_true")
     args = parser.parse_args()
     if args.command == "preflight": report = preflight(args.output)
     elif args.command == "construct-documents": report = construct_documents(args.release, args.profile, args.output)
     elif args.command == "run": report = run_queries(args.release, args.profile, args.output, args.top_k)
     elif args.command == "evaluate":
         from gsm_memory.evaluation.runtime import evaluate_run
-        report = evaluate_run(args.release, args.runtime_report); _write_json(args.output, report)
+
+        report = evaluate_run(args.release, args.runtime_report)
+        _write_json(args.output, report)
     elif args.command == "offline-closure":
         from gsm_memory.retrieval.offline import run_offline_closure_sync
         report = run_offline_closure_sync(args.release, args.profile, document_top_k=args.document_top_k,
                                           graph_top_k=args.graph_top_k, token_budget=args.token_budget)
         _write_json(args.output, report)
+    elif args.command == "graphiti-ingest":
+        import asyncio
+
+        from gsm_memory.adapters.graphiti_baseline import ingest_graphiti_baseline
+
+        report = asyncio.run(ingest_graphiti_baseline(
+            args.release,
+            snapshot_id=args.snapshot_id,
+            max_episodes=args.max_episodes,
+        ))
+        _write_json(args.output, report)
+    elif args.command == "graphiti-search":
+        import asyncio
+
+        from gsm_memory.adapters.graphiti_baseline import search_graphiti_baseline
+
+        report = asyncio.run(search_graphiti_baseline(
+            args.release,
+            snapshot_id=args.snapshot_id,
+            max_queries=args.max_queries,
+            search_limit=args.search_limit,
+            allow_partial=args.allow_partial,
+        ))
+        _write_json(args.output, report)
     else:
         import asyncio
         from gsm_memory.adapters.graphiti import construct_mode_a
-        report = asyncio.run(construct_mode_a(args.snapshot, args.database)); _write_json(args.output, report)
-    print(json.dumps({key: value for key, value in report.items() if key not in {"chunks", "projection_links", "traces"}}, ensure_ascii=False, sort_keys=True))
+
+        report = asyncio.run(construct_mode_a(args.snapshot, args.database))
+        _write_json(args.output, report)
+    # Keep CLI stdout small and encoding-safe on Windows legacy consoles. Full
+    # machine-readable details live in the declared output artifact.
+    print(json.dumps({key: value for key, value in report.items()
+                      if key not in {"chunks", "projection_links", "traces", "nodes", "edges",
+                                     "rows", "candidate_incomplete_inventory", "selection_loss_inventory"}},
+                     ensure_ascii=True, sort_keys=True))
     return 0
 
 

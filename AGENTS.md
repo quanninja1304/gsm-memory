@@ -219,6 +219,14 @@ BRG04 = BLOCKED (candidate/selected attribution pass; reasoning blocked_provider
 BRG05 = BLOCKED (offline instrumentation pass; provider instrumentation blocked)
 ```
 
+A minimal native Mode B runner exists for the provider-dependent Graphiti
+baseline. It uses public Mode B observations with `Graphiti.add_episode()` and
+native `Graphiti.search()` over persistent Neo4j. Each public snapshot has an
+isolated Graphiti group. Ingestion and search are separate; search must not
+silently ingest or repair a group. Its existence does not change the blocked
+gate status until a real provider-backed run and evaluation complete
+successfully.
+
 Do not claim full BRG PASS until every required provider/model-dependent path
 actually runs. The next offline optimization target is proof-preserving
 selection; runtime selection must remain public-only and must never consult
