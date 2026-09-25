@@ -550,7 +550,6 @@ Expected areas include:
 src/gsm_memory/data/
 src/gsm_memory/evaluation/
 configs/datasets/
-scripts/data/
 tests/unit/
 tests/conformance/
 tests/integration/

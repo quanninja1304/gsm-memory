@@ -15,6 +15,7 @@ __pycache__/
 external/policy_green_sm_corpus/
 
 # Rebuildable or high-volume runtime outputs
+artifacts/data_builds/
 artifacts/indexes/*
 artifacts/graphs/*
 runs/experiments/*

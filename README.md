@@ -9,19 +9,18 @@ initial graph reference baseline, not an assumed source of temporal truth.
 
 | Path | Purpose |
 | --- | --- |
-| `docs/` | Contracts, schema, dataset specifications, research, and project notes |
+| `docs/` | Contracts, schema, dataset specifications, and research synthesis |
 | `external/` | Source checkouts kept intact; not project implementation code |
-| `src/gsm_memory/` | Implementation packages for data, adapters, retrieval, evaluation, and agent integration |
-| `configs/` | Versioned dataset, Graphiti, retrieval, and experiment configurations |
+| `src/gsm_memory/` | Implementation packages for data, adapters, retrieval, and evaluation |
+| `configs/` | Versioned dataset and benchmark configurations |
 | `data/raw/` | Immutable source archives owned by this workspace |
 | `data/gsm-dev-core-0.2.2/` | Current corrective release with closed provenance and independent assurance |
 | `data/gsm-dev-core-0.2.1/` | Immutable superseded release; retained for audit/reproducibility |
 | `data/gsm-dev-core-0.2/` | Immutable deprecated release; do not use for new experiments |
-| `tests/` | Unit, integration, fixture, and external conformance tests |
+| `tests/` | Unit, integration, and external conformance tests |
 | `runs/` | Machine-readable outputs from ingestion, retrieval, and evaluation runs |
 | `artifacts/` | Rebuildable indexes and graph snapshots |
-| `reports/` | Human-facing tables, figures, and final analyses |
-| `scripts/` | Thin entry points for data and experiment workflows |
+| `reports/` | Freeze assurance, benchmark, and Oracle KG reports |
 
 ## Source-of-truth order
 
