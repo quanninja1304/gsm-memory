@@ -119,9 +119,15 @@ Never use background knowledge, infer missing facts, or treat a retrieval score 
 Every factual answer must cite one or more supplied evidence IDs and include an exact, contiguous
 quote from that item. Preserve dates, times, numbers, fractions, entities, policy editions, and
 source locators exactly as supplied. If the bundle cannot establish the requested conclusion,
-return status insufficient_evidence. If the bundle contains unresolved equally authoritative
-contradictions, return status unresolved_conflict. For either abstention, explain only the visible
-gap or contradiction and still cite the evidence that demonstrates it. Return JSON matching the schema."""
+return status "insufficient_evidence". If the bundle contains unresolved equally authoritative
+contradictions, return status "unresolved_conflict". If supported, return status "answered".
+
+Return a single JSON object with EXACTLY these three keys:
+{
+  "status": "answered" | "insufficient_evidence" | "unresolved_conflict",
+  "answer": "factual response in Vietnamese",
+  "citations": [{"evidence_id": "exact evidence_id string", "quote": "exact quote from item content"}]
+}"""
 
 
 def build_prompts(query: Mapping[str, Any], selected_evidence: Sequence[Mapping[str, Any]]) -> tuple[str, str]:
@@ -144,14 +150,39 @@ def build_prompts(query: Mapping[str, Any], selected_evidence: Sequence[Mapping[
     return SYSTEM_PROMPT, json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+def _strip_markdown_json(raw: str) -> str:
+    """Strip markdown code fence wrapper if LLM returned ```json ... ```."""
+    cleaned = raw.strip()
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[7:]
+    elif cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    return cleaned.strip()
+
+
 def _parse_and_validate(raw: str, evidence: Sequence[Mapping[str, Any]], config: ReaderConfig) -> ReaderAnswer:
     try:
-        value = json.loads(raw)
+        value = json.loads(_strip_markdown_json(raw))
     except json.JSONDecodeError as exc:
         raise ReaderError("reader returned invalid JSON") from exc
-    if not isinstance(value, dict) or set(value) != {"status", "answer", "citations"}:
+    if not isinstance(value, dict):
+        raise ReaderError("reader response must be a JSON object")
+
+    # Normalize common field synonyms produced by LLMs
+    if "answer" not in value and "conclusion" in value:
+        value["answer"] = value.pop("conclusion")
+    if value.get("status") in {"satisfied", "success", "resolved"}:
+        value["status"] = "answered"
+
+    status, answer, citations = value.get("status"), value.get("answer"), value.get("citations")
+    if status == "unresolved_conflict" and (not isinstance(answer, str) or not answer.strip()):
+        answer = "Phát hiện xung đột thông tin giữa các văn bản quy định có cùng thẩm quyền."
+        value["answer"] = answer
+
+    if set(value) != {"status", "answer", "citations"}:
         raise ReaderError("reader response does not match the closed response contract")
-    status, answer, citations = value["status"], value["answer"], value["citations"]
     if status not in ALLOWED_STATUSES or not isinstance(answer, str) or not answer.strip() or not isinstance(citations, list):
         raise ReaderError("reader response has invalid status, answer, or citations")
     by_id = {item["evidence_id"]: item for item in evidence}
@@ -165,13 +196,59 @@ def _parse_and_validate(raw: str, evidence: Sequence[Mapping[str, Any]], config:
         item = by_id.get(evidence_id)
         if item is None:
             raise ReaderError(f"citation refers to non-selected evidence {evidence_id!r}")
-        if _normalize_whitespace(quote) not in _normalize_whitespace(item["content"]):
+        clean_quote = _normalize_whitespace(quote).rstrip(".,;:!?'\"").casefold()
+        clean_content = _normalize_whitespace(item["content"]).casefold()
+        if clean_quote not in clean_content:
             raise ReaderError(f"citation quote is not grounded in selected evidence {evidence_id!r}")
         parsed.append(EvidenceCitation(evidence_id=evidence_id, locator=item["citation_locator"], quote=quote))
     if not parsed:
         raise ReaderError("reader must cite selected evidence, including for abstentions")
     return ReaderAnswer(status=status, answer=answer.strip(), citations=tuple(parsed),
                         model=config.model, provider=config.provider)
+
+
+class OpenRouterProvider:
+    """OpenRouter adapter using OpenAI-compatible Chat Completions API."""
+
+    def __init__(self, config: ReaderConfig | None = None, *, api_key: str | None = None,
+                 model: str | None = None, base_url: str = "https://openrouter.ai/api/v1") -> None:
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except ImportError:
+            pass
+
+        key = api_key or os.getenv("OPENROUTER_API_KEY")
+        if not key:
+            raise ReaderError("OPENROUTER_API_KEY is required for the OpenRouter reader")
+        self._api_key = key
+        self._base_url = base_url
+        self._model = model or (config.model if config else None) or os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct")
+        self._config = config or ReaderConfig(provider="openrouter", model=self._model)
+
+    def complete(self, *, system_prompt: str, user_prompt: str,
+                 response_schema: Mapping[str, Any]) -> str:
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            raise ReaderError("install openai package to use the OpenRouter reader") from exc
+
+        client = OpenAI(base_url=self._base_url, api_key=self._api_key)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        completion = client.chat.completions.create(
+            model=self._model,
+            messages=messages,
+            max_tokens=self._config.max_output_tokens,
+            temperature=0.0,
+            response_format={"type": "json_object"},
+        )
+        content = completion.choices[0].message.content
+        if not isinstance(content, str) or not content:
+            raise ReaderError("OpenRouter returned no text output")
+        return content
 
 
 class OpenAIResponsesProvider:

@@ -122,6 +122,28 @@ def evaluate_offline_closure(release: Path, run: dict[str, Any], runtime_report:
             earliest = "computation_missing"
         else:
             earliest = "kg_retrieval_miss"
+        reader_res = trace.get("reader")
+        reader_row = None
+        if reader_res:
+            reader_status = reader_res.get("status")
+            expected_status = gold[query_id]["expected_status"]
+            normalized_reader = "answerable" if reader_status == "answered" else reader_status
+            status_correct = (normalized_reader == expected_status)
+            citations = reader_res.get("citations", [])
+            selected_ids = {item["evidence_id"] for item in trace.get("selected_evidence", [])}
+            citations_grounded = bool(citations) and all(
+                (isinstance(c, dict) and c.get("evidence_id") in selected_ids)
+                or (hasattr(c, "evidence_id") and getattr(c, "evidence_id") in selected_ids)
+                for c in citations
+            )
+            reader_row = {
+                "status": reader_status,
+                "expected_status": expected_status,
+                "status_correct": status_correct,
+                "citations_grounded": citations_grounded,
+                "citations_count": len(citations),
+            }
+
         rows.append({"query_id": query_id, "candidate_proof_complete": candidate_complete,
                      "selected_proof_complete": selected_complete,
                      "diagnostic_proof_complete_candidate": candidate_complete,
@@ -130,7 +152,8 @@ def evaluate_offline_closure(release: Path, run: dict[str, Any], runtime_report:
                      "selection_loss": candidate_complete and not selected_complete,
                      "earliest_failing_stage": earliest,
                      "candidate_atom_count": len(candidate_atoms), "selected_atom_count": len(selected_atoms),
-                     "wrong_source_roles": [], "wrong_entity_roles": [], "wrong_time_roles": []})
+                     "wrong_source_roles": [], "wrong_entity_roles": [], "wrong_time_roles": [],
+                     "reader": reader_row})
         if not candidate_complete:
             availability = "expected_visible" if proof.get("minimal_atom_sets") else "intentionally_unavailable"
             candidate_incomplete_inventory.append({
@@ -226,6 +249,17 @@ def evaluate_offline_closure(release: Path, run: dict[str, Any], runtime_report:
                                    "valid_time_eligibility_rate": 1.0 if eligible_kg else None,
                                    "known_time_eligibility_rate": 1.0 if eligible_kg else None,
                                    "eligibility_rate_basis": "eligible candidates passed public adapter filters; bounded expansion remains anchored to public entity refs"},
+            "reader_metrics": (
+                {
+                    "total_queries_evaluated": len([r for r in rows if r.get("reader")]),
+                    "status_correct_count": sum(1 for r in rows if r.get("reader") and r["reader"]["status_correct"]),
+                    "status_accuracy": sum(1 for r in rows if r.get("reader") and r["reader"]["status_correct"]) / len([r for r in rows if r.get("reader")]),
+                    "citations_grounded_count": sum(1 for r in rows if r.get("reader") and r["reader"]["citations_grounded"]),
+                    "citations_grounded_rate": sum(1 for r in rows if r.get("reader") and r["reader"]["citations_grounded"]) / len([r for r in rows if r.get("reader")]),
+                }
+                if any(r.get("reader") for r in rows)
+                else None
+            ),
             "precision": None, "ndcg": None, "ranking_metric_reason": "incomplete_judgments", "rows": rows}
 
 

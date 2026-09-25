@@ -24,5 +24,8 @@ runs/experiments/*
 !artifacts/graphs/README.md
 !runs/experiments/README.md
 
+src/gsm_memory/retrieval/mock_data.py
+tests/unit/retrieval/test_mock_data.py
 data/kuzu_storage
 reports/kuzu_probe.json
+scratch/

@@ -12,7 +12,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from gsm_memory.retrieval import BM25Index, ChunkConfig, construct_chunks
+from gsm_memory.retrieval import BM25Index, ChunkConfig, RetrievalConfig, construct_chunks
 from gsm_memory.retrieval.documents import read_jsonl
 
 
@@ -28,6 +28,24 @@ def construct_documents(release: Path, profile: str, output: Path) -> dict[str, 
               "chunks": [asdict(c) for c in chunks], "projection_links": [asdict(link) for link in links]}
     _write_json(output, report)
     return report
+
+
+def build_dense_index(release: Path, profile: str, config_path: Path, output: Path) -> dict[str, Any]:
+    """Explicitly build a provider-backed dense artifact; never invoked by normal retrieval."""
+    from gsm_memory.retrieval.dense import DenseChunkIndex
+    from gsm_memory.retrieval.nvidia_embed import NvidiaNemotronEmbedder
+
+    config = RetrievalConfig.load(config_path)
+    chunks, _, inventory = construct_chunks(
+        release, profile, ChunkConfig(max_tokens=config.max_tokens, overlap=config.overlap)
+    )
+    index = DenseChunkIndex.build(
+        chunks, embedder=NvidiaNemotronEmbedder(model=config.embedding_model),
+        chunk_config_hash=config.dense_index_config_hash(), profile_version=inventory["profile_version"],
+    )
+    index.save(output)
+    return {"status": "completed", "artifact": str(output), "identity": asdict(index.identity),
+            "chunk_count": inventory["chunk_count"]}
 
 
 def run_queries(release: Path, profile: str, output: Path, top_k: int) -> dict[str, Any]:
@@ -115,6 +133,13 @@ def main() -> int:
     closure_parser.add_argument("--document-top-k", type=int, default=10)
     closure_parser.add_argument("--graph-top-k", type=int, default=40)
     closure_parser.add_argument("--token-budget", type=int, default=1800)
+    closure_parser.add_argument("--retrieval-config", type=Path)
+
+    dense_parser = sub.add_parser("build-dense-index")
+    dense_parser.add_argument("--release", type=Path, required=True)
+    dense_parser.add_argument("--profile", required=True)
+    dense_parser.add_argument("--config", type=Path, required=True)
+    dense_parser.add_argument("--output", type=Path, required=True)
 
     graphiti_ingest_parser = sub.add_parser("graphiti-ingest")
     graphiti_ingest_parser.add_argument("--release", type=Path, required=True)
@@ -140,9 +165,13 @@ def main() -> int:
         _write_json(args.output, report)
     elif args.command == "offline-closure":
         from gsm_memory.retrieval.offline import run_offline_closure_sync
+        config = RetrievalConfig.load(args.retrieval_config) if args.retrieval_config else None
         report = run_offline_closure_sync(args.release, args.profile, document_top_k=args.document_top_k,
-                                          graph_top_k=args.graph_top_k, token_budget=args.token_budget)
+                                          graph_top_k=args.graph_top_k, token_budget=args.token_budget,
+                                          retrieval_config=config)
         _write_json(args.output, report)
+    elif args.command == "build-dense-index":
+        report = build_dense_index(args.release, args.profile, args.config, args.output)
     elif args.command == "graphiti-ingest":
         import asyncio
 
