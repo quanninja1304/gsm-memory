@@ -129,7 +129,20 @@ def main() -> int:
     graphiti_search_parser.add_argument("--max-queries", type=int)
     graphiti_search_parser.add_argument("--search-limit", type=int, default=10)
     graphiti_search_parser.add_argument("--allow-partial", action="store_true")
+
+    oracle_ingest_parser = sub.add_parser("oracle-ingest")
+    oracle_ingest_parser.add_argument("--release", type=Path, required=True)
+    oracle_ingest_parser.add_argument("--output", type=Path, required=True)
+    oracle_ingest_parser.add_argument("--certificate", type=Path)
+    oracle_ingest_parser.add_argument("--comparison", type=Path)
+
+    oracle_verify_parser = sub.add_parser("oracle-verify")
+    oracle_verify_parser.add_argument("--release", type=Path, required=True)
+    oracle_verify_parser.add_argument("--output", type=Path, required=True)
+    oracle_verify_parser.add_argument("--certificate", type=Path)
+    oracle_verify_parser.add_argument("--comparison", type=Path)
     args = parser.parse_args()
+    exit_code = 0
     if args.command == "preflight": report = preflight(args.output)
     elif args.command == "construct-documents": report = construct_documents(args.release, args.profile, args.output)
     elif args.command == "run": report = run_queries(args.release, args.profile, args.output, args.top_k)
@@ -167,6 +180,17 @@ def main() -> int:
             allow_partial=args.allow_partial,
         ))
         _write_json(args.output, report)
+    elif args.command in {"oracle-ingest", "oracle-verify"}:
+        from gsm_memory.adapters.neo4j_oracle import ingest_oracle, verify_oracle
+
+        operation = ingest_oracle if args.command == "oracle-ingest" else verify_oracle
+        report = operation(
+            args.release,
+            certificate=args.certificate,
+            comparison=args.comparison,
+        )
+        _write_json(args.output, report)
+        exit_code = 0 if report.get("status") == "pass" else 1
     else:
         import asyncio
         from gsm_memory.adapters.graphiti import construct_mode_a
@@ -177,9 +201,10 @@ def main() -> int:
     # machine-readable details live in the declared output artifact.
     print(json.dumps({key: value for key, value in report.items()
                       if key not in {"chunks", "projection_links", "traces", "nodes", "edges",
-                                     "rows", "candidate_incomplete_inventory", "selection_loss_inventory"}},
+                                     "rows", "snapshots", "candidate_incomplete_inventory",
+                                     "selection_loss_inventory"}},
                      ensure_ascii=True, sort_keys=True))
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":
