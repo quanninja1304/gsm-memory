@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import statistics
 import time
@@ -20,16 +19,9 @@ from gsm_memory.retrieval.bm25 import BM25Index, RankedChunk
 from gsm_memory.retrieval.documents import Chunk, ChunkConfig, canonical_hash, construct_chunks, read_jsonl
 
 
-def graph_namespace_key(release_digest: str, snapshot_id: str, config_hash: str,
-                        adapter_hash: str) -> str:
-    return canonical_hash({"release_digest": release_digest, "snapshot_id": snapshot_id,
-                           "mode": "A", "config_hash": config_hash,
-                           "graphiti": "0.30.2", "backend": "kuzu-0.11.3",
-                           "adapter_hash": adapter_hash})
-
-
 def locator_key(candidate: dict[str, Any]) -> str:
-    return canonical_hash(candidate["source_locator"])
+    return json.dumps(candidate["source_locator"], ensure_ascii=False,
+                      sort_keys=True, separators=(",", ":"))
 
 
 def hybrid_union(*pools: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -301,7 +293,7 @@ def computation_candidates(snapshot_dir: Path, query: dict[str, Any]) -> tuple[l
                           "source_locator": coverage_locator, "origin_stage": "public_coverage_artifact", "rank": 1,
                           "score": 1.0, "token_cost": 48, "eligibility": "eligible", "coverage_status": "complete",
                           "snapshot_id": query["public_snapshot_id"]}
-    candidate = {"evidence_id": f'computation:{canonical_hash(locator)}', "source_kind": "computation",
+    candidate = {"evidence_id": f'computation:{coverage["artifact_id"]}', "source_kind": "computation",
                  "source_id": coverage["artifact_id"], "content": "cancel_rate_30d full-source computation",
                  "source_locator": locator, "origin_stage": "full_source_computation", "rank": 1, "score": 1.0,
                  "token_cost": 80, "eligibility": "eligible", "coverage_status": "complete",
@@ -321,17 +313,17 @@ async def run_offline_closure(release: Path, profile: str = "retrieval_full", *,
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for query in queries:
         grouped[query["public_snapshot_id"]].append(query)
-    adapter_hash = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
-    # Runtime identity is derived strictly from the public manifest bytes.
-    release_digest = hashlib.sha256((release / "public" / "runtime_manifest.json").read_bytes()).hexdigest()
     graph_receipts = []
     graph_results: dict[str, dict[str, Any]] = {}
     for snapshot_id in sorted(grouped):
         snapshot_dir = release / "public" / "snapshots" / snapshot_id
-        graph = await construct_mode_a(snapshot_dir, search_queries=grouped[snapshot_id], search_limit=graph_top_k)
-        key = graph_namespace_key(release_digest, snapshot_id, inventory["config_hash"], adapter_hash)
-        graph_receipts.append({"snapshot_id": snapshot_id, "namespace_key": key,
-                               "ledger_id": json.loads((snapshot_dir / "manifest.json").read_text("utf-8"))["ledger_id"],
+        graph = await construct_mode_a(
+            snapshot_dir, search_queries=grouped[snapshot_id], search_limit=graph_top_k
+        )
+        snapshot = json.loads((snapshot_dir / "manifest.json").read_text("utf-8"))
+        graph_receipts.append({"snapshot_id": snapshot_id,
+                               "graph_group": f'{snapshot["scope_id"]}-{snapshot_id}',
+                               "ledger_id": snapshot["ledger_id"],
                                "nodes": graph["nodes"], "edges": graph["edges"], "episodes": graph["episodes"],
                                "construction_ms": graph["construction_ms"], "cache_status": "cold",
                                "repeat_write_idempotent": graph["repeat_write_idempotent"],

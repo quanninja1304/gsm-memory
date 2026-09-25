@@ -16,13 +16,18 @@
   },
   "graph": {
     "library": "graphiti-core==0.30.2",
-    "backend": "kuzu==0.11.3",
     "mode_a": "deterministic-custom-writer",
-    "mode_b": "blocked_provider",
+    "mode_a_backend": "kuzu==0.11.3",
+    "mode_b": "native-add-episode",
+    "mode_b_backend": "neo4j==6.3.0",
+    "persistence": "one Neo4j database with one group per public snapshot",
+    "provider": "openai",
+    "llm_model": "gpt-5.5",
+    "embedding_model": "text-embedding-3-small",
+    "reranker_model": "gpt-4.1-nano",
     "capability_probe_embedding": "offline-hash-1024-v1"
   },
   "reader": {"status": "blocked_provider", "provider": null, "model": null},
-  "cache_policy": "cold in-memory construction; no runtime cache",
-  "cost_basis": {"date": "2026-09-18", "provider_calls": 0, "actual_cost_usd": 0}
+  "cache_policy": "Mode A is cold in-memory; Mode B reuses persistent Neo4j groups",
+  "cost_basis": {"date": null, "provider_calls": null, "actual_cost_usd": null, "status": "not_run"}
 }
-
