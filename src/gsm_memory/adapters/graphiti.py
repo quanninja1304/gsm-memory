@@ -123,7 +123,7 @@ def _eligible(edge: Any, query: dict[str, Any], snapshot: dict[str, Any]) -> tup
     return ok, None if ok else "wrong_valid_window"
 
 
-async def _search_queries(driver: Any, snapshot: dict[str, Any], roundtrip_edges: list[Any],
+async def _search_queries(driver: Any, snapshot_dir: Path, snapshot: dict[str, Any], roundtrip_edges: list[Any],
                           search_queries: list[dict[str, Any]], search_limit: int) -> tuple[list[str], list[dict[str, Any]]]:
     """Search one already-open graph without consulting private evaluation data."""
     if not roundtrip_edges:
@@ -136,6 +136,8 @@ async def _search_queries(driver: Any, snapshot: dict[str, Any], roundtrip_edges
     from graphiti_core.search.search import search
     from graphiti_core.search.search_config_recipes import EDGE_HYBRID_SEARCH_RRF
     from graphiti_core.search.search_filters import SearchFilters
+    from gsm_memory.retrieval.kg import budgeted_bfs, filter_edge
+    from gsm_memory.retrieval.semantic_seed import resolve_seeds_from_snapshot
 
     graph_group = f'{snapshot["scope_id"]}-{snapshot["snapshot_id"]}'
     embedder = HashEmbedder()
@@ -153,44 +155,51 @@ async def _search_queries(driver: Any, snapshot: dict[str, Any], roundtrip_edges
         search_config.limit = search_limit
         found = await search(clients, query["query"], [graph_group], search_config,
                              SearchFilters(), driver=driver)
-        candidates: list[tuple[Any, int, list[str]]] = [(edge, 0, []) for edge in found.edges]
-        frontier = set(query.get("entity_refs") or [])
-        visited_entities = set(frontier)
-        for depth in (1, 2):
-            next_frontier: set[str] = set()
-            for edge in roundtrip_edges:
-                if edge.source_node_uuid in frontier or edge.target_node_uuid in frontier:
-                    path = sorted(frontier & {edge.source_node_uuid, edge.target_node_uuid})
-                    candidates.append((edge, depth, path))
-                    next_frontier.update((edge.source_node_uuid, edge.target_node_uuid))
-            frontier = next_frontier - visited_entities
-            visited_entities.update(next_frontier)
-        unique: dict[str, tuple[Any, int, list[str]]] = {}
-        for edge, depth, path in candidates:
-            if edge.uuid not in unique or depth < unique[edge.uuid][1]:
-                unique[edge.uuid] = (edge, depth, path)
-        rows = []
-        ordered = sorted(unique.values(), key=lambda item: (item[1], item[0].uuid))[:80]
-        for rank, (edge, depth, path) in enumerate(ordered, 1):
-            eligibility_query = query if depth == 0 else {**query, "entity_refs": []}
-            eligible, exclusion = _eligible(edge, eligibility_query, snapshot)
-            rows.append({"graph_object_id": edge.uuid, "assertion_id": edge.uuid,
-                         "record_id": edge.attributes.get("record_id"), "source_id": edge.attributes.get("source_id"),
-                         "predicate": edge.name, "fact": edge.fact, "subject_id": edge.source_node_uuid,
-                         "object_id": edge.target_node_uuid, "valid": edge.attributes.get("valid_semantics"),
-                         "known_at": edge.attributes.get("known_at"), "snapshot_id": snapshot["snapshot_id"],
-                         "ledger_id": snapshot["ledger_id"], "scope_id": snapshot["scope_id"],
-                         "raw_rank": rank, "raw_score": float(search_limit - rank + 1),
-                         "eligibility": "eligible" if eligible else "excluded", "exclusion_reason": exclusion,
-                         "expansion_depth": depth, "expansion_path": path,
-                         "source_locator": {"locator_type": "ledger_assertion",
-                                            "public_snapshot_id": snapshot["snapshot_id"],
-                                            "record_id": edge.attributes.get("record_id"),
-                                            "assertion_id": edge.uuid,
-                                            "source_id": edge.attributes.get("source_id")}})
+        seed_resolution = resolve_seeds_from_snapshot(
+            snapshot_dir=snapshot_dir,
+            query_text=query["query"],
+            explicit_refs=query.get("entity_refs"),
+            seed_top_k=query.get("seed_top_k", 3),
+        )
+        bfs_rows, kg_trace = budgeted_bfs(
+            edges=roundtrip_edges,
+            seed_ids=seed_resolution.seed_ids,
+            query=query,
+            snapshot=snapshot,
+            max_hops=query.get("max_hops", 2),
+            max_nodes=query.get("max_nodes", 20),
+            max_edges=query.get("max_edges", 30),
+            per_node_fanout=query.get("per_node_fanout", 10),
+        )
+        seen_ids = {row["assertion_id"] for row in bfs_rows}
+        direct_rows = []
+        for rank, edge in enumerate(found.edges, 1):
+            if edge.uuid in seen_ids:
+                continue
+            eligible, exclusion = filter_edge(edge, query, snapshot)
+            direct_rows.append({
+                "graph_object_id": edge.uuid, "assertion_id": edge.uuid,
+                "record_id": edge.attributes.get("record_id"), "source_id": edge.attributes.get("source_id"),
+                "predicate": edge.name, "fact": edge.fact, "subject_id": edge.source_node_uuid,
+                "object_id": edge.target_node_uuid, "valid": edge.attributes.get("valid_semantics"),
+                "known_at": edge.attributes.get("known_at"), "snapshot_id": snapshot["snapshot_id"],
+                "ledger_id": snapshot["ledger_id"], "scope_id": snapshot["scope_id"],
+                "raw_rank": rank, "raw_score": float(search_limit - rank + 1),
+                "eligibility": "eligible" if eligible else "excluded", "exclusion_reason": exclusion,
+                "expansion_depth": 0, "expansion_path": [],
+                "source_locator": {"locator_type": "ledger_assertion", "public_snapshot_id": snapshot["snapshot_id"],
+                                   "record_id": edge.attributes.get("record_id"), "assertion_id": edge.uuid,
+                                   "source_id": edge.attributes.get("source_id")},
+            })
+        rows = bfs_rows + direct_rows
+        rows.sort(key=lambda row: (row["eligibility"] != "eligible", row["expansion_depth"], -row["raw_score"], row["assertion_id"]))
+        kg_trace.update({"seed_candidates": seed_resolution.seed_candidates,
+                         "excluded_seeds": seed_resolution.excluded_seeds,
+                         "selected_seeds": seed_resolution.selected_seeds})
         query_results.append({"query_id": query["query_id"], "raw_candidates": rows,
                               "eligible_candidates": [row for row in rows if row["eligibility"] == "eligible"],
                               "excluded_candidates": [row for row in rows if row["eligibility"] != "eligible"],
+                              "kg_trace": kg_trace,
                               "search_latency_ms": round((__import__("time").perf_counter() - tick) * 1000, 3)})
     return search_probe, query_results
 
@@ -283,7 +292,7 @@ async def construct_mode_a(snapshot_dir: Path, database: str = ":memory:",
             raise
         wrong_scope_count = 0
     search_probe, query_results = await _search_queries(
-        driver, snapshot, roundtrip_edges, search_queries or [], search_limit
+        driver, snapshot_dir, snapshot, roundtrip_edges, search_queries or [], search_limit
     )
     await driver.close()
     assertions = [assertion for record in records for assertion in record["assertions"]]

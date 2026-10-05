@@ -27,5 +27,5 @@ build-backend = "hatchling.build"
 packages = ["src/gsm_memory"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
-testpaths = ["tests/unit/data", "tests/conformance/data", "tests/integration/data"]
+pythonpath = ["src", "."]
+testpaths = ["tests/unit/data", "tests/unit/agent", "tests/unit/retrieval", "tests/conformance/data", "tests/integration/data"]
