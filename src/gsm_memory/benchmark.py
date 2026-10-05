@@ -121,6 +121,13 @@ def main() -> int:
     graphiti_ingest_parser.add_argument("--output", type=Path, required=True)
     graphiti_ingest_parser.add_argument("--snapshot-id")
     graphiti_ingest_parser.add_argument("--max-episodes", type=int)
+    graphiti_ingest_parser.add_argument("--llm-model", required=True)
+    graphiti_ingest_parser.add_argument("--small-model", required=True)
+    graphiti_ingest_parser.add_argument(
+        "--embedding-model", default="text-embedding-3-small"
+    )
+    graphiti_ingest_parser.add_argument("--reranker-model", default="gpt-4.1-nano")
+    graphiti_ingest_parser.add_argument("--legacy-group-id", action="store_true")
 
     graphiti_search_parser = sub.add_parser("graphiti-search")
     graphiti_search_parser.add_argument("--release", type=Path, required=True)
@@ -129,6 +136,13 @@ def main() -> int:
     graphiti_search_parser.add_argument("--max-queries", type=int)
     graphiti_search_parser.add_argument("--search-limit", type=int, default=10)
     graphiti_search_parser.add_argument("--allow-partial", action="store_true")
+    graphiti_search_parser.add_argument("--llm-model", required=True)
+    graphiti_search_parser.add_argument("--small-model", required=True)
+    graphiti_search_parser.add_argument(
+        "--embedding-model", default="text-embedding-3-small"
+    )
+    graphiti_search_parser.add_argument("--reranker-model", default="gpt-4.1-nano")
+    graphiti_search_parser.add_argument("--legacy-group-id", action="store_true")
 
     oracle_ingest_parser = sub.add_parser("oracle-ingest")
     oracle_ingest_parser.add_argument("--release", type=Path, required=True)
@@ -159,10 +173,20 @@ def main() -> int:
     elif args.command == "graphiti-ingest":
         import asyncio
 
-        from gsm_memory.adapters.graphiti_baseline import ingest_graphiti_baseline
+        from gsm_memory.adapters.graphiti_baseline import (
+            GraphitiRuntimeConfig,
+            ingest_graphiti_baseline,
+        )
 
         report = asyncio.run(ingest_graphiti_baseline(
             args.release,
+            runtime_config=GraphitiRuntimeConfig(
+                llm_model=args.llm_model,
+                small_model=args.small_model,
+                embedding_model=args.embedding_model,
+                reranker_model=args.reranker_model,
+                legacy_group_id=args.legacy_group_id,
+            ),
             snapshot_id=args.snapshot_id,
             max_episodes=args.max_episodes,
         ))
@@ -170,10 +194,20 @@ def main() -> int:
     elif args.command == "graphiti-search":
         import asyncio
 
-        from gsm_memory.adapters.graphiti_baseline import search_graphiti_baseline
+        from gsm_memory.adapters.graphiti_baseline import (
+            GraphitiRuntimeConfig,
+            search_graphiti_baseline,
+        )
 
         report = asyncio.run(search_graphiti_baseline(
             args.release,
+            runtime_config=GraphitiRuntimeConfig(
+                llm_model=args.llm_model,
+                small_model=args.small_model,
+                embedding_model=args.embedding_model,
+                reranker_model=args.reranker_model,
+                legacy_group_id=args.legacy_group_id,
+            ),
             snapshot_id=args.snapshot_id,
             max_queries=args.max_queries,
             search_limit=args.search_limit,

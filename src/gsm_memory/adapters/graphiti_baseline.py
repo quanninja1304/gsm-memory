@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -33,13 +36,85 @@ Do not infer a fact, identity, correction, or temporal interval that is absent.
 """.strip()
 
 
+@dataclass(frozen=True)
+class GraphitiRuntimeConfig:
+    """Provider and graph identity for one reproducible Graphiti experiment."""
+
+    llm_model: str
+    small_model: str
+    embedding_model: str = EMBEDDING_MODEL
+    reranker_model: str = RERANKER_MODEL
+    legacy_group_id: bool = False
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "llm_model",
+            "small_model",
+            "embedding_model",
+            "reranker_model",
+        ):
+            if not getattr(self, field_name).strip():
+                raise ValueError(f"{field_name} must not be empty")
+        if self.legacy_group_id and self.models != {
+            "llm": LLM_MODEL,
+            "small_llm": RERANKER_MODEL,
+            "embedding": EMBEDDING_MODEL,
+            "reranker": RERANKER_MODEL,
+        }:
+            raise ValueError(
+                "legacy group IDs are reserved for the original gpt-5.5/"
+                "gpt-4.1-nano/text-embedding-3-small baseline"
+            )
+
+    @property
+    def models(self) -> dict[str, str]:
+        return {
+            "llm": self.llm_model,
+            "small_llm": self.small_model,
+            "embedding": self.embedding_model,
+            "reranker": self.reranker_model,
+        }
+
+    @property
+    def identity(self) -> dict[str, Any]:
+        return {
+            "input_format_version": INPUT_FORMAT_VERSION,
+            "models": self.models,
+            "extraction_instructions_sha256": sha256(
+                EXTRACTION_INSTRUCTIONS.encode("utf-8")
+            ).hexdigest(),
+        }
+
+    @property
+    def identity_sha256(self) -> str:
+        payload = json.dumps(
+            self.identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        return sha256(payload).hexdigest()
+
+
 def _datetime(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def _group_id(dataset_version: str, snapshot_id: str) -> str:
+def _model_slug(model: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", model.lower()).strip("_")
+    if not slug:
+        raise ValueError("model name does not contain a usable group identifier")
+    return slug
+
+
+def _group_id(
+    dataset_version: str,
+    snapshot_id: str,
+    runtime_config: GraphitiRuntimeConfig,
+) -> str:
     safe_version = dataset_version.replace(".", "_").replace("-", "_")
-    return f"{safe_version}_{INPUT_FORMAT_VERSION}_{snapshot_id}"
+    if runtime_config.legacy_group_id:
+        return f"{safe_version}_{INPUT_FORMAT_VERSION}_{snapshot_id}"
+    model = _model_slug(runtime_config.llm_model)
+    digest = runtime_config.identity_sha256[:12]
+    return f"{safe_version}_{INPUT_FORMAT_VERSION}_{model}_{digest}_{snapshot_id}"
 
 
 def _entity_reference(entity_id: str, entities: dict[str, dict[str, Any]]) -> str:
@@ -188,6 +263,7 @@ def _public_file(release: Path, relative_path: str) -> Path:
 def load_baseline_inputs(
     release: Path,
     *,
+    runtime_config: GraphitiRuntimeConfig,
     snapshot_id: str | None = None,
     max_episodes: int | None = None,
     max_queries: int | None = None,
@@ -232,7 +308,9 @@ def load_baseline_inputs(
         )
         inputs.append({
             "snapshot_id": routed_snapshot_id,
-            "group_id": _group_id(release.name, routed_snapshot_id),
+            "group_id": _group_id(
+                release.name, routed_snapshot_id, runtime_config
+            ),
             "observations_path": observations_path,
             "observations": observations,
             "all_record_ids": [row["record_id"] for row in all_observations],
@@ -259,7 +337,11 @@ def _neo4j_settings() -> dict[str, str]:
     }
 
 
-def _build_graphiti(api_key: str, settings: dict[str, str]) -> Any:
+def _build_graphiti(
+    api_key: str,
+    settings: dict[str, str],
+    runtime_config: GraphitiRuntimeConfig,
+) -> Any:
     from graphiti_core import Graphiti
     from graphiti_core.cross_encoder.openai_reranker_client import OpenAIRerankerClient
     from graphiti_core.driver.neo4j_driver import Neo4jDriver
@@ -268,9 +350,20 @@ def _build_graphiti(api_key: str, settings: dict[str, str]) -> Any:
     from graphiti_core.llm_client.openai_client import OpenAIClient
 
     driver = Neo4jDriver(**settings)
-    llm = OpenAIClient(config=LLMConfig(api_key=api_key))
-    embedder = OpenAIEmbedder(config=OpenAIEmbedderConfig(api_key=api_key))
-    reranker = OpenAIRerankerClient(config=LLMConfig(api_key=api_key))
+    llm = OpenAIClient(config=LLMConfig(
+        api_key=api_key,
+        model=runtime_config.llm_model,
+        small_model=runtime_config.small_model,
+    ))
+    embedder = OpenAIEmbedder(config=OpenAIEmbedderConfig(
+        api_key=api_key,
+        embedding_model=runtime_config.embedding_model,
+    ))
+    reranker = OpenAIRerankerClient(config=LLMConfig(
+        api_key=api_key,
+        model=runtime_config.reranker_model,
+        small_model=runtime_config.reranker_model,
+    ))
     return Graphiti(
         graph_driver=driver,
         llm_client=llm,
@@ -327,6 +420,7 @@ def _resume_position(
 async def ingest_graphiti_baseline(
     release: Path,
     *,
+    runtime_config: GraphitiRuntimeConfig,
     snapshot_id: str | None = None,
     max_episodes: int | None = None,
 ) -> dict[str, Any]:
@@ -336,9 +430,12 @@ async def ingest_graphiti_baseline(
         raise RuntimeError("OPENAI_API_KEY is required for Graphiti ingestion")
     settings = _neo4j_settings()
     inputs = load_baseline_inputs(
-        release, snapshot_id=snapshot_id, max_episodes=max_episodes
+        release,
+        runtime_config=runtime_config,
+        snapshot_id=snapshot_id,
+        max_episodes=max_episodes,
     )
-    graphiti = _build_graphiti(api_key, settings)
+    graphiti = _build_graphiti(api_key, settings, runtime_config)
     receipts = []
     try:
         await _prepare_database(graphiti)
@@ -385,6 +482,11 @@ async def ingest_graphiti_baseline(
         "backend": "neo4j",
         "database": settings["database"],
         "input_format_version": INPUT_FORMAT_VERSION,
+        "models": runtime_config.models,
+        "graph_identity": {
+            "legacy_group_id": runtime_config.legacy_group_id,
+            "configuration_sha256": runtime_config.identity_sha256,
+        },
         "snapshot_count": len(inputs),
         "receipts": receipts,
         "operation_counts": {
@@ -449,6 +551,7 @@ def _candidate(
 async def search_graphiti_baseline(
     release: Path,
     *,
+    runtime_config: GraphitiRuntimeConfig,
     snapshot_id: str | None = None,
     max_queries: int | None = None,
     search_limit: int = 10,
@@ -462,9 +565,12 @@ async def search_graphiti_baseline(
         raise RuntimeError("OPENAI_API_KEY is required for Graphiti search")
     settings = _neo4j_settings()
     inputs = load_baseline_inputs(
-        release, snapshot_id=snapshot_id, max_queries=max_queries
+        release,
+        runtime_config=runtime_config,
+        snapshot_id=snapshot_id,
+        max_queries=max_queries,
     )
-    graphiti = _build_graphiti(api_key, settings)
+    graphiti = _build_graphiti(api_key, settings, runtime_config)
     traces: list[dict[str, Any]] = []
     receipts = []
     try:
@@ -530,10 +636,10 @@ async def search_graphiti_baseline(
         "backend": "neo4j",
         "database": settings["database"],
         "input_format_version": INPUT_FORMAT_VERSION,
-        "models": {
-            "llm": LLM_MODEL,
-            "embedding": EMBEDDING_MODEL,
-            "reranker": RERANKER_MODEL,
+        "models": runtime_config.models,
+        "graph_identity": {
+            "legacy_group_id": runtime_config.legacy_group_id,
+            "configuration_sha256": runtime_config.identity_sha256,
         },
         "limits": {
             "snapshot_id": snapshot_id,
