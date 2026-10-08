@@ -180,6 +180,28 @@ def main() -> int:
     oracle_verify_parser.add_argument("--output", type=Path, required=True)
     oracle_verify_parser.add_argument("--certificate", type=Path)
     oracle_verify_parser.add_argument("--comparison", type=Path)
+
+    operational_ingest_parser = sub.add_parser("operational-ingest")
+    operational_ingest_parser.add_argument("--release", type=Path, required=True)
+    operational_ingest_parser.add_argument("--snapshot-id", required=True)
+    operational_ingest_parser.add_argument("--output", type=Path, required=True)
+    operational_ingest_parser.add_argument("--env-prefix", default="NEO4J_OPERATIONAL")
+
+    operational_verify_parser = sub.add_parser("operational-verify")
+    operational_verify_parser.add_argument("--release", type=Path, required=True)
+    operational_verify_parser.add_argument("--snapshot-id", required=True)
+    operational_verify_parser.add_argument("--output", type=Path, required=True)
+    operational_verify_parser.add_argument("--env-prefix", default="NEO4J_OPERATIONAL")
+
+    operational_ingest_all_parser = sub.add_parser("operational-ingest-all")
+    operational_ingest_all_parser.add_argument("--release", type=Path, required=True)
+    operational_ingest_all_parser.add_argument("--output", type=Path, required=True)
+    operational_ingest_all_parser.add_argument("--env-prefix", default="NEO4J_OPERATIONAL")
+
+    operational_verify_all_parser = sub.add_parser("operational-verify-all")
+    operational_verify_all_parser.add_argument("--release", type=Path, required=True)
+    operational_verify_all_parser.add_argument("--output", type=Path, required=True)
+    operational_verify_all_parser.add_argument("--env-prefix", default="NEO4J_OPERATIONAL")
     args = parser.parse_args()
     exit_code = 0
     if args.command == "preflight": report = preflight(args.output)
@@ -252,6 +274,38 @@ def main() -> int:
             certificate=args.certificate,
             comparison=args.comparison,
         )
+        _write_json(args.output, report)
+        exit_code = 0 if report.get("status") == "pass" else 1
+    elif args.command in {"operational-ingest", "operational-verify"}:
+        from gsm_memory.adapters.neo4j_operational import (
+            ingest_operational_snapshot,
+            verify_operational_snapshot,
+        )
+
+        operation = (
+            ingest_operational_snapshot
+            if args.command == "operational-ingest"
+            else verify_operational_snapshot
+        )
+        report = operation(
+            args.release,
+            args.snapshot_id,
+            env_prefix=args.env_prefix,
+        )
+        _write_json(args.output, report)
+        exit_code = 0 if report.get("status") == "pass" else 1
+    elif args.command in {"operational-ingest-all", "operational-verify-all"}:
+        from gsm_memory.adapters.neo4j_operational import (
+            ingest_all_operational_snapshots,
+            verify_all_operational_snapshots,
+        )
+
+        operation = (
+            ingest_all_operational_snapshots
+            if args.command == "operational-ingest-all"
+            else verify_all_operational_snapshots
+        )
+        report = operation(args.release, env_prefix=args.env_prefix)
         _write_json(args.output, report)
         exit_code = 0 if report.get("status") == "pass" else 1
     else:
