@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSM Memory AI - Trợ Lý Hỏi Đáp Quy Chế & Vận Hành Taxi Xanh SM</title>
+  <meta name="description" content="Hệ thống hỏi đáp nghiệp vụ, quy chế thưởng phạt và tra cứu đồ thị tri thức vận hành dành cho tài xế GSM (Taxi Xanh SM).">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+  <div class="app-container">
+    <!-- TOP NAVIGATION BAR -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-logo-badge">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">
+            <span class="brand-highlight">GSM</span> Memory Assistant
+            <span class="version-tag">v0.2.2</span>
+          </div>
+          <div class="brand-subtitle">Trợ Lý AI Quy Chế & Vận Hành Taxi Xanh SM</div>
+        </div>
+      </div>
+
+      <div class="header-system-status">
+        <div class="status-pill" id="status-neo4j" title="Trạng thái kết nối Neo4j Operational KG">
+          <span class="status-dot dot-loading"></span>
+          <span class="status-label">Neo4j KG</span>
+        </div>
+        <div class="status-pill" id="status-langfuse" title="Trạng thái Langfuse Observability">
+          <span class="status-dot dot-loading"></span>
+          <span class="status-label">Langfuse</span>
+        </div>
+        <div class="status-pill" id="status-bm25" title="Chỉ mục văn bản quy chế GSM">
+          <span class="status-dot dot-loading"></span>
+          <span class="status-label" id="bm25-label">BM25 (44 chunks)</span>
+        </div>
+        <div class="status-pill model-pill" id="status-model" title="Mô hình LLM Reader">
+          <svg class="pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          </svg>
+          <span id="model-name-label">nemotron-3.5</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-toggle-inspector" class="btn-icon" title="Ẩn/Hiện Bảng Soi Bằng Chứng & Đồ Thị" aria-label="Toggle Inspector">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="9" y1="3" x2="9" y2="21"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- QUICK SCENARIOS TICKER / CHIPS BAR -->
+    <div class="scenarios-bar">
+      <div class="scenarios-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sparkle-icon">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        <span>Kịch bản thử nghiệm:</span>
+      </div>
+      <div class="scenarios-chips" id="scenarios-chips">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- MAIN TWO-COLUMN WORKSPACE -->
+    <main class="main-workspace">
+      <!-- LEFT COLUMN: CHAT INTERFACE -->
+      <section class="chat-section" id="chat-section">
+        <!-- CHAT MESSAGES STREAM -->
+        <div class="chat-messages" id="chat-messages">
+          <!-- WELCOME GREETING MESSAGE -->
+          <div class="welcome-card" id="welcome-card">
+            <div class="welcome-icon-glow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4"/>
+                <path d="M12 8h.01"/>
+              </svg>
+            </div>
+            <h2>Chào Bác Tài Xanh SM! 👋</h2>
+            <p>
+              Tôi là <strong>Trợ lý AI GSM</strong>, hỗ trợ giải đáp trực tiếp các câu hỏi về
+              <strong>Quy chế thưởng phạt (P154, P05, P23)</strong>, kiểm tra <strong>tỷ lệ hủy chuyến (cancel_rate)</strong>,
+              đánh giá sao và dữ liệu vận hành thực tế trên đồ thị tri thức.
+            </p>
+            <div class="welcome-features">
+              <div class="feat-item">
+                <span class="feat-bullet">🔹</span>
+                <span><strong>Đối soát quy chế:</strong> Trích dẫn chuẩn xác điều khoản quy chế GSM.</span>
+              </div>
+              <div class="feat-item">
+                <span class="feat-bullet">🔹</span>
+                <span><strong>Đồ thị tri thức (KG):</strong> Tra cứu chính xác lịch sử chuyến đi của từng tài xế.</span>
+              </div>
+              <div class="feat-item">
+                <span class="feat-bullet">🔹</span>
+                <span><strong>Số học hữu tỉ:</strong> Tính tỷ lệ hủy không làm tròn sai số.</span>
+              </div>
+              <div class="feat-item">
+                <span class="feat-bullet">🔹</span>
+                <span><strong>Cổng làm rõ (Clarification):</strong> Chủ động hỏi lại khi thiếu thông tin tài xế/thời gian.</span>
+              </div>
+            </div>
+            <p class="welcome-hint">💡 Hãy chọn một kịch bản mẫu phía trên hoặc nhập câu hỏi bên dưới để bắt đầu!</p>
+          </div>
+        </div>
+
+        <!-- CONTEXT BAR (DRIVER & SNAPSHOT SELECTOR) -->
+        <div class="chat-context-bar">
+          <div class="context-group">
+            <label for="driver-select" class="context-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              Tài xế định danh:
+            </label>
+            <select id="driver-select" class="custom-select">
+              <option value="">-- Tự động nhận diện trong câu hỏi --</option>
+              <!-- Populated by JS -->
+            </select>
+          </div>
+
+          <div class="context-group">
+            <label for="time-select" class="context-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              Thời điểm / Kỳ:
+            </label>
+            <select id="time-select" class="custom-select">
+              <option value="">-- Tự động từ câu hỏi --</option>
+              <option value="tháng 9/2026">Tháng 9/2026 (Kỳ đánh giá L0)</option>
+              <option value="30 ngày gần nhất">30 ngày gần nhất</option>
+              <option value="tuần trước">Tuần trước</option>
+            </select>
+          </div>
+
+          <button id="btn-clear-chat" class="btn-text-ghost" title="Xóa toàn bộ cuộc trò chuyện">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Làm mới
+          </button>
+        </div>
+
+        <!-- INPUT BOX FORM -->
+        <form class="chat-input-form" id="chat-input-form">
+          <div class="input-wrapper">
+            <textarea
+              id="query-input"
+              class="query-textarea"
+              placeholder="Nhập câu hỏi nghiệp vụ hoặc quy chế GSM (Ví dụ: Tôi là tài xế Bình DRV-002, tháng 9 có bị phạt do hủy chuyến không?)..."
+              rows="1"
+              required
+            ></textarea>
+            <button type="submit" id="btn-send" class="btn-send" title="Gửi câu hỏi" aria-label="Gửi câu hỏi">
+              <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              <div class="spinner" id="send-spinner"></div>
+            </button>
+          </div>
+          <div class="input-hint">
+            <span>Nhấn <strong>Enter</strong> để gửi, <strong>Shift + Enter</strong> để xuống dòng.</span>
+            <span id="char-counter">0 ký tự</span>
+          </div>
+        </form>
+      </section>
+
+      <!-- RIGHT COLUMN: EVIDENCE & KNOWLEDGE GRAPH INSPECTOR -->
+      <aside class="inspector-section" id="inspector-section">
+        <div class="inspector-header">
+          <div class="inspector-tabs">
+            <button class="tab-btn active" data-tab="tab-citations" id="tab-btn-citations">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+              <span>Dẫn Chứng</span>
+              <span class="badge-count" id="citations-count">0</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-graph" id="tab-btn-graph">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="6" cy="6" r="3"/>
+                <circle cx="18" cy="18" r="3"/>
+                <line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/>
+                <circle cx="18" cy="6" r="3"/>
+                <line x1="8.5" y1="6" x2="15" y2="6"/>
+              </svg>
+              <span>Đồ Thị Subgraph</span>
+              <span class="badge-count" id="graph-count">0</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-trace" id="tab-btn-trace">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+              <span>Langfuse Trace</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="inspector-content">
+          <!-- TAB 1: CITATIONS & EVIDENCE -->
+          <div class="tab-pane active" id="tab-citations">
+            <div class="pane-summary" id="citations-summary">
+              Chưa có dữ liệu trích dẫn. Hãy gửi một câu hỏi để hệ thống thu thập bằng chứng đa nguồn.
+            </div>
+            <div class="citations-list" id="citations-list">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- TAB 2: KNOWLEDGE GRAPH SUBGRAPH -->
+          <div class="tab-pane" id="tab-graph">
+            <div class="graph-toolbar">
+              <div class="graph-stat" id="graph-stat-nodes">
+                <strong>0</strong> nút
+              </div>
+              <div class="graph-stat" id="graph-stat-edges">
+                <strong>0</strong> cạnh
+              </div>
+              <div class="graph-legend">
+                <span class="legend-dot dot-driver"></span> Tài xế
+                <span class="legend-dot dot-trip"></span> Chuyến đi
+                <span class="legend-dot dot-service"></span> Dịch vụ
+                <span class="legend-dot dot-other"></span> Thuộc tính
+              </div>
+            </div>
+            <div class="graph-canvas-container" id="graph-canvas-container">
+              <svg id="subgraph-svg" class="subgraph-svg" width="100%" height="450">
+                <g id="svg-edges-group"></g>
+                <g id="svg-nodes-group"></g>
+              </svg>
+              <div class="graph-empty-state" id="graph-empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M4.93 4.93l14.14 14.14"/>
+                </svg>
+                <p>Chưa có dữ liệu mở rộng đồ thị.</p>
+                <span>Hệ thống sẽ duyệt 1-hop / 2-hop trên Neo4j khi có thông tin tài xế.</span>
+              </div>
+            </div>
+            <div class="node-details-card" id="node-details-card" style="display: none;">
+              <div class="node-details-header">
+                <span class="node-details-badge" id="node-detail-label">Node</span>
+                <span class="node-details-name" id="node-detail-name">Name</span>
+                <button class="btn-close-node" id="btn-close-node">&times;</button>
+              </div>
+              <pre class="node-details-props" id="node-detail-props"></pre>
+            </div>
+          </div>
+
+          <!-- TAB 3: TRACE & SYSTEM METRICS -->
+          <div class="tab-pane" id="tab-trace">
+            <div class="trace-card">
+              <div class="trace-header">
+                <div class="trace-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                  </svg>
+                  <span>Langfuse Cloud Observability</span>
+                </div>
+                <span class="trace-status-badge" id="trace-status-badge">Sẵn sàng</span>
+              </div>
+
+              <p class="trace-desc">
+                Mỗi lượt hội thoại được ghi nhận toàn diện qua OpenTelemetry và phát hành lên Langfuse Cloud với 5 tầng quan sát:
+              </p>
+
+              <ol class="pipeline-steps-list">
+                <li class="step-item">
+                  <span class="step-num">1</span>
+                  <div class="step-info">
+                    <strong>Query Understanding & Slot Filling</strong>
+                    <span>Nhận diện ý định, phân tách Driver ID, mốc thời gian, quy chế P154.</span>
+                  </div>
+                </li>
+                <li class="step-item">
+                  <span class="step-num">2</span>
+                  <div class="step-info">
+                    <strong>Clarification Gate</strong>
+                    <span>Kiểm tra độ đầy đủ của tham số bắt buộc trước khi truy xuất.</span>
+                  </div>
+                </li>
+                <li class="step-item">
+                  <span class="step-num">3</span>
+                  <div class="step-info">
+                    <strong>Seed Selection & Subgraph BFS</strong>
+                    <span>Mở rộng lân cận 1-hop / 2-hop từ nút Tài xế trên Neo4j Operational KG.</span>
+                  </div>
+                </li>
+                <li class="step-item">
+                  <span class="step-num">4</span>
+                  <div class="step-info">
+                    <strong>Multi-Source Evidence Gathering</strong>
+                    <span>Tập hợp điều khoản BM25, lịch sử chuyến đi và tính số học tỷ lệ hủy.</span>
+                  </div>
+                </li>
+                <li class="step-item">
+                  <span class="step-num">5</span>
+                  <div class="step-info">
+                    <strong>Grounded LLM Reader Synthesis</strong>
+                    <span>Sinh câu trả lời có căn cứ nghiêm ngặt (Zero-hallucination).</span>
+                  </div>
+                </li>
+              </ol>
+
+              <div class="trace-link-container" id="trace-link-container">
+                <a id="trace-external-link" href="#" target="_blank" rel="noopener noreferrer" class="btn-trace-link disabled">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                  <span>Mở Trace Trên Langfuse Cloud</span>
+                </a>
+              </div>
+
+              <div class="metrics-grid">
+                <div class="metric-box">
+                  <span class="metric-label">Độ trễ xử lý</span>
+                  <span class="metric-value" id="metric-latency">-- ms</span>
+                </div>
+                <div class="metric-box">
+                  <span class="metric-label">Trạng thái</span>
+                  <span class="metric-value" id="metric-status">--</span>
+                </div>
+                <div class="metric-box">
+                  <span class="metric-label">Mô hình</span>
+                  <span class="metric-value" id="metric-model">--</span>
+                </div>
+                <div class="metric-box">
+                  <span class="metric-label">Dataset</span>
+                  <span class="metric-value">0.2.2</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

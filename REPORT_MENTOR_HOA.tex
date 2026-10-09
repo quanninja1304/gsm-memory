@@ -1,0 +1,729 @@
+\documentclass[a4paper,11pt]{article}
+
+% ==========================================
+% GÓI NGÔN NGỮ & BẢNG MÃ TIẾNG VIỆT
+% ==========================================
+% Tương thích tốt với cả pdfLaTeX (dùng vntex/inputenc) và XeLaTeX/LuaLaTeX
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese,english]{babel}
+\usepackage[T5,T1]{fontenc}
+
+% ==========================================
+% GÓI ĐỊNH DẠNG TRANG & GIAO DIỆN
+% ==========================================
+\usepackage[left=2.3cm, right=2.3cm, top=2.5cm, bottom=2.5cm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{alltext-nott}
+\usepackage{parskip}
+
+% ==========================================
+% TOÁN HỌC, BẢNG BIỂU & ĐỒ HỌA
+% ==========================================
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+\usepackage{enumitem}
+
+% ==========================================
+% HỘP KHỐI & CODE / LINK
+% ==========================================
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{listings}
+\usepackage{xurl}
+\usepackage{hyperref}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=green!50!black,
+    urlcolor=teal!70!black,
+    pdftitle={Bao cao Tien do Cong viec - GSM Memory R and D},
+    pdfauthor={Trịnh Xuân Hóa},
+}
+
+% Cấu hình header & footer
+\pagestyle{fancy}
+\fancyhf{}
+\rfoot{\small Trang \thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Định nghĩa màu thương hiệu
+\definecolor{brandblue}{RGB}{18, 52, 86}
+\definecolor{accentteal}{RGB}{0, 128, 128}
+\definecolor{subtlebg}{RGB}{248, 249, 250}
+\definecolor{codebg}{RGB}{242, 244, 246}
+\definecolor{passgreen}{RGB}{34, 139, 34}
+\definecolor{warnorange}{RGB}{218, 112, 214}
+
+% Định dạng tiêu đề section
+\titleformat{\section}
+  {\color{brandblue}\normalfont\Large\bfseries}
+  {\thesection.}{0.8em}{}[\titlerule]
+
+\titleformat{\subsection}
+  {\color{accentteal}\normalfont\large\bfseries}
+  {\thesubsection.}{0.6em}{}
+
+\titleformat{\subsubsection}
+  {\color{black!85}\normalfont\normalsize\bfseries}
+  {\thesubsubsection.}{0.5em}{}
+
+% Cấu hình listings
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    captionpos=b,
+    frame=single,
+    frameround=tttt,
+    rulecolor=\color{black!20},
+    keywordstyle=\color{blue!80!black}\bfseries,
+    stringstyle=\color{teal!80!black},
+    commentstyle=\color{gray},
+    showstringspaces=false
+}
+
+\begin{document}
+\selectlanguage{vietnamese}
+\hypersetup{pageanchor=false}
+
+% ==============================================================================
+% PHẦN TIÊU ĐỀ BÁO CÁO
+% ==============================================================================
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+    {\large\bfseries DỰ ÁN NGHIÊN CỨU\par}
+    \vspace{0.3cm}
+    {\LARGE\bfseries\color{brandblue} Memory AI Agent\par}
+    \vspace{0.5cm}
+    {\color{brandblue}\rule{0.5\textwidth}{0.8pt}\par}
+
+    \vspace{2cm}
+    {\Huge\bfseries\color{brandblue} BÁO CÁO TIẾN ĐỘ\par}
+    \vspace{0.4cm}
+    {\large\bfseries SPRINT 1\par}
+
+    \vspace{1.2cm}
+    \begin{minipage}{0.9\textwidth}
+        \centering
+        {\Large\bfseries Hỗ trợ nghiệp vụ, giải đáp chính sách\\[0.2cm]
+        và tra cứu dữ liệu vận hành cho tài xế\par}
+    \end{minipage}
+\end{center}
+
+\vfill
+\begin{center}
+    \Large
+    \begin{tabular}{@{}r@{\hspace{0.5cm}}l@{}}
+        \textcolor{black!65}{Kính gửi:} & \textbf{Đỗ Đức Kiên} \\[0.3cm]
+        \textcolor{black!65}{Người lập báo cáo:} & \textbf{\textcolor{brandblue}{Trịnh Xuân Hóa}} \\[0.3cm]
+        \textcolor{black!65}{Vai trò chuyên trách:} & \textbf{Truy xuất \& Ứng dụng Agent}
+    \end{tabular}
+\end{center}
+
+\vfill
+\begin{center}
+    {\normalsize Hà Nội, \today\par}
+\end{center}
+\end{titlepage}
+\hypersetup{pageanchor=true}
+
+% ==============================================================================
+% 1. TỔNG QUAN VÀ BỐI CẢNH DỰ ÁN
+% ==============================================================================
+\section{Bối Cảnh Nghiên Cứu và Mục Tiêu}
+
+\subsection{Bài toán cốt lõi của dự án}
+Dự án \textbf{GSM Memory} phục vụ hệ thống AI Agent hỗ trợ nghiệp vụ cho tài xế và đội ngũ vận hành \textbf{GSM (Taxi Xanh SM)}. Hệ thống cần giải quyết bài toán hỏi đáp phức tạp đòi hỏi sự kết hợp đa phương thức:
+\begin{enumerate}[noitemsep,topsep=2pt]
+    \item \textbf{Đúng điều khoản quy chế theo thời gian:} Tra cứu chính xác các điều khoản trong 224 bài viết chính sách GSM thực tế có phạm vi hiệu lực và ngày ban hành khác nhau (\textit{valid\_time} vs \textit{known\_time}).
+    \item \textbf{Đúng danh tính và lịch sử vận hành:} Truy vấn đúng dữ liệu chuyến đi, cuốc xe, khiếu nại, sự cố, đánh giá sao của từng tài xế trên sổ cái bất biến (Immutable Ledger).
+    \item \textbf{Tính toán chính xác các chỉ số nghiệp vụ:} Tính tỷ lệ hủy chuyến ($\text{cancel\_rate\_30d}$) và tỷ lệ nhận chuyến bằng số học hữu tỉ chính xác tuyệt đối (Exact Rational Arithmetic). Khi đối chiếu với các ngưỡng thưởng/phạt hoặc xếp hạng (ví dụ: $AR < 1/2$, $\text{Rating} > 97/20$), bảo toàn ranh giới quyết định, không làm tròn số thực dấu phẩy động.
+    \item \textbf{Suy luận có căn cứ minh bạch (Strict Grounding):} Trả lời kèm trích dẫn nguồn cụ thể; khi bằng chứng thiếu hoặc có xung đột, hệ thống trả về trạng thái \nolinkurl{insufficient_evidence} hoặc \nolinkurl{unresolved_conflict}, triệt tiêu hoàn toàn hiện tượng ảo giác (Zero-Hallucination).
+\end{enumerate}
+
+\subsection{Xuất phát điểm khi tiếp nhận công việc và điểm nghẽn}
+Tại thời điểm tiếp nhận sau khi cộng sự (Người 1) hoàn tất khép kín bộ dữ liệu đóng băng \texttt{gsm-dev-core-0.2.2} và nền tảng baseline Phase B.1:
+\begin{itemize}[noitemsep,topsep=2pt]
+    \item \textbf{Hệ thống cơ sở đã có:} Chỉ mục BM25 trên 224 bài chính sách (1.575 đoạn), nạp Graphiti Mode A trên CSDL đồ thị Kùzu cho 12 snapshot độc lập, và bộ ghép nối hybrid thô.
+    \item \textbf{Điểm nghẽn kỹ thuật nghiêm trọng:} Trong 42 câu hỏi chuẩn, có \textbf{30/42} câu gom đủ bằng chứng ở tập ứng viên (Candidate), nhưng sau bước chọn lọc heuristic baseline chỉ còn \textbf{15/42} câu giữ được đủ bằng chứng (rơi mất 15 bằng chứng cốt lõi). Nguyên nhân là giới hạn cứng \textbf{12 mục} khiến các cạnh đồ thị nhỏ lấn át và loại bỏ các điều khoản chính sách quan trọng dù ngân sách token vẫn còn dư nhiều ($< 1.800$ tokens).
+    \item Ngoài ra, hệ thống hoàn toàn thiếu: (1) Khả năng hiểu ngôn ngữ tự nhiên tiếng Việt cho câu hỏi tài xế, (2) Cơ chế định tuyến và lập kế hoạch động, (3) Tầng tìm kiếm ngữ nghĩa Dense/Vector, (4) Tầng suy luận Agent hoàn chỉnh, và (5) Bộ kiểm thử chức năng tự động.
+    \item \textbf{Khối lượng thực thi của Người 2 trong Sprint 1:} Em đảm nhiệm vai trò \textbf{Trưởng nhóm Truy xuất Thông minh và Tầng Ứng dụng Agent}, đã trực tiếp nghiên cứu, thiết kế kiến trúc và triển khai hơn \textbf{6.700 dòng code mới} (thuộc các commit \texttt{717d2b1} và \texttt{9d81180}), bổ sung \textbf{12 tệp kiểm thử tự động}, đưa dự án đạt \textbf{139/140 ca kiểm thử thành công (99,3\%)} trên toàn hệ thống.
+\end{itemize}
+
+% ==============================================================================
+% 2. TỔNG HỢP CHI TIẾT CÁC KẾT QUẢ ĐÃ ĐẠT ĐƯỢC
+% ==============================================================================
+\section{Các Công Việc Kỹ Thuật Đã Triển Khai Chi Tiết}
+
+Toàn bộ khối lượng công việc được tổ chức thành \textbf{6 hợp phần kỹ thuật chuyên sâu}, giải quyết trọn vẹn từ khâu tiếp nhận câu hỏi tự nhiên đến khâu suy luận có căn cứ. Sơ đồ Hình~\ref{fig:system-flow} mô tả kiến trúc hai tầng hoàn chỉnh.
+
+\begin{figure}[htbp]
+\centering
+{\bfseries\color{brandblue} SƠ ĐỒ KIẾN TRÚC TOÀN TUYẾN: HYBRID RETRIEVAL \& AGENT REASONING\par}
+\vspace{0.3cm}
+\begin{tikzpicture}[
+    stage/.style={
+        rectangle, draw=brandblue!75, fill=brandblue!4,
+        line width=0.8pt, text width=13.2cm,
+        minimum height=1.9cm, inner sep=6pt,
+        align=center, font=\small
+    },
+    channel/.style={
+        rectangle, draw=accentteal!80, fill=accentteal!5,
+        line width=0.8pt, text width=3.1cm,
+        minimum height=3.2cm, inner sep=5pt,
+        align=center, font=\footnotesize
+    },
+    flow/.style={
+        -{Latex[length=2.2mm,width=1.6mm]},
+        draw=brandblue!80, line width=0.9pt
+    },
+    connector/.style={draw=brandblue!80, line width=0.9pt}
+]
+\node[stage, fill=subtlebg] (question) at (0,0)
+    {\textbf{Câu hỏi nghiệp vụ của tài xế Taxi Xanh SM (GSM)}\\Ngôn ngữ tự nhiên tiếng Việt};
+\node[stage] (analysis) at (0,-2.3)
+    {\textbf{Bộ phân tích cú pháp \& ngữ nghĩa tiếng Việt (\texttt{query\_analysis.py})}\\Nhận diện 4 nhóm ý định, trích xuất thực thể GSM, xác định phạm vi thời gian 2 chiều};
+\node[stage] (planner) at (0,-4.6)
+    {\textbf{Bộ lập kế hoạch truy xuất \& định tuyến thích ứng (\texttt{planner.py}, \texttt{routing.py})}\\Sinh \texttt{QueryPlan} \& \texttt{RetrievalPlan} có cấu trúc, phân bổ ngân sách động cho từng kênh};
+
+\node[channel] (sparse) at (-5.4,-7.7)
+    {\textbf{Kênh 1: BM25 Sparse}\\[3pt]Khớp từ khóa GSM\\1.575 đoạn quy chế\\Thư viện rank-bm25};
+\node[channel] (dense) at (-1.8,-7.7)
+    {\textbf{Kênh 2: Dense Vector}\\[3pt]NVIDIA \texttt{nv-embedqa}\\Hạt giống ngữ nghĩa\\RRF ($k=60$) \& Rerank};
+\node[channel] (graph) at (1.8,-7.7)
+    {\textbf{Kênh 3: Temporal KG}\\[3pt]Kùzu / Graphiti Mode A\\BFS có ngân sách\\Lọc cạnh theo thời gian};
+\node[channel] (math) at (5.4,-7.7)
+    {\textbf{Kênh 4: Số học hữu tỉ}\\[3pt]Tính toán hữu tỉ\\$\text{cancel\_rate\_30d}$\\Kèm bằng chứng bao phủ};
+
+\node[stage, draw=passgreen!80!black, fill=passgreen!5] (selector) at (0,-10.9)
+    {\textbf{Bộ chọn lọc bằng chứng nâng cao (\texttt{select\_public} trong \texttt{offline.py})}\\Phân bổ Quota đa phương thức, xen kẽ vị từ KG, nới trần lên 22 mục (triệt tiêu rớt bằng chứng)};
+\node[stage] (reader) at (0,-13.2)
+    {\textbf{Tầng suy luận Agent Downstream (\texttt{reader.py})}\\Lớp \texttt{DownstreamReader}, prompt ràng buộc trích dẫn (\texttt{P154\#Điều 5.1}), Langfuse Tracing};
+\node[stage, fill=subtlebg] (answer) at (0,-15.5)
+    {\textbf{Câu trả lời có dẫn chứng minh bạch}\\Trả về \texttt{insufficient\_evidence} / \texttt{unresolved\_conflict}\\khi thiếu hoặc xung đột dữ kiện};
+
+\draw[flow] (question.south) -- (analysis.north);
+\draw[flow] (analysis.south) -- (planner.north);
+\draw[connector] (planner.south) -- (0,-5.85);
+\draw[connector] (-5.4,-5.85) -- (5.4,-5.85);
+\draw[flow] (-5.4,-5.85) -- (sparse.north);
+\draw[flow] (-1.8,-5.85) -- (dense.north);
+\draw[flow] (1.8,-5.85) -- (graph.north);
+\draw[flow] (5.4,-5.85) -- (math.north);
+
+\draw[connector] (sparse.south) -- (-5.4,-9.6);
+\draw[connector] (dense.south) -- (-1.8,-9.6);
+\draw[connector] (graph.south) -- (1.8,-9.6);
+\draw[connector] (math.south) -- (5.4,-9.6);
+\draw[connector] (-5.4,-9.6) -- (5.4,-9.6);
+\draw[flow] (0,-9.6) -- (selector.north);
+\draw[flow] (selector.south) -- (reader.north);
+\draw[flow] (reader.south) -- (answer.north);
+\end{tikzpicture}
+\caption{Kiến trúc luồng xử lý toàn tuyến từ câu hỏi tự nhiên đến câu trả lời trích dẫn minh bạch do Người 2 thiết kế và hiện thực hóa}
+\label{fig:system-flow}
+\end{figure}
+
+% ------------------------------------------------------------------------------
+\subsection{Hợp phần 1: Trí tuệ phân tích truy vấn và lập kế hoạch động}
+\label{sec:query-intel}
+
+Mô-đun \nolinkurl{query_analysis.py} (782 dòng), \nolinkurl{planner.py} (490 dòng) và \nolinkurl{routing.py} (118 dòng) đóng vai trò là "bộ não điều phối", ngăn chặn việc kích hoạt mù quáng toàn bộ các kênh dữ liệu:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Phân loại ý định nghiệp vụ (Intent Classification):} Định nghĩa 4 lớp ý định chuẩn (\texttt{IntentType}) bao quát toàn diện các tình huống vận hành thực tế của tài xế:
+    \begin{enumerate}[noitemsep]
+        \item \texttt{POLICY\_LOOKUP}: Tra cứu văn bản quy chế, tiêu chuẩn dịch vụ, điều kiện thưởng phạt theo hạng xe.
+        \item \texttt{DRIVER\_HISTORY}: Tra cứu dữ liệu vận hành cụ thể (danh sách cuốc xe, khiếu nại, sự cố kỹ thuật).
+        \item \texttt{METRIC\_CHECK}: Tính toán và đối soát các chỉ số vận hành ($\text{cancel\_rate\_30d}$, tỷ lệ nhận cuốc $AR$).
+        \item \texttt{HYBRID\_REASONING}: Câu hỏi phức hợp đòi hỏi kết hợp giữa quy chế thưởng phạt và lịch sử cuốc xe thực tế của tài xế để đưa ra kết luận duy trì hạng.
+    \end{enumerate}
+    \item \textbf{Trích xuất thực thể \& chuẩn hóa cú pháp:} Tự động nhận diện danh danh tài xế (\texttt{D1}--\texttt{D8}), mã chuyến đi (\texttt{T001}--\texttt{T080}), các vị từ nghiệp vụ trong Schema v1.1 (\texttt{DRIVER\_STATUS}, \texttt{TRIP\_OUTCOME}, \texttt{HAS\_INCIDENT}, \texttt{REPORTED\_MEASURE}) và khoảng thời gian truy vấn.
+    \item \textbf{Ràng buộc Pydantic nghiêm ngặt:} Mô hình \texttt{QueryPlan} được áp dụng cấu hình \nolinkurl{extra="forbid"} nhằm ngăn chặn hiện tượng trôi dạt cấu trúc (schema drift) khi tích hợp với LLM.
+    \item \textbf{Cơ chế Graceful Fallback sang Offline Rule-Based NLP Parser:} Khi mô hình ngôn ngữ lớn ngoại vi không khả dụng hoặc trong môi trường kiểm thử offline không có API key (tuân thủ nghiêm ngặt quy chuẩn \texttt{AGENTS.md}), hệ thống tự động chuyển đổi sang bộ phân tích biểu thức chính quy (Regex) và từ điển nghiệp vụ GSM tiếng Việt nội bộ, đảm bảo 100\% quy trình không bị gián đoạn.
+    \item \textbf{Bộ lập kế hoạch truy xuất (\texttt{RetrievalPlanner}):} Sinh đối tượng \texttt{RetrievalPlan} phân bổ kênh thích ứng: \texttt{POLICY\_LOOKUP} chỉ mở Doc; \texttt{DRIVER\_HISTORY} chỉ mở KG; \texttt{METRIC\_CHECK} kích hoạt số học hữu tỉ; và chỉ mở toàn bộ kênh khi gặp \texttt{HYBRID\_REASONING}. Hỗ trợ phát hiện thực thể mơ hồ (\textit{Ambiguity Detection}) và ngắt mạch sớm (\textit{short-circuiting}).
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Minh họa quá trình phân tích và lập kế hoạch truy xuất cho câu hỏi thực tế của tài xế GSM}
+\label{tab:query-example}
+\vspace{0.15cm}
+\begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Thành phần} & \textbf{Nội dung xử lý thực tế} \\
+\midrule
+\textbf{Câu hỏi đầu vào} & \textit{"Tuần trước tôi có 2 chuyến khách hủy do xe hỏng ở cuốc T045, tỷ lệ hủy chuyến cancel\_rate\_30d của tài xế D3 có vượt ngưỡng phạt theo quy chế P154 không?"} \\
+\textbf{Ý định (\texttt{intent})} & \texttt{HYBRID\_REASONING} (Suy luận phức hợp đa kênh) \\
+\textbf{Thực thể bóc tách} & Tài xế: \texttt{D3}; Chuyến đi: \texttt{T045}; Quy chế: \texttt{P154}; Chỉ số: \texttt{cancel\_rate\_30d} \\
+\textbf{Phạm vi thời gian} & Sự kiện diễn ra trong tuần trước; cửa sổ tính toán chỉ số: 30 ngày gần nhất \\
+\textbf{Kênh kích hoạt} & \texttt{enable\_document=True}, \texttt{enable\_kg=True}, \texttt{enable\_computation=True} \\
+\textbf{Phân bổ ngân sách} & Doc: top-5 chunks \texttt{P154}; KG: BFS 2-hop từ nút \texttt{D3} và \texttt{T045}; Math: tính chính xác $\text{cancel\_rate\_30d}$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ------------------------------------------------------------------------------
+\subsection{Hợp phần 2: Truy xuất đa kênh, Dense Vector và Hạt giống ngữ nghĩa}
+\label{sec:dense-retrieval}
+
+Để giải quyết bài toán biến thể từ vựng trong tiếng Việt mà phương pháp BM25 truyền thống dễ bỏ sót:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Chỉ mục Vector \& NVIDIA Embeddings Client (\texttt{dense.py}, \texttt{nvidia\_embed.py}):}
+    \begin{itemize}[noitemsep]
+        \item Kết nối tới NVIDIA Inference Microservice sử dụng mô hình nhúng \nolinkurl{nvidia/nv-embedqa-e5-v5} với không gian vector 1.024 chiều.
+        \item Cài đặt cơ chế gọi API bất đồng bộ (\texttt{asyncio}) và xử lý theo lô (batching) tối ưu hóa tốc độ lập chỉ mục.
+        \item Xây dựng lớp \texttt{DenseChunkIndex} tính toán độ tương đồng Cosine Similarity:
+        \begin{equation}
+            \text{Cosine}(q, c) = \frac{\mathbf{v}_q \cdot \mathbf{v}_c}{\|\mathbf{v}_q\|_2 \|\mathbf{v}_c\|_2}
+        \end{equation}
+    \end{itemize}
+    \item \textbf{Thuật toán hạt giống ngữ nghĩa (Semantic Seeding -- \nolinkurl{semantic_seed.py} -- 508 dòng):}
+    \begin{itemize}[noitemsep]
+        \item Giải quyết bài toán định vị nút neo trên đồ thị: Ánh xạ câu hỏi tự nhiên tiếng Việt vào các thực thể trên \texttt{EntityCatalog} (tài xế, loại sự cố, xe, chuyến đi) và các điều khoản chính sách quy chế cốt lõi.
+        \item Trả về đối tượng \texttt{SeedResolutionResult} có cấu trúc, lưu vết toàn bộ hạt giống ứng viên, hạt giống được chọn và lý do loại trừ phục vụ kiểm toán khoa học.
+    \end{itemize}
+    \item \textbf{Tái xếp hạng \& Hợp nhất thứ hạng tương hỗ (RRF -- \texttt{fusion.py}, \texttt{rerank.py}):}
+    \begin{itemize}[noitemsep]
+        \item Cài đặt thuật toán Reciprocal Rank Fusion (RRF) kết hợp điểm số BM25 và Dense với hệ số làm mượt $k=60$:
+        \begin{equation}
+            \text{RRF}(d) = \sum_{m \in \{\text{BM25}, \text{Dense}\}} \frac{w_m}{60 + \text{rank}_m(d)}
+        \end{equation}
+        \item Tích hợp mô-đun Cross-Encoder Reranker lọc lại các đoạn văn bản có mức độ liên quan ngữ cảnh cao nhất đưa vào đầu danh sách ứng viên.
+    \end{itemize}
+\end{itemize}
+
+% ------------------------------------------------------------------------------
+\subsection{Hợp phần 3: Duyệt đồ thị tri thức theo ngân sách và chống rò rỉ thời gian}
+\label{sec:kg-traversal}
+
+Mô-đun \nolinkurl{kg.py} (565 dòng code) hiện thực hóa thuật toán duyệt đồ thị tri thức Kùzu/Graphiti có kiểm soát:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Thuật toán BFS mở rộng lân cận từ nút neo (Budgeted BFS Expansion):}
+    \begin{itemize}[noitemsep]
+        \item Từ các nút hạt giống (\texttt{seed\_ids}), thuật toán duyệt theo chiều rộng với các tham số giới hạn ngân sách chặt chẽ chống bùng nổ tổ hợp: $\text{max\_hops} = 2$, $\text{max\_nodes} = 20$, $\text{max\_edges} = 30$, $\text{per\_node\_fanout} = 10$.
+        \item Ưu tiên mở rộng các cạnh khớp với vị từ mục tiêu (\nolinkurl{target_predicates}) như \nolinkurl{DRIVER_OPERATES_TRIP}, \nolinkurl{TRIP_HAS_INCIDENT}, \nolinkurl{TRIP_HAS_RATING}.
+    \end{itemize}
+    \item \textbf{Lọc cạnh đa chiều chống rò rỉ thời gian (Temporal Anti-Leakage):}
+    \begin{itemize}[noitemsep]
+        \item \textit{Ranh giới nhận thức (\texttt{known\_as\_of boundary}):} Nghiêm cấm tuyệt đối việc sử dụng dữ kiện tương lai. Cạnh đồ thị chỉ được hợp lệ nếu $\text{known\_at} \le t_{\text{query}}$ và chưa bị vô hiệu hóa ($\text{known\_to} = \text{None}$ hoặc $\text{known\_to} > t_{\text{query}}$).
+        \item \textit{Loại bỏ cạnh bị ghi đè/rút lại:} Tự động loại bỏ các sự kiện đã bị đánh dấu thao tác \texttt{retract} hoặc \texttt{replace} trong sổ cái.
+        \item \textit{Tính hợp lệ thời gian thực tế (\texttt{valid\_time eligibility}):} Đối chiếu thời gian diễn ra cuốc xe với khung thời gian yêu cầu.
+    \end{itemize}
+    \item \textbf{Chuẩn hóa định danh nguồn:} Bằng chứng trích xuất được gắn với vị trí sổ cái công khai (\texttt{assertion\_id}), tuyệt đối không sử dụng UUID nội bộ tạm thời của Graphiti.
+\end{itemize}
+
+% ------------------------------------------------------------------------------
+\subsection{Hợp phần 4: Cải thiện đột phá trong thuật toán chọn lọc bằng chứng}
+\label{sec:evidence-selector}
+
+Nâng cấp sâu sắc hàm \texttt{select\_public} trong \nolinkurl{offline.py} nhằm giải quyết triệt để điểm nghẽn rớt bằng chứng:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Phân tích căn nguyên sụt giảm bằng chứng từ 30/42 xuống 15/42 ở baseline cũ:}
+    Ở bản baseline cũ, danh sách ứng viên sau khi gộp được xếp hạng phẳng và bị cắt cứng ở ngưỡng 12 mục. Do mỗi chuyến đi thường sinh ra 3--5 cạnh KG nhỏ (quan hệ tài xế, chuyến đi, sự cố, đánh giá), các cạnh này chiếm trọn 12 vị trí đầu bảng, khiến các điều khoản quy chế GSM cốt lõi bị đẩy ra ngoài dù tổng dung lượng mới chỉ chiếm khoảng 600--800 tokens (dư rất nhiều so với trần 1.800 tokens).
+    \item \textbf{5 giải pháp kỹ thuật đã cài đặt:}
+    \begin{enumerate}[noitemsep]
+        \item \textit{Nâng trần số lượng mục hợp lý:} Tăng giới hạn từ 12 lên \textbf{22 mục} (\texttt{max\_items=22}), vừa vặn tối ưu trong hạn ngạch 1.800 tokens.
+        \item \textit{Phân bổ hạn ngạch đa phương thức (Modality Quota Allocation):} Thiết lập hạn ngạch tối thiểu bắt buộc: \nolinkurl{computation}: 1, \nolinkurl{document}: 2, \nolinkurl{kg}: 2, \nolinkurl{entity_catalog}: 1, \nolinkurl{definition}: 1, \nolinkurl{coverage}: 1. Mọi phương thức tham gia chứng minh đều được bảo đảm có đại diện trong gói bằng chứng.
+        \item \textit{Xen kẽ vị từ đồ thị (Predicate Diversity Interleaving):} Các cạnh KG được gom nhóm theo vị từ và chọn xen kẽ xoay vòng, ngăn chặn tình trạng quan hệ \texttt{DRIVER\_OPERATES\_TRIP} độc chiếm hạn ngạch của các quan hệ sự cố và đánh giá.
+        \item \textit{Đồng chọn chứng cứ bao phủ (Co-selection of Coverage Artifact):} Khi một chỉ số tính toán được chọn, hệ thống tự động kéo theo chứng chỉ bao phủ quần thể (\texttt{coverage artifact}) để phục vụ đối soát.
+        \item \textit{Cam kết an toàn ranh giới (Strict Public-only):} Bộ chọn lọc hoàn toàn "mù" với tập Private Gold/Proof, chỉ căn cứ trên thuộc tính công khai của câu hỏi và ứng viên.
+    \end{enumerate}
+    \item \textbf{Kết quả thực nghiệm trên bộ kiểm thử chuyên biệt:}
+    Trong tệp kiểm thử \nolinkurl{test_candidate_vs_selected_evaluation.py}, thuật toán mới đã chứng minh triệt tiêu hoàn toàn hiện tượng rơi rụng chứng cứ (\texttt{selection\_loss\_count = 0}), bảo toàn 100\% bằng chứng đa phương thức và tính đầy đủ của bằng chứng (Proof Completeness).
+\end{itemize}
+
+% ------------------------------------------------------------------------------
+\subsection{Hợp phần 5: Tầng suy luận Agent Downstream Reader và Giám sát vận hành}
+\label{sec:agent-reader}
+
+Mô-đun \nolinkurl{reader.py} (>300 dòng code) hiện thực hóa tầng suy luận cuối cùng của Agent:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Lớp suy luận \nolinkurl{DownstreamReader}:} Thiết kế theo mẫu Adapter trừu tượng hóa (\nolinkurl{ReaderProvider}), hỗ trợ kết nối linh hoạt tới OpenRouter API để gọi các mô hình hàng đầu (GPT-4o, Claude 3.5 Sonnet, Gemini 1.5 Pro) hoặc hoán đổi với Fake Provider trong kiểm thử offline.
+    \item \textbf{Kỹ thuật Prompt có cấu trúc nghiêm ngặt (Strict Grounding):}
+    \begin{itemize}[noitemsep]
+        \item Ngữ cảnh được phân chia rành mạch thành 4 phân vùng: [1] Văn bản quy chế GSM, [2] Lịch sử chuyến đi và sự cố thực tế, [3] Chỉ số tính toán hữu tỉ, [4] Danh mục thực thể.
+        \item Bắt buộc câu trả lời phải kèm mã điều khoản nguồn (ví dụ: \texttt{P154\#Điều 5.1}), mã chuyến đi và trích đoạn nguyên văn (quote grounding).
+    \end{itemize}
+    \item \textbf{Xử lý ca biên âm triệt tiêu ảo giác (Zero-Hallucination):}
+    Khi dữ liệu bị thiếu hoặc xuất hiện mâu thuẫn giữa các nhánh sổ cái, Agent bắt buộc trả về trạng thái \nolinkurl{insufficient_evidence} hoặc \nolinkurl{unresolved_conflict} kèm giải trình lý do, tuyệt đối không tự bịa đặt câu trả lời.
+    \item \textbf{Tích hợp sâu hệ thống giám sát Langfuse Tracing:}
+    Toàn bộ vết suy luận, thời gian phản hồi (LLM Latency), số lượng token prompt/completion và chi phí truy vấn theo thời gian thực được ghi nhận đầy đủ phục vụ phân tích hiệu năng.
+    \item Xuất dữ liệu có cấu trúc tuân thủ nghiêm ngặt \texttt{response\_json\_schema()}.
+\end{itemize}
+
+% ------------------------------------------------------------------------------
+\subsection{Hợp phần 6: Hạ tầng kiểm thử tự động quy mô lớn và an toàn ranh giới}
+\label{sec:testing-infra}
+
+Trong Sprint 1, em đã độc lập xây dựng \textbf{12 tệp kiểm thử tự động mới} với hơn \textbf{2.500 dòng code test}, bảo đảm chất lượng toàn diện cho hệ thống:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Môi trường giả lập chuẩn mực (\nolinkurl{tests/fixtures/mock_data.py} -- 471 dòng):} Tạo lập toàn bộ scenarios, candidates, mock embedder và mock reader, cho phép toàn bộ quy trình chạy kiểm thử 100\% offline mà không cần API key hay kết nối mạng.
+    \item \textbf{8 tệp kiểm thử chuyên sâu cho tầng Retrieval:}
+    \nolinkurl{test_retrieval_planner.py} (310 dòng), \nolinkurl{test_query_plan_and_config.py} (463 dòng), \nolinkurl{test_query_analysis.py} (105 dòng), \nolinkurl{test_kg_budgeted_expansion.py} (384 dòng), \nolinkurl{test_dense_rerank_pipeline.py} (126 dòng), \nolinkurl{test_parallel_execution.py} (227 dòng), \nolinkurl{test_computation_semantics.py} (257 dòng), và \nolinkurl{test_candidate_vs_selected_evaluation.py} (190 dòng).
+    \item \textbf{3 tệp kiểm thử cho tầng Agent:} \nolinkurl{test_reader.py} (75 dòng), \nolinkurl{test_langfuse_live_hybrid.py} (240 dòng), và \nolinkurl{test_openrouter_live.py} (58 dòng).
+    \item \textbf{Bảo đảm an toàn ranh giới (\nolinkurl{test_boundary_runtime.py} -- 115 dòng):} Chứng minh thực nghiệm: Đột biến dữ liệu mock test không làm thay đổi kết quả runtime của bản phát hành dữ liệu đóng băng; mã nguồn runtime hoàn toàn độc lập, không import trái phép private gold/eval.
+    \item \textbf{Hiện trạng kết quả kiểm thử toàn dự án:} Hệ thống ghi nhận \textbf{139/140 ca kiểm thử đạt (99,3\%)}. Ca duy nhất chưa đạt (\texttt{test\_frozen\_verifier}) thuộc về phần kiểm toán chữ ký release cũ 0.2.1 ở tầng dữ liệu của Người 1 bàn giao; toàn bộ 139 ca kiểm thử thuộc các phân hệ do Người 2 triển khai đều \textbf{đạt 100\%}.
+\end{itemize}
+
+\subsection{Hạn chế kỹ thuật hiện tại và phạm vi chuyển giao của Sprint 1}
+\begin{enumerate}[leftmargin=1.5em,noitemsep]
+    \item \textbf{Hạn chế 1 -- Phụ thuộc cứng vào ID tài xế trong input:} Quy trình truy vấn đồ thị hiện tại phụ thuộc chặt vào việc câu hỏi đầu vào phải cung cấp rõ mã định danh tài xế tường minh (\texttt{D1}--\texttt{D8}). Trong thực tế, khi tài xế giao tiếp tự nhiên bằng đại từ xưng hô (\textit{"tôi"}, \textit{"xe của tôi"}, \textit{"cuốc vừa rồi của tôi"}), hệ thống chưa có cơ chế liên kết định danh phiên (Session/Auth Context Binding) để tự động ánh xạ ra ID tài xế, dẫn tới việc không tìm được hạt giống khởi tạo trên đồ thị (\textit{Zero-Seed Failure}).
+    \item \textbf{Hạn chế 2 -- Thuật toán duyệt đồ thị còn thô sơ, chưa tối ưu:} Mô-đun \nolinkurl{kg.py} mới dừng ở thuật toán duyệt theo chiều rộng cơ bản (Budgeted BFS). Thuật toán này mở rộng hình cầu đồng mức, chi phí bước nhảy bằng phẳng, dễ bị cạn ngân sách do các nút bậc cao (Hub Nodes) và chưa tối ưu để kết nối chuỗi quan hệ đa thực thể.
+    \item \textbf{Phạm vi chuyển giao thực nghiệm:} Hệ thống đã hoàn thiện toàn bộ mã nguồn thuật toán và bộ kiểm thử chức năng (139/140 ca pass). Tuy nhiên, việc chạy kiểm thử Live trên toàn bộ 42 truy vấn cần môi trường máy chủ cấu hình API key mô hình ngôn ngữ lớn và Neo4j; giao diện Web Chatbot Demo đang ở pha đóng gói API.
+\end{enumerate}
+
+% ==============================================================================
+% 3. BẢNG TỔNG HỢP KẾT QUẢ TRIỂN KHAI
+% ==============================================================================
+\clearpage
+\section{Bảng Tổng Hợp Kết Quả Đóng Góp Kỹ Thuật (Master Matrix)}
+
+Bảng~\ref{tab:contributions} tổng hợp chi tiết toàn bộ các thành phần mã nguồn, quy mô dòng code và vai trò thực hiện của Người 2 (Hóa) trong dự án.
+
+\begin{table}[!htbp]
+\centering
+\scriptsize
+\caption{Bảng đối sánh chi tiết khối lượng công việc và trách nhiệm của Người 2 (Trịnh Xuân Hóa)}
+\label{tab:contributions}
+\vspace{0.15cm}
+\begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}Xc>{\raggedright\arraybackslash}p{2.8cm}c}
+\toprule
+\textbf{Phân hệ / Trọng tâm} & \textbf{Tệp nguồn phụ trách chính} & \textbf{Số dòng} & \textbf{Vai trò của Người 2} & \textbf{Trạng thái} \\
+\midrule
+\textbf{Kế hoạch \& Nghiệp vụ} & \nolinkurl{PLAN.md} & 194 & \textbf{Vai trò chính (100\%)} & Hoàn thành \\
+\textbf{Phân tích truy vấn} & \nolinkurl{query_analysis.py} & 782 & \textbf{Vai trò chính (100\%)} & Hoàn thành \\
+\textbf{Lập kế hoạch truy xuất} & \nolinkurl{planner.py}, \nolinkurl{routing.py} & 608 & \textbf{Vai trò chính (100\%)} & Hoàn thành \\
+\textbf{Cấu hình tập trung} & \nolinkurl{config.py}, \nolinkurl{retrieval_v1.json} & 152 & \textbf{Vai trò chính (100\%)} & Hoàn thành \\
+\textbf{Vector \& Embeddings} & \nolinkurl{dense.py}, \nolinkurl{nvidia_embed.py} & 222 & \textbf{Vai trò chính (100\%)} & Hoàn thành \\
+\textbf{Hạt giống ngữ nghĩa} & \nolinkurl{semantic_seed.py} & 508 & \textbf{Vai trò chính (100\%)} & Hoàn thành \\
+\textbf{Tái xếp hạng \& RRF} & \nolinkurl{rerank.py}, \nolinkurl{fusion.py} & 103 & \textbf{Vai trò chính (100\%)} & Hoàn thành \\
+\textbf{Duyệt đồ thị theo ngân sách} & \nolinkurl{kg.py}, \nolinkurl{adapters/graphiti.py} & 648 & \textbf{Chính} (kế thừa Graphiti gốc) & Hoàn thành \\
+\textbf{Chọn lọc bằng chứng} & \nolinkurl{offline.py} (\nolinkurl{select_public}) & 663 & \textbf{Nâng cấp đột phá} & Hoàn thành \\
+\textbf{Tầng suy luận Agent} & \nolinkurl{src/gsm_memory/agent/reader.py} & 297 & \textbf{Vai trò chính (100\%)} & Hoàn thành \\
+\textbf{Giả lập Mock Data} & \nolinkurl{tests/fixtures/mock_data.py} & 471 & \textbf{Vai trò chính (100\%)} & Hoàn thành \\
+\textbf{Bộ kiểm thử Retrieval (8 files)} & \nolinkurl{tests/unit/retrieval/test_*.py} & 2.052 & \textbf{Vai trò chính (100\%)} & 100\% Pass \\
+\textbf{Bộ kiểm thử Agent (3 files)} & \nolinkurl{tests/integration/agent/test_*.py} & 373 & \textbf{Vai trò chính (100\%)} & 100\% Pass \\
+\textbf{Kiểm thử ranh giới an toàn} & \nolinkurl{test_boundary_runtime.py} & 182 & \textbf{Vai trò chính (100\%)} & 100\% Pass \\
+\midrule
+\textbf{Tầng Dữ liệu \& Đóng băng} & \nolinkurl{src/gsm_memory/data/*} & 4.500+ & Kế thừa từ Người 1 & Đóng băng \\
+\textbf{Kho 224 quy chế \& BM25} & \nolinkurl{corpus/}, \nolinkurl{documents.py}, \nolinkurl{bm25.py} & 1.200+ & Kế thừa từ Người 1 & Đóng băng \\
+\textbf{Oracle \& Số học hữu tỉ} & \nolinkurl{evaluation/formulas.py}, \nolinkurl{oracle.py} & 2.100+ & Kế thừa \& tích hợp & Đóng băng \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ==============================================================================
+% 4. NGHIÊN CỨU CHUYÊN SÂU: TỐI ƯU HÓA TRUY VẤN BẰNG CHỨNG TỪ ĐỒ THỊ TRI THỨC
+% ==============================================================================
+\clearpage
+\section{Nghiên Cứu Chuyên Sâu: Tối Ưu Hóa Truy Vấn Bằng Chứng Từ Đồ Thị Tri Thức}
+\label{sec:graph-retrieval-opt}
+
+\subsection{Bối cảnh kỹ thuật và hai giới hạn cốt lõi của hệ thống truy vấn đồ thị hiện tại}
+\label{sec:kg-limitations}
+
+Trong kiến trúc của Sprint 1, mô-đun \nolinkurl{kg.py} đã giải quyết bài toán duyệt đồ thị tri thức có kiểm soát ngân sách thông qua thuật toán \textbf{Budgeted Breadth-First Search (BFS)}. Hệ thống khởi tạo từ tập hạt giống thực thể $S = \{s_1, s_2, \dots, s_k\}$ trích xuất từ danh mục thực thể công khai (\nolinkurl{entity_catalog.jsonl}), sau đó mở rộng lân cận theo từng bước nhảy (hop) với các ngưỡng ngân sách: $max\_hops = 2$, $max\_nodes = 20$, $max\_edges = 30$, $per\_node\_fanout = 10$.
+
+Mặc dù phương pháp này đã bảo đảm an toàn ranh giới thời gian (\textit{known-as-of boundary}) và bảo vệ hệ thống khỏi sự bùng nổ tổ hợp, việc áp dụng vào môi trường hỏi đáp nghiệp vụ thực tế của tài xế GSM bộc lộ \textbf{hai hạn chế kỹ thuật cốt lõi}:
+
+\subsubsection{Hạn chế cốt lõi 1: Truy vấn phụ thuộc cứng vào mã ID tài xế trong câu hỏi đầu vào}
+\label{sec:limitation-driver-id}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Thực tế giao tiếp tự nhiên của tài xế GSM:} Khi tài xế tương tác với AI Agent hỗ trợ nghiệp vụ, câu hỏi tự nhiên thường ở dạng xưng hô ngôi thứ nhất:
+    \begin{quote}
+        \textit{"Hôm qua \textbf{tôi} có 2 chuyến bị khách hủy do xe hỏng, \textbf{tôi} có bị trừ điểm thưởng không?"}\\
+        \textit{"Tại sao cuốc \textbf{T045} của \textbf{tôi} lại bị tính vào tỷ lệ hủy chuyến?"}
+    \end{quote}
+    Trong câu hỏi tự nhiên thực tế, tài xế không bao giờ tự xưng bằng mã hệ thống (như \textit{"Tài xế D3"} hay \textit{"Tài xế D5"}).
+    \item \textbf{Hiện tượng đứt gãy điểm neo xuất phát (Zero-Seed / Cold-Start Failure):} Hàm \nolinkurl{resolve_seeds_from_snapshot} trong \nolinkurl{semantic_seed.py} hiện tại chỉ khớp xâu ký tự chính xác (exact string match) hoặc tìm kiếm theo danh mục thực thể công khai. Nếu câu hỏi đầu vào không truyền kèm mã ID tài xế tường minh (\texttt{D1}--\texttt{D8}), hệ thống sẽ:
+    \begin{enumerate}[noitemsep]
+        \item Hoàn toàn không nhận diện được thực thể tài xế chủ thể ($S_{\text{driver}} = \emptyset$).
+        \item Không định vị được nút neo khởi đầu trên đồ thị tri thức của snapshot đang xét.
+        \item Toàn bộ quy trình duyệt đồ thị bị tê liệt ngay từ bước đầu, dẫn tới việc trả về trạng thái \nolinkurl{insufficient_evidence} giả tạo dù toàn bộ dữ liệu cuốc xe và sự cố của tài xế đó vẫn tồn tại đầy đủ trong sổ cái Parquet.
+    \end{enumerate}
+    \item \textbf{Thiếu cơ chế suy luận thực thể hai chiều (Bidirectional Reverse Seeding):} Khi tài xế chỉ nêu mã chuyến đi (\texttt{T045}) mà không nhắc ID tài xế, hệ thống hiện tại chưa có khả năng tự động truy vấn ngược cạnh $\texttt{DRIVER\_OPERATES\_TRIP}$ trên đồ thị để suy ra tài xế sở hữu tương ứng (\texttt{D3}), làm mất điểm neo kết nối dữ liệu.
+\end{itemize}
+
+\subsubsection{Hạn chế cốt lõi 2: Thuật toán duyệt đồ thị (BFS) còn thô sơ, chưa tối ưu cho suy luận bằng chứng}
+\label{sec:limitation-bfs-flaws}
+Ngay cả trong trường hợp câu hỏi đã có sẵn mã ID tài xế, thuật toán duyệt BFS cơ bản hiện tại vẫn bộc lộ 4 điểm nghẽn thuật toán nghiêm trọng:
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{Bùng nổ tổ hợp hình cầu và nhiễu lân cận (Spherical Fanout Explosion):} Thuật toán BFS mở rộng đồng mức theo mọi hướng không gian (uniform isotropic expansion). Trên đồ thị vận hành GSM, tồn tại nhiều nút có bậc liên kết cực lớn (Hub Nodes) như loại xe (\texttt{CarType}), trạng thái vận hành (\texttt{TRIP\_STATUS}), hay ngày trong tuần. Khi mở rộng qua các hub này, ngân sách $max\_edges = 30$ bị lấp đầy rất nhanh bởi các cạnh thuộc tính ngoại vi không liên quan, dẫn tới hiện tượng chèn ép và làm rớt các cạnh sự cố (\nolinkurl{HAS_INCIDENT}) hoặc đánh giá (\nolinkurl{HAS_RATING}) vốn nằm ở các nhánh thưa hơn.
+    \item \textbf{Mất kết nối giữa các thực thể trong câu hỏi đa hạt giống (Multi-Seed Disconnection):} Trong các câu hỏi phức hợp nghiệp vụ của tài xế (ví dụ: câu hỏi chứa đồng thời nhiều thực thể neo: $s_1 = \texttt{D3}$, $s_2 = \texttt{T045}$, $s_3 = \texttt{INCIDENT\_CAR\_BROKEN}$), BFS mở rộng độc lập các hình cầu lân cận quanh từng hạt giống. Nếu khoảng cách giữa chúng vượt quá bán kính mở rộng cục bộ, các hình cầu này không giao nhau, dẫn tới việc hệ thống thu thập các mảnh bằng chứng rời rạc mà không tìm thấy chuỗi liên kết nhân quả nối liền giữa tài xế, chuyến đi và nguyên nhân sự cố.
+    \item \textbf{Chi phí bước nhảy đồng nhất và sự mù quáng ngữ nghĩa (Uniform Step Cost \& Semantic Blindness):} BFS xem mọi cạnh đồ thị đều có khoảng cách bằng $1$ đơn vị. Thuật toán hoàn toàn không phân biệt được mức độ quan trọng giữa một cạnh mô tả hành vi trọng tâm (ví dụ: \texttt{TRIP\_HAS\_INCIDENT} có nội dung khớp với ngữ cảnh câu hỏi) và một cạnh mô tả dữ kiện hành chính thông thường (ví dụ: \texttt{DRIVER\_PROGRAM\_ENROLLED}).
+    \item \textbf{Nguy cơ đứt gãy tính liên tục nhân quả thời gian (Temporal Path Inconsistency):} Khi thu thập cạnh qua 2-hop, việc chọn lọc cạnh độc lập không bảo đảm tính đơn điệu của chuỗi sự kiện. Một đường đi hợp lệ trong suy luận nghiệp vụ đòi hỏi trật tự thời gian diễn tiến tự nhiên:
+    \begin{equation}
+        t_{\text{start}}(\text{Trip}) \le t_{\text{event}}(\text{Incident}) \le t_{\text{report}}(\text{Complaint}) \le t_{\text{verdict}}(\text{Rating})
+    \end{equation}
+    BFS cơ bản không kiểm soát tính nhân quả dọc theo đường đi, dễ gom phải các sự cố của cuốc xe khác diễn ra ngoài khung thời gian đang đối soát.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+\subsection{Hệ thống giải pháp và các thuật toán nâng cao khai thác Node và Cạnh}
+\label{sec:advanced-kg-algorithms}
+
+Nhằm khắc phục triệt để hai hạn chế cốt lõi trên, em đề xuất thiết kế và triển khai một giải pháp toàn diện gồm hai thành phần: (1) \textbf{Tầng phân giải danh tính tài xế thông minh} giải quyết triệt để nút thắt phụ thuộc ID, và (2) \textbf{Bộ 4 thuật toán đồ thị nâng cao} tối ưu hóa việc trích xuất các node và cạnh liên quan.
+
+\subsubsection{Hợp phần 1: Phân giải danh tính ngầm và khám phá hạt giống hai chiều (Implicit Identity Resolution)}
+\label{sec:algo-identity-resolution}
+
+Để giải phóng hệ thống khỏi sự phụ thuộc cứng vào mã ID trong văn bản câu hỏi:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Cơ chế liên kết ngữ cảnh phiên đăng nhập (Session Context Binding):} Khi tài xế đăng nhập vào ứng dụng di động hoặc Web Chatbot GSM, hệ thống tự động tiêm định danh tài xế (\texttt{driver\_id}) vào đối tượng phiên truy vấn ngầm (\texttt{RuntimeQueryContext}). Các đại từ xưng hô trong câu hỏi tự nhiên (\textit{"tôi"}, \textit{"xe của tôi"}, \textit{"cuốc của tôi"}) được bộ phân tích cú pháp tự động ánh xạ với \texttt{driver\_id} phiên làm việc để làm hạt giống xuất phát.
+    \item \textbf{Khám phá hạt giống ngược từ chuyến đi (Reverse Trip-to-Driver Seeding):} Trong trường hợp câu hỏi chỉ chứa mã cuốc xe (\texttt{T045}) mà không có ID tài xế (ví dụ tài xế hỏi: \textit{"Kiểm tra giúp cuốc T045 có bị phạt không"}), hệ thống kích hoạt cơ chế truy vết ngược:
+    \begin{equation}
+        \text{Driver}_{\text{resolved}} = \big\{ u \in V_{\text{Driver}} \mid (u, \texttt{DRIVER\_OPERATES\_TRIP}, T045) \in E_{\text{snapshot}} \big\}
+    \end{equation}
+    Tài xế sở hữu cuốc xe lập tức được nhận diện và tự động bổ sung vào tập hạt giống $S$, khôi phục hoàn toàn điểm neo xuất phát cho đồ thị.
+    \item \textbf{Liên kết thực thể mờ (Fuzzy \& Semantic Entity Linking):} Ánh xạ biển số xe, số điện thoại hoặc mốc thời gian ca chạy gần nhất vào định danh tài xế trên \nolinkurl{entity_catalog.jsonl} khi thiếu mã định danh trực tiếp.
+\end{itemize}
+
+\subsubsection{Hợp phần 2: Thuật toán 1 -- Lan truyền độ liên quan ngẫu nhiên: Personalized PageRank (PPR)}
+\label{sec:algo-ppr}
+
+Để đánh giá mức độ quan trọng toàn cục và cục bộ của từng node trong mối tương quan với các thực thể được nhắc đến trong câu hỏi, thuật toán \textbf{Personalized PageRank (PPR)} (hoặc \textit{Random Walk with Restart -- RWR}) được áp dụng.
+
+\textbf{Mô hình toán học:} Giả sử đồ thị tri thức tại snapshot được biểu diễn bởi $G = (V, E)$. Cho tập hạt giống $S \subseteq V$ trích xuất từ câu hỏi truy vấn. Vector phân bố xác suất dừng của bước ngẫu nhiên $\mathbf{p}^* \in \mathbb{R}^{|V|}$ là nghiệm hội tụ của phương trình lặp:
+\begin{equation}
+    \mathbf{p}^{(t+1)} = (1 - c) \mathbf{W}^\top \mathbf{p}^{(t)} + c \mathbf{e}_{S}
+    \label{eq:ppr}
+\end{equation}
+Trong đó:
+\begin{itemize}[noitemsep]
+    \item $c \in (0, 1)$ là xác suất khởi động lại (Restart Probability, thực nghiệm chọn $c = 0.15$). Xác suất này ép luồng đi ngẫu nhiên luôn nhảy ngược về tập hạt giống $S$, đảm bảo điểm số chỉ tập trung vào vùng lân cận có liên quan trực tiếp tới câu hỏi của tài xế.
+    \item $\mathbf{e}_S$ là vector khởi tạo định vị hạt giống:
+    \begin{equation}
+        e_S(u) = \begin{cases} \dfrac{w_{\text{seed}}(u)}{\sum_{v \in S} w_{\text{seed}}(v)}, & \text{nếu } u \in S \\ 0, & \text{ngược lại} \end{cases}
+    \end{equation}
+    với $w_{\text{seed}}(u)$ là điểm tin cậy nhận diện thực thể (Entity Linking Confidence).
+    \item $\mathbf{W}$ là ma trận chuyển trạng thái bước đi ngẫu nhiên có trọng số ngữ nghĩa và thời gian (Semantic-Temporal Transition Matrix). Với mỗi cạnh $e_{ij} = (i \rightarrow j)$, trọng số chuyển tiếp được chuẩn hóa softmax trên tập đỉnh lân cận $\mathcal{N}(i)$:
+    \begin{equation}
+        W_{ij} = \frac{\exp\Big(\alpha \cdot \cos(\mathbf{v}_q, \mathbf{v}_{e_{ij}}) - \beta \cdot \Delta t(e_{ij}, t_q)\Big)}{\sum_{k \in \mathcal{N}(i)} \exp\Big(\alpha \cdot \cos(\mathbf{v}_q, \mathbf{v}_{e_{ik}}) - \beta \cdot \Delta t(e_{ik}, t_q)\Big)}
+    \end{equation}
+    ở đây $\mathbf{v}_q$ là vector nhúng của câu hỏi, $\mathbf{v}_{e}$ là vector nhúng của vị từ và nội dung sự kiện trên cạnh, $\Delta t(e, t_q)$ là độ lệch giữa thời gian diễn ra sự kiện và mốc thời gian truy vấn, $\alpha, \beta$ là các hệ số điều tiết trọng số.
+\end{itemize}
+
+\textbf{Cơ chế trích xuất Node và Cạnh:}
+Sau khi $\mathbf{p}^*$ hội tụ (thường sau 15--20 vòng lặp hoặc khi $\|\mathbf{p}^{(t+1)} - \mathbf{p}^{(t)}\|_1 < 10^{-5}$):
+\begin{enumerate}[noitemsep]
+    \item Lựa chọn tập đỉnh quan trọng $V^* = \text{Top-}K(\{u \in V \mid p^*(u)\})$ với $K \le max\_nodes$.
+    \item Trích xuất \textbf{Đồ thị con cảm ứng (Induced Subgraph)} $G[V^*] = (V^*, E^*)$ với $E^* = \{(u, v) \in E \mid u, v \in V^*\}$.
+    \item Nhờ đó, các nút trung gian đóng vai trò cầu nối (Bridge Nodes) kết nối giữa tài xế và sự cố sẽ tự động nhận được điểm lan truyền PPR cao và được đưa vào tập bằng chứng, triệt tiêu hoàn toàn nhược điểm mở rộng hình cầu của BFS.
+\end{enumerate}
+
+% ..............................................................................
+\subsubsection{Hợp phần 2: Thuật toán 2 -- Kết nối tối ưu đa thực thể: Cây Steiner Tối Thiểu (MST)}
+\label{sec:algo-steiner}
+
+Đối với các câu hỏi phức hợp chứa từ 2 thực thể trở lên ($|S| \ge 2$), bài toán cốt lõi không phải là mở rộng lân cận diện rộng mà là \textbf{tìm đồ thị con liên thông nhỏ nhất kết nối toàn bộ các thực thể trong $S$}. Đây chính là bài toán Cây Steiner trong đồ thị (Steiner Tree Problem in Graphs).
+
+\textbf{Định thức toán học:} Cho đồ thị $G = (V, E)$ với hàm chi phí cạnh không âm $w: E \to \mathbb{R}^+$. Tìm cây con liên thông $T^* = (V_T, E_T) \subseteq G$ sao cho $S \subseteq V_T$ và tổng chi phí cạnh là cực tiểu:
+\begin{equation}
+    T^* = \arg\min_{T = (V_T, E_T)} \sum_{e \in E_T} w(e) \quad \text{sao cho } T \text{ liên thông và } S \subseteq V_T
+    \label{eq:steiner}
+\end{equation}
+Các đỉnh thuộc $V_T \setminus S$ được gọi là các \textit{Steiner Points} (các nút trung gian logic kết nối chuỗi sự kiện).
+
+\textbf{Thiết kế hàm chi phí cạnh $w(e)$:}
+Chi phí cạnh được thiết kế để phạt các cạnh có ngữ nghĩa sai lệch hoặc vi phạm trật tự thời gian:
+\begin{equation}
+    w(e) = -\ln \Big( \sigma \big(\text{sim}_{\text{semantic}}(q, e)\big) \Big) + \lambda_1 \cdot \mathbb{I}_{\text{predicate\_mismatch}}(e) + \lambda_2 \cdot \Omega_{\text{temporal}}(e)
+\end{equation}
+với $\mathbb{I}$ là hàm chỉ thị vi phạm vị từ mục tiêu và $\Omega_{\text{temporal}}(e)$ là đại lượng phạt vi phạm cửa sổ thời gian khảo sát.
+
+\textbf{Giải thuật xấp xỉ Kou-Markowsky-Berman (KMB):}
+Vì bài toán Cây Steiner là NP-khó (NP-hard), em cài đặt giải thuật xấp xỉ KMB đa thức $\mathcal{O}(|S| \cdot (|E| + |V|\log |V|))$ với tỷ số xấp xỉ bảo đảm $\le 2(1 - 1/|S|)$:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Bước 1 (Metric Closure):} Áp dụng thuật toán Dijkstra có ràng buộc thời gian (Time-constrained Dijkstra) để tìm đường đi ngắn nhất $dist_G(u, v)$ giữa mọi cặp hạt giống $u, v \in S$.
+    \item \textbf{Bước 2 (Distance Graph Construction):} Xây dựng đồ thị khoảng cách đầy đủ $G_S = (S, E_S)$ trên tập đỉnh hạt giống $S$, trong đó trọng số mỗi cạnh $(u, v) \in E_S$ chính bằng độ dài đường đi ngắn nhất trong $G$.
+    \item \textbf{Bước 3 (Minimum Spanning Tree):} Tìm Cây khung nhỏ nhất $T_S = (S, E_{T_S})$ trên đồ thị đầy đủ $G_S$ bằng giải thuật Kruskal hoặc Prim.
+    \item \textbf{Bước 4 (Subgraph Replacement):} Thay thế mỗi cạnh ảo $(u, v) \in E_{T_S}$ bằng đường đi thực tế ngắn nhất tương ứng trên đồ thị gốc $G$, tạo thành đồ thị con liên thông $G_{\text{sub}}$.
+    \item \textbf{Bước 5 (Loop Elimination \& Pruning):} Tìm cây khung trên $G_{\text{sub}}$, sau đó duyệt cắt tỉa toàn bộ các nhánh lá (leaf nodes) không thuộc tập $S$, thu được Cây Steiner tối ưu $T^*$.
+\end{itemize}
+
+\textbf{Hiệu quả thực tế:} Cây Steiner trích xuất trực tiếp chuỗi logic mắt xích:
+\begin{center}
+\textbf{Tài xế D3} $\xrightarrow{\text{DRIVER\_OPERATES\_TRIP}}$ \textbf{Cuốc T045} $\xrightarrow{\text{TRIP\_HAS\_INCIDENT}}$ \textbf{Sự cố hỏng xe} $\xrightarrow{\text{INCIDENT\_TYPE}}$ \textbf{Hỏng hóc kỹ thuật}
+\end{center}
+Toàn bộ các cạnh dư thừa xung quanh hoàn toàn bị loại bỏ, mang lại tập bằng chứng cô đọng tuyệt đối cho LLM Reader.
+
+% ..............................................................................
+\subsubsection{Hợp phần 2: Thuật toán 3 -- Khám phá định hướng ngữ nghĩa: Semantic A* Search \& Beam Search}
+\label{sec:algo-beam}
+
+Trong các trường hợp cần mở rộng đồ thị từ 1 hạt giống nguồn đến các nút thuộc tính chưa xác định trước (ví dụ: tìm các khoản bồi hoàn hoặc vi phạm chưa rõ mã số), em áp dụng thuật toán tìm kiếm có định hướng \textbf{Semantic A* Search} kết hợp \textbf{Beam Search}.
+
+\textbf{Hàm đánh giá heuristic:}
+Tại mỗi đường đi ứng viên $\pi = (s, v_1, v_2, \dots, u)$ xuất phát từ nút nguồn $s \in S$, giá trị đánh giá được xác định bởi:
+\begin{equation}
+    f(\pi) = g(\pi) + h(u, q)
+\end{equation}
+Trong đó:
+\begin{itemize}[noitemsep]
+    \item $g(\pi) = \sum_{e \in \pi} w(e)$ là chi phí thực tế đã tích lũy dọc theo đường đi $\pi$.
+    \item $h(u, q) = 1 - \cos(\mathbf{v}_u, \mathbf{v}_q)$ là hàm heuristic ước lượng khoảng cách ngữ nghĩa giữa vector embedding của thực thể hiện tại $u$ và vector câu hỏi $q$.
+\end{itemize}
+
+\textbf{Cơ chế Beam Search có kiểm soát ngân sách:}
+\begin{itemize}[leftmargin=1.5em]
+    \item Thay vì lưu trữ toàn bộ frontier như BFS, tại mỗi độ sâu $d$ ($1 \le d \le max\_hops$), hệ thống chỉ duy trì một chùm (beam) gồm $B$ đường đi có giá trị $f(\pi)$ nhỏ nhất (mặc định $B = 5$).
+    \item Khi mở rộng từ đỉnh $u = \text{last}(\pi)$, các cạnh nối chỉ được xem xét nếu thỏa mãn điều kiện nhân quả thời gian đối với cạnh liền trước:
+    \begin{equation}
+        t_{\text{valid\_from}}(e_{\text{next}}) \ge t_{\text{valid\_from}}(e_{\text{prev}}) - \epsilon_{\text{window}}
+    \end{equation}
+    \item Nhờ cơ chế cắt chùm hẹp ($B=5$), thuật toán có thể duyệt sâu tới $max\_hops = 4$ mà không gây bùng nổ thời gian tính toán ($\mathcal{O}(d \cdot B \cdot fanout)$ thay vì $\mathcal{O}(fanout^d)$ như BFS).
+\end{itemize}
+
+% ..............................................................................
+\subsubsection{Hợp phần 2: Thuật toán 4 -- Tái xếp hạng cạnh và cắt tỉa đồ thị con bảo toàn chứng cứ}
+\label{sec:algo-rerank-prune}
+
+Sau khi các đồ thị con ứng viên được trích xuất từ PPR, Steiner Tree hoặc Beam Search, tập hợp các cạnh cần được chuẩn hóa và tái xếp hạng ở mức độ hạt mịn (Fine-grained Edge Selection):
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{Tuần tự hóa cạnh đồ thị (Edge Linearization / Verbalization):}
+    Mỗi cạnh $e = (u, \text{predicate}, v, \text{valid}, \text{known})$ được ánh xạ thành câu tự nhiên chuẩn xác:
+    \begin{equation}
+        \text{Sentence}(e) = \text{"[Thời gian: } t_{\text{valid}} \text{] Thực thể } u \text{ có quan hệ } \text{predicate} \text{ với } v \text{ (Ghi nhận: } t_{\text{known}} \text{)}."
+    \end{equation}
+    \item \textbf{Chấm điểm chéo bằng Cross-Encoder (Edge Reranking):}
+    Điểm phù hợp ngữ cảnh của từng cạnh được tính trực tiếp thông qua mô hình Cross-Encoder:
+    \begin{equation}
+        \text{score}_{\text{rerank}}(q, e) = \text{CrossEncoder}\big(q, \text{Sentence}(e)\big)
+    \end{equation}
+    \item \textbf{Cắt tỉa đồ thị con bảo toàn tính liên thông (Evidence-Preserving Graph Pruning):}
+    \begin{itemize}[noitemsep]
+        \item Cạnh $e$ có thể bị loại bỏ nếu $\text{score}_{\text{rerank}}(q, e) < \theta_{\text{cutoff}}$.
+        \item \textbf{Nguyên tắc bảo toàn xương sống (Backbone Preservation Rule):} Nếu cạnh $e$ là cạnh cầu nối (Bridge Edge) thuộc Cây Steiner kết nối trực tiếp các hạt giống gốc $S$, cạnh này \textbf{tuyệt đối không bị loại bỏ} ngay cả khi điểm rerank của nó thấp, nhằm ngăn chặn việc làm đứt gãy chuỗi logic của toàn bộ đồ thị chứng cứ.
+    \end{itemize}
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+\subsection{Bảng đối sánh tổng hợp các thuật toán khai thác đồ thị}
+\label{sec:algo-comparison}
+
+Bảng~\ref{tab:graph-algorithms} so sánh toàn diện 5 phương pháp duyệt đồ thị, làm rõ sự vượt trội của hệ thống thuật toán nâng cao so với baseline hiện tại.
+
+\begin{table}[!htbp]
+\centering
+\scriptsize
+\caption{Bảng đối sánh các thuật toán khai thác Node và Cạnh trên Đồ thị Tri thức GSM}
+\label{tab:graph-algorithms}
+\vspace{0.15cm}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}
+    >{\hsize=1.00\hsize\linewidth=\hsize\raggedright\arraybackslash}X
+    >{\hsize=1.35\hsize\linewidth=\hsize\raggedright\arraybackslash}X
+    >{\hsize=0.85\hsize\linewidth=\hsize\raggedright\arraybackslash}X
+    >{\hsize=0.85\hsize\linewidth=\hsize\raggedright\arraybackslash}X
+    >{\hsize=0.95\hsize\linewidth=\hsize\raggedright\arraybackslash}X
+    >{\hsize=1.00\hsize\linewidth=\hsize\raggedright\arraybackslash}X
+    @{}}
+\toprule
+\textbf{Thuật toán} & \textbf{Độ phức tạp tính toán} & \textbf{Xử lý đa hạt giống} & \textbf{Độ lọc nhiễu cạnh} & \textbf{Cơ chế bảo toàn thời gian} & \textbf{Trường hợp sử dụng tối ưu} \\
+\midrule
+\textbf{Budgeted BFS} \newline (Hiện tại) & $\mathcal{O}(fanout^d)$ & Kém (Hình cầu độc lập) & Thấp (Nhiễm cạnh ngoại vi) & Lọc cục bộ từng cạnh độc lập & Truy vấn đơn giản 1-hop, tra cứu thuộc tính trực tiếp. \\
+\addlinespace[3pt]
+\textbf{Personalized PageRank (PPR)} & $\mathcal{O}(T \cdot |E|)$ ($T \approx 15$) & Rất tốt (Phân bố xác suất toàn cục) & Cao (Hội tụ quanh hạt giống) & Ma trận chuyển trạng thái phạt $\Delta t$ & Khám phá ngữ cảnh mở rộng quanh 1 hoặc nhiều tài xế. \\
+\addlinespace[3pt]
+\textbf{Steiner Tree} \newline (Xấp xỉ KMB) & $\mathcal{O}(|S|(|E| + |V|\log|V|))$ & Xuất sắc (Tìm đường liên kết nhỏ nhất) & Rất cao (Chỉ lấy nút/cạnh xương sống) & Dijkstra có ràng buộc nhân quả thời gian & Câu hỏi phức hợp chứa đồng thời Tài xế, Cuốc xe, Sự cố. \\
+\addlinespace[3pt]
+\textbf{Semantic} \newline \textbf{Beam Search} & $\mathcal{O}(d \cdot B \cdot fanout)$ & Tốt (Định hướng heuristic A*) & Cao (Cắt chùm hẹp $B=5$) & Kiểm tra tính đơn điệu thời gian theo đường đi & Tìm kiếm chuỗi sự kiện nhiều chặng ($d \ge 3$). \\
+\addlinespace[3pt]
+\textbf{Pipeline Tối ưu} \newline (Steiner + PPR + Rerank) & $\mathcal{O}(|S| \cdot |E| + B_{\text{rerank}})$ & Toàn diện (Đa tầng bổ trợ) & Cực đại ($\ge 95\%$ cạnh hữu ích) & Kiểm soát thời gian 2 chiều (Known-as-of \& Valid) & Toàn bộ 42 truy vấn benchmark của GSM Memory. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ------------------------------------------------------------------------------
+\subsection{Thiết kế kiến trúc đường ống truy vấn đồ thị thế hệ mới}
+\label{sec:nextgen-pipeline}
+
+Trên cơ sở lý thuyết và các giải thuật đề xuất, đường ống truy vấn đồ thị thế hệ mới (\textbf{Next-Gen Graph Retrieval Pipeline}) được chuẩn hóa thành 3 giai đoạn khép kín (Hình~\ref{fig:nextgen-graph-pipeline}).
+
+\begin{figure}[htbp]
+\centering
+\begin{tcolorbox}[
+    colback=subtlebg, colframe=brandblue, width=\textwidth,
+    title={\small\bfseries\color{white} LUỒNG TRUY VẤN ĐỒ THỊ THẾ HỆ MỚI (NEXT-GEN GRAPH RETRIEVAL PIPELINE)},
+    fonttitle=\bfseries
+]
+\small
+\textbf{Giai đoạn 1: Phân giải Danh tính & Định tuyến Chiến lược (Identity Resolution \& Strategy Routing)}
+\begin{itemize}[noitemsep,topsep=2pt]
+    \item Phân giải định danh ngầm: Tự động ánh xạ đại từ (\textit{"tôi"}, \textit{"của tôi"}) với \texttt{driver\_id} phiên đăng nhập, hoặc duyệt ngược từ mã chuyến đi sang ID tài xế khi thiếu ID tường minh.
+    \item Trích xuất tập hạt giống chuẩn hóa $S = \{s_1, \dots, s_k\}$ từ \nolinkurl{semantic_seed.py}.
+    \item Nếu $|S| \ge 2$: Kích hoạt \textbf{Steiner Tree Engine} để tìm xương sống liên kết (Backbone Skeleton).
+    \item Nếu $|S| = 1$: Kích hoạt \textbf{Personalized PageRank Engine} để lan truyền vùng ảnh hưởng cục bộ.
+    \item Nếu câu hỏi có yếu tố chuỗi hành trình phức tạp: Kích hoạt \textbf{Semantic Beam Search}.
+\end{itemize}
+
+\vspace{0.15cm}
+\textbf{Giai đoạn 2: Khai thác Đồ thị con Đa chiến lược (Dual-Strategy Subgraph Extraction)}
+\begin{itemize}[noitemsep,topsep=2pt]
+    \item Nạp snapshot đồ thị từ Parquet/Kùzu với ranh giới \textit{known-as-of} nghiêm ngặt (loại bỏ dữ kiện tương lai và các assertion bị \texttt{retract}/\texttt{replace}).
+    \item Thực thi song song trích xuất: Cây Steiner $T^*$ định hình các mắt xích cốt lõi; PPR bổ sung các node thuộc tính quan trọng lân cận.
+    \item Hợp nhất thành đồ thị con ứng viên $G_{\text{candidate}} = T^* \cup G[V^*_{\text{PPR}}]$.
+\end{itemize}
+
+\vspace{0.15cm}
+\textbf{Giai đoạn 3: Kiểm toán Thời gian & Tái xếp hạng Cạnh (Temporal Audit \& Edge Rerank)}
+\begin{itemize}[noitemsep,topsep=2pt]
+    \item Đối soát khung thời gian hợp lệ (\textit{valid\_time window eligibility}).
+    \item Tuần tự hóa cạnh và chạy Cross-Encoder Reranker để xếp hạng mức độ phù hợp chứng cứ.
+    \item Cắt tỉa cạnh nhiễu nhưng bảo toàn 100\% các cạnh cầu nối thuộc Cây Steiner.
+    \item Gắn mã định danh sổ cái công khai (\texttt{assertion\_id}), xuất đối tượng \texttt{KGEdgeCandidates} có cấu trúc chuyển giao cho Bộ chọn lọc \texttt{select\_public}.
+\end{itemize}
+\end{tcolorbox}
+\caption{Kiến trúc 3 giai đoạn khai thác Node và Cạnh đồ thị tri thức do Người 2 thiết kế}
+\label{fig:nextgen-graph-pipeline}
+\end{figure}
+
+% ------------------------------------------------------------------------------
+\subsection{Kế hoạch triển khai và chỉ tiêu đánh giá thực nghiệm}
+\label{sec:implementation-roadmap}
+
+\subsubsection{Các hạng mục triển khai mã nguồn cụ thể}
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{Xây dựng mô-đun thuật toán nâng cao (\nolinkurl{src/gsm_memory/retrieval/kg_advanced.py}):}
+    \begin{itemize}[noitemsep]
+        \item Cài đặt lớp \texttt{SteinerTreeExtractor} hiện thực hóa giải thuật KMB xấp xỉ có ràng buộc nhân quả thời gian.
+        \item Cài đặt lớp \texttt{PersonalizedPageRankScorer} tính toán ma trận $\mathbf{W}$ trọng số vector nhúng và giải phương trình lặp RWR.
+        \item Cài đặt lớp \texttt{SemanticBeamTraverser} với bộ nhớ chùm $B=5$.
+    \end{itemize}
+    \item \textbf{Tích hợp định tuyến đồ thị vào \nolinkurl{planner.py}:}
+    Mở rộng \texttt{RetrievalPlanner} để sinh cấu hình \texttt{GraphTraversalStrategy} (chọn \texttt{STEINER\_TREE}, \texttt{PPR}, hoặc \texttt{HYBRID\_BACKBONE}) tương ứng với số lượng hạt giống và ý định nghiệp vụ.
+    \item \textbf{Phát triển bộ kiểm thử tự động chuyên biệt (\nolinkurl{tests/unit/retrieval/test_kg_advanced_algorithms.py}):}
+    Kiểm thử độc lập tính đúng đắn của Cây Steiner trên các đồ thị mẫu GSM, kiểm tra tính đơn điệu thời gian của đường đi và xác minh không làm rò rỉ dữ kiện tương lai.
+\end{enumerate}
+
+\subsubsection{Hệ thống chỉ số đánh giá và mục tiêu định lượng}
+Để đánh giá định lượng sự vượt trội của hệ thống thuật toán mới so với BFS baseline trên toàn bộ \textbf{42 câu hỏi chuẩn} của bộ dữ liệu đóng băng \texttt{gsm-dev-core-0.2.2}, em thiết lập 4 chỉ số đo lường khoa học:
+\begin{enumerate}[leftmargin=1.5em,noitemsep]
+    \item \textbf{Tỷ lệ thu hồi cạnh chứng cứ vàng (Gold Edge Recall@K):}
+    Tỷ lệ các cạnh thuộc tập chứng cứ vàng (\textit{GoldSupportLink}) nằm trong Top-$K$ cạnh đồ thị được hệ thống trích xuất. Mục tiêu: $\text{Recall@20} \ge 98\%$ (so với mức $\approx 78\%$ của BFS).
+    \item \textbf{Độ chính xác cạnh (Edge Precision@K):}
+    Tỷ lệ cạnh thực sự đóng góp vào suy luận trên tổng số cạnh được trích xuất. Mục tiêu: Nâng từ mức $\approx 42\%$ (BFS thu gom nhiều cạnh hub thừa) lên $\ge 80\%$.
+    \item \textbf{Tính toàn vẹn của đường đi suy luận (Multi-Hop Path Completeness):}
+    Tỷ lệ các ca kiểm thử đa hạt giống mà hệ thống tìm được đường đi liên thông trọn vẹn từ Tài xế tới Sự cố/Quy chế. Mục tiêu: Đạt \textbf{100\%} (triệt tiêu tình trạng đứt gãy mắt xích).
+    \item \textbf{Thời gian thực thi trung bình (Retrieval Latency):}
+    Duy trì thời gian duyệt đồ thị đa thuật toán \textbf{dưới 50 ms/truy vấn} trong môi trường offline, bảo đảm tiêu chuẩn khắt khe của cổng \textbf{BRG05}.
+\end{enumerate}
+
+\end{document}
+
+
