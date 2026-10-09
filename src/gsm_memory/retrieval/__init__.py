@@ -28,6 +28,7 @@ from .routing import (
     validate_public_path_safety,
 )
 from .rerank import NvidiaReranker, RerankResult, rerank_candidates
+from .qdrant import HybridPolicySearcher, QdrantPolicyHit, QdrantPolicyRetriever
 from .kg import KGEdgeView, budgeted_bfs, filter_edge, traverse_kg
 from .semantic_seed import (
     DenseDocumentSearcher,

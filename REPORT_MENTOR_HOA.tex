@@ -483,8 +483,8 @@ Nhằm khắc phục triệt để hai hạn chế cốt lõi trên, em đề xu
 
 Để giải phóng hệ thống khỏi sự phụ thuộc cứng vào mã ID trong văn bản câu hỏi:
 \begin{itemize}[leftmargin=1.5em]
-    \item \textbf{Cơ chế liên kết ngữ cảnh phiên đăng nhập (Session Context Binding):} Khi tài xế đăng nhập vào ứng dụng di động hoặc Web Chatbot GSM, hệ thống tự động tiêm định danh tài xế (\texttt{driver\_id}) vào đối tượng phiên truy vấn ngầm (\texttt{RuntimeQueryContext}). Các đại từ xưng hô trong câu hỏi tự nhiên (\textit{"tôi"}, \textit{"xe của tôi"}, \textit{"cuốc của tôi"}) được bộ phân tích cú pháp tự động ánh xạ với \texttt{driver\_id} phiên làm việc để làm hạt giống xuất phát.
-    \item \textbf{Khám phá hạt giống ngược từ chuyến đi (Reverse Trip-to-Driver Seeding):} Trong trường hợp câu hỏi chỉ chứa mã cuốc xe (\texttt{T045}) mà không có ID tài xế (ví dụ tài xế hỏi: \textit{"Kiểm tra giúp cuốc T045 có bị phạt không"}), hệ thống kích hoạt cơ chế truy vết ngược:
+    \item \textbf{Cơ chế liên kết ngữ cảnh phiên đăng nhập (Session Context Binding):} Khi nhân viên vận hành thực hiện tra cứu trên Web Chatbot GSM, hệ thống tự động tiêm định danh tài xế (\texttt{driver\_id}) đang được kiểm tra vào đối tượng phiên truy vấn ngầm (\texttt{RuntimeQueryContext}). Các đại từ xưng hô hoặc thực thể ngắn gọn trong câu hỏi (\textit{"tài xế này"}, \textit{"chuyến đi của tài xế"}, \textit{"cuốc xe"}) được bộ phân tích cú pháp tự động ánh xạ với \texttt{driver\_id} phiên làm việc để làm hạt giống xuất phát.
+    \item \textbf{Khám phá hạt giống ngược từ chuyến đi (Reverse Trip-to-Driver Seeding):} Trong trường hợp câu hỏi chỉ chứa mã cuốc xe (\texttt{T045}) mà không có ID tài xế (ví dụ nhân viên hỏi: \textit{"Kiểm tra giúp cuốc T045 có bị phạt không"}), hệ thống kích hoạt cơ chế truy vết ngược:
     \begin{equation}
         \text{Driver}_{\text{resolved}} = \big\{ u \in V_{\text{Driver}} \mid (u, \texttt{DRIVER\_OPERATES\_TRIP}, T045) \in E_{\text{snapshot}} \big\}
     \end{equation}
@@ -504,7 +504,7 @@ Nhằm khắc phục triệt để hai hạn chế cốt lõi trên, em đề xu
 \end{equation}
 Trong đó:
 \begin{itemize}[noitemsep]
-    \item $c \in (0, 1)$ là xác suất khởi động lại (Restart Probability, thực nghiệm chọn $c = 0.15$). Xác suất này ép luồng đi ngẫu nhiên luôn nhảy ngược về tập hạt giống $S$, đảm bảo điểm số chỉ tập trung vào vùng lân cận có liên quan trực tiếp tới câu hỏi của tài xế.
+    \item $c \in (0, 1)$ là xác suất khởi động lại (Restart Probability, thực nghiệm chọn $c = 0.15$). Xác suất này ép luồng đi ngẫu nhiên luôn nhảy ngược về tập hạt giống $S$, đảm bảo điểm số chỉ tập trung vào vùng lân cận có liên quan trực tiếp tới câu hỏi tra cứu của nhân viên vận hành.
     \item $\mathbf{e}_S$ là vector khởi tạo định vị hạt giống:
     \begin{equation}
         e_S(u) = \begin{cases} \dfrac{w_{\text{seed}}(u)}{\sum_{v \in S} w_{\text{seed}}(v)}, & \text{nếu } u \in S \\ 0, & \text{ngược lại} \end{cases}

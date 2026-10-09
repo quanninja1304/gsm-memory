@@ -30,3 +30,14 @@ tests/unit/retrieval/test_mock_data.py
 data/kuzu_storage
 reports/kuzu_probe.json
 scratch/
+
+# Local database and journals
+*.db
+*.db-wal
+*.db-shm
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Local notes/scratch
+run.txt

@@ -39,7 +39,8 @@ def main() -> None:
         "gsm_memory.web.app:app",
         host=host,
         port=port,
-        reload=False,
+        reload=True,
+        reload_dirs=[str(SRC_DIR)],
         log_level="info",
     )
 

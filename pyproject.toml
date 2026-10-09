@@ -5,6 +5,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
   "pyarrow==21.0.0",
   "pydantic==2.13.5",
+  "langfuse>=4.0.0,<5.0.0",
 ]
 
 [project.optional-dependencies]
