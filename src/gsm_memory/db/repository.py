@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -329,6 +330,8 @@ class LocalDatabaseRepository:
             driver_id = p_dict.get("driver_id") or s_dict.get("driver_id")
             driver_mention = p_dict.get("driver_mention") or s_dict.get("driver_mention")
             time_scope = p_dict.get("time_scope") or s_dict.get("time_mention")
+            time_resolved = p_dict.get("time_resolved") or s_dict.get("time_resolved")
+            time_display = p_dict.get("time_display") or s_dict.get("time_display")
             snapshot_id = p_dict.get("snapshot_id") or s_dict.get("snapshot_id")
             policy_scope = p_dict.get("policy_scope") or (
                 ", ".join(s_dict.get("policy_mentions", [])) if s_dict.get("policy_mentions") else None
@@ -350,9 +353,13 @@ class LocalDatabaseRepository:
             if driver_mention:
                 self.set_context_key(session_id, "driver_mention", str(driver_mention), confidence=0.95, driver_id=valid_driver_id)
 
-            # 2. Time scope
+            # 2. Time scope & resolved time
             if time_scope and str(time_scope).lower() not in ("none", "chưa có", ""):
                 self.set_context_key(session_id, "time_scope", str(time_scope), confidence=0.9)
+            if time_resolved and str(time_resolved).lower() not in ("none", "chưa có", ""):
+                self.set_context_key(session_id, "time_resolved", str(time_resolved), confidence=0.95)
+            if time_display and str(time_display).lower() not in ("none", "chưa có", ""):
+                self.set_context_key(session_id, "time_display", str(time_display), confidence=0.95)
 
             # 3. Snapshot ID
             if snapshot_id:
@@ -499,6 +506,40 @@ class LocalDatabaseRepository:
                         matched.append(d)
         return matched
 
+    def find_driver_in_text(self, text: str) -> DriverRecord | None:
+        """Dynamically find any mentioned driver in text by code or name from the database."""
+        if not text or not text.strip():
+            return None
+        import re
+
+        # 1. Check driver code in text (e.g. DRV-007, D7)
+        code_match = re.search(r"\b(DRV-\d{3}|D\d)\b", text, re.IGNORECASE)
+        if code_match:
+            d = self.get_driver_by_code(code_match.group(1))
+            if d:
+                return d
+
+        # 2. Check full names or distinct individual names from the database
+        all_drivers = self.get_drivers()
+        text_lower = text.lower()
+        # Sort by length descending to match full names first
+        for d in sorted(all_drivers, key=lambda x: len(x.full_name), reverse=True):
+            if d.full_name.lower() in text_lower:
+                return d
+
+        # 3. Match distinct given name (e.g. "Giang" for "Đặng Hương Giang")
+        for d in all_drivers:
+            parts = d.full_name.split()
+            if parts:
+                given_name = parts[-1]
+                pattern = rf"\b{re.escape(given_name)}\b"
+                if re.search(pattern, text, re.IGNORECASE):
+                    # Ensure given_name is unique across drivers
+                    same_given = [x for x in all_drivers if x.full_name.split()[-1].lower() == given_name.lower()]
+                    if len(same_given) == 1:
+                        return same_given[0]
+        return None
+
     def get_driver_by_code(self, code: str) -> DriverRecord | None:
         """Find driver by code, dynamically supporting formats like DRV-001 or D1."""
         if not code or not code.strip():
@@ -524,7 +565,7 @@ class LocalDatabaseRepository:
             return DriverRecord(**dict(r))
 
     def update_driver_metrics(self, driver_id: str) -> None:
-        """Recompute trips count and cancel rate from trips table."""
+        """Recompute trips count and cancel rate from trips table (strictly benchmark trips)."""
         with get_db_session(self.db_path) as conn:
             cursor = conn.execute(
                 """
@@ -534,7 +575,7 @@ class LocalDatabaseRepository:
                     SUM(CASE WHEN outcome = 'cancelled' THEN 1 ELSE 0 END) AS cancelled,
                     AVG(CASE WHEN passenger_rating IS NOT NULL THEN passenger_rating ELSE NULL END) AS avg_rating
                 FROM trips
-                WHERE driver_id = ?
+                WHERE driver_id = ? AND trip_id NOT LIKE 'trip-supp-%'
                 """,
                 (driver_id,),
             )
@@ -561,6 +602,130 @@ class LocalDatabaseRepository:
                 """,
                 (completed, cancelled, rate, avg_rating, now, driver_id),
             )
+
+    def get_driver_snapshot_metrics(
+        self,
+        driver_id: str,
+        snapshot_id: str | None = None,
+        date: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Dynamically compute trips metrics for driver in specific snapshot or date/month/year."""
+        with get_db_session(self.db_path) as conn:
+            # 1. Base query for snapshot / overall 30-day evaluation window
+            snap_clauses = ["driver_id = ?"]
+            snap_params: list[Any] = [driver_id]
+            if snapshot_id:
+                snap_clauses.append("(snapshot_id = ? AND trip_id NOT LIKE 'trip-supp-%')")
+                snap_params.append(snapshot_id)
+            else:
+                snap_clauses.append("trip_id NOT LIKE 'trip-supp-%'")
+
+            cursor_snap = conn.execute(
+                f"""
+                SELECT 
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS completed,
+                    SUM(CASE WHEN outcome = 'cancelled' THEN 1 ELSE 0 END) AS cancelled,
+                    AVG(CASE WHEN passenger_rating IS NOT NULL THEN passenger_rating ELSE NULL END) AS avg_rating
+                FROM trips
+                WHERE {' AND '.join(snap_clauses)}
+                """,
+                snap_params,
+            )
+            stat_snap = cursor_snap.fetchone()
+            snap_total = stat_snap["total"] if stat_snap else 0
+            snap_completed = (stat_snap["completed"] or 0) if stat_snap else 0
+            snap_cancelled = (stat_snap["cancelled"] or 0) if stat_snap else 0
+            snap_rate = round(snap_cancelled / snap_total, 4) if snap_total > 0 else 0.0
+            snap_rating = round(stat_snap["avg_rating"], 2) if (stat_snap and stat_snap["avg_rating"] is not None) else 5.0
+
+            # If date is not specified, return snapshot metrics directly
+            if not date:
+                if not stat_snap or snap_total == 0:
+                    if snapshot_id:
+                        return {
+                            "total_trips": 0,
+                            "completed_trips": 0,
+                            "cancelled_trips": 0,
+                            "cancel_rate": 0.0,
+                            "rating_avg": 5.0,
+                            "snapshot_total_trips": 0,
+                            "snapshot_completed_trips": 0,
+                            "snapshot_cancelled_trips": 0,
+                            "snapshot_cancel_rate": 0.0,
+                        }
+                    return None
+                return {
+                    "total_trips": snap_total,
+                    "completed_trips": snap_completed,
+                    "cancelled_trips": snap_cancelled,
+                    "cancel_rate": snap_rate,
+                    "rating_avg": snap_rating,
+                    "snapshot_total_trips": snap_total,
+                    "snapshot_completed_trips": snap_completed,
+                    "snapshot_cancelled_trips": snap_cancelled,
+                    "snapshot_cancel_rate": snap_rate,
+                }
+
+            # 2. Date-filtered query
+            clauses = list(snap_clauses)
+            params = list(snap_params)
+            date_clean = str(date).strip()
+            m_dmy = re.match(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$", date_clean)
+            if m_dmy:
+                d, m, y = m_dmy.groups()
+                date_clean = f"{y}-{int(m):02d}-{int(d):02d}"
+            date_prefix = (
+                date_clean[:7]
+                if len(date_clean) == 7
+                else (date_clean[:10] if len(date_clean) >= 10 else date_clean)
+            )
+            clauses.append("start_time LIKE ?")
+            params.append(f"{date_prefix}%")
+
+            cursor = conn.execute(
+                f"""
+                SELECT 
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS completed,
+                    SUM(CASE WHEN outcome = 'cancelled' THEN 1 ELSE 0 END) AS cancelled,
+                    AVG(CASE WHEN passenger_rating IS NOT NULL THEN passenger_rating ELSE NULL END) AS avg_rating
+                FROM trips
+                WHERE {' AND '.join(clauses)}
+                """,
+                params,
+            )
+            stat = cursor.fetchone()
+            if not stat or stat["total"] == 0:
+                # In specified date period no trips were completed, but preserve snapshot 30d evaluation metrics
+                return {
+                    "total_trips": 0,
+                    "completed_trips": 0,
+                    "cancelled_trips": 0,
+                    "cancel_rate": snap_rate,
+                    "rating_avg": snap_rating,
+                    "snapshot_total_trips": snap_total,
+                    "snapshot_completed_trips": snap_completed,
+                    "snapshot_cancelled_trips": snap_cancelled,
+                    "snapshot_cancel_rate": snap_rate,
+                }
+            total = stat["total"]
+            cancelled = stat["cancelled"] or 0
+            completed = stat["completed"] or 0
+            rate = round(cancelled / total, 4) if total > 0 else 0.0
+            avg_rating = round(stat["avg_rating"], 2) if stat["avg_rating"] is not None else 5.0
+            return {
+                "total_trips": total,
+                "completed_trips": completed,
+                "cancelled_trips": cancelled,
+                "cancel_rate": rate,
+                "rating_avg": avg_rating,
+                "snapshot_total_trips": snap_total,
+                "snapshot_completed_trips": snap_completed,
+                "snapshot_cancelled_trips": snap_cancelled,
+                "snapshot_cancel_rate": snap_rate,
+            }
+
 
     # =========================================================================
     # SNAPSHOTS
@@ -660,16 +825,37 @@ class LocalDatabaseRepository:
         if target_iso:
             candidates: list[SnapshotRecord] = []
             for s in snapshots:
-                # known_as_of is ISO format: YYYY-MM-DDTHH:MM:SS
+                # 1. Exact day match
                 if s.known_as_of.startswith(target_iso):
                     candidates.append(s)
+
+            # 2. If date is a specific day, match snapshots in same year-month that cover this date (known_as_of >= target_iso)
+            if not candidates and len(target_iso) >= 7:
+                month_prefix = target_iso[:7]
+                for s in snapshots:
+                    if s.known_as_of.startswith(month_prefix) and s.known_as_of[:10] >= target_iso[:10]:
+                        candidates.append(s)
 
             if candidates:
                 # Prefer baseline snapshot if multiple match (e.g. at month level YYYY-MM)
                 for c in candidates:
                     if c.is_baseline:
                         return c
+                # If no candidate is baseline, but target_iso falls within the benchmark period
+                # (e.g. 2026-08 or 2026-09), prefer the canonical baseline snapshot over empty historical cutoffs
+                baseline_snaps = [s for s in snapshots if s.is_baseline]
+                if baseline_snaps and (target_iso.startswith("2026-08") or target_iso.startswith("2026-09")):
+                    return baseline_snaps[0]
                 return candidates[0]
+
+            # 3. If still no candidates, check if target_iso falls within covering snapshots (known_as_of >= target_iso)
+            covering = [s for s in snapshots if s.known_as_of[:10] >= target_iso[:10]]
+            if covering:
+                for c in covering:
+                    if c.is_baseline:
+                        return c
+                return covering[-1]
+
             # Target ISO specified (e.g. 2027-09 or 2025) but not present in database
             return None
 

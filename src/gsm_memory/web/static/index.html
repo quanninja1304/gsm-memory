@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2.6">
+  <link rel="stylesheet" href="styles.css?v=2.8">
 </head>
 <body class="dark-theme">
   <div class="app-container">
@@ -367,6 +367,21 @@
                   <div class="meta-val" id="metric-model">nvidia/nemotron-3.5-lightning:free</div>
                 </div>
               </div>
+              <!-- ReAct Agent Steps Container -->
+              <div class="react-timeline-card" id="react-timeline-card" style="display: none;">
+                <div class="react-timeline-header">
+                  <div class="react-badge-title">
+                    <span class="react-pulse-dot"></span>
+                    <span class="react-badge">ReAct Loop</span>
+                    <strong>Vòng lặp Suy Luận & Gọi Công Cụ (Reasoning + Acting)</strong>
+                  </div>
+                  <span class="react-steps-count" id="react-steps-count">0 vòng</span>
+                </div>
+                <div class="react-steps-container" id="react-steps-container">
+                  <!-- Dynamically rendered ReAct steps -->
+                </div>
+              </div>
+
               <div class="trace-action-box">
                 <a href="#" target="_blank" id="trace-external-link" class="btn-trace-link disabled">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -478,6 +493,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=2.6"></script>
+  <script src="app.js?v=2.8"></script>
 </body>
 </html>

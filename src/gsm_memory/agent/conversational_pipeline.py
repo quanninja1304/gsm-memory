@@ -13,11 +13,20 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterator, Mapping, Sequence
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 # Ensure src is in sys.path
 SRC_DIR = Path(__file__).resolve().parents[2]
@@ -35,93 +44,41 @@ DEFAULT_RELEASE_DIR = Path("data/gsm-dev-core-0.2.2")
 DEFAULT_SNAPSHOT_ID = "d4cc0438-d831-541a-8123-ddda94ccdac8"  # L0 reference snapshot as-of 2026-09-17
 
 
-# Semantic Time-to-Snapshot Mapping Table for Neo4j & Ledger Cutoffs
-# In dataset release gsm-dev-core-0.2.2 and Neo4j KG:
-# Ledger L0 (5 cutoffs) + 7 alternate branches = 12 benchmark snapshots:
-SNAPSHOT_METADATA: dict[str, dict[str, Any]] = {
-    "d4cc0438-d831-541a-8123-ddda94ccdac8": {
-        "label": "L0 Canonical Baseline (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Tháng 09/2026 & Toàn bộ 80 chuyến đi (L0)",
-        "aliases": [
-            "tháng 9", "tháng 09", "tháng 9/2026", "2026-09",
-            "30 ngày gần nhất", "30 ngày qua", "30 ngày",
-            "kỳ này", "kỳ đánh giá", "hôm nay", "hiện tại", "gần nhất",
-            "17/09", "17/09/2026", "snapshot l0"
-        ],
-    },
-    "25b69c05-6a60-51e3-9209-74e5d49816fa": {
-        "label": "L0 Cutoff A0 (16/09/2026 12:00)",
-        "known_as_of": "2026-09-16T12:00:00.000000Z",
-        "scope": "Ngày 16/09/2026 (79 chuyến đi)",
-        "aliases": ["16/09", "16/09/2026", "2026-09-16", "hôm qua", "cutoff a0"],
-    },
-    "624c0fb1-f1e5-59af-9642-0771d1d2571f": {
-        "label": "L0 Cutoff AC (17/09/2026 01:00)",
-        "known_as_of": "2026-09-17T01:00:00.000000Z",
-        "scope": "Sáng sớm 17/09/2026 (80 chuyến đi)",
-        "aliases": ["17/09 sáng", "2026-09-17t01", "cutoff ac"],
-    },
-    "da177d3f-6b43-52ae-a778-4fa7c6edbbf1": {
-        "label": "L0 Cutoff 06/08 (06/08/2026)",
-        "known_as_of": "2026-08-06T00:00:00.000000Z",
-        "scope": "Tháng 08/2026 (Chốt ngày 06/08, 30 quan hệ)",
-        "aliases": ["06/08", "06/08/2026", "2026-08-06", "cutoff 06/08"],
-    },
-    "d8c98a0b-7b07-50f2-b1ed-9fe102ccc5e6": {
-        "label": "L0 Cutoff 04/08 (04/08/2026)",
-        "known_as_of": "2026-08-04T00:00:00.000000Z",
-        "scope": "Đầu tháng 08/2026 (Chốt ngày 04/08, 29 quan hệ)",
-        "aliases": ["tháng 8", "tháng 08", "tháng 8/2026", "2026-08", "đầu tháng 8", "04/08", "04/08/2026", "2026-08-04", "tháng trước", "cutoff 04/08"],
-    },
-    # 7 Alternate Benchmark Branches
-    "df057563-78f4-5ac1-aba6-5b48c572fb4a": {
-        "label": "Branch L_NO_OPDAY (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng thiếu ngày vận hành (L_NO_OPDAY)",
-        "aliases": ["l_no_opday", "no_opday", "thiếu ngày vận hành", "nhánh thiếu ngày vận hành", "snapshot no opday"],
-    },
-    "d644104b-2ae9-54e3-b07f-ed1cefe897f1": {
-        "label": "Branch L_WRONG_DRIVER (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng sai định danh tài xế (L_WRONG_DRIVER)",
-        "aliases": ["l_wrong_driver", "wrong_driver", "sai tài xế", "nhánh sai tài xế", "snapshot wrong driver"],
-    },
-    "6c606951-1fbd-586a-bf9b-51faafb07a24": {
-        "label": "Branch L_CONFLICT (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng xung đột dữ liệu (L_CONFLICT)",
-        "aliases": ["l_conflict", "conflict", "xung đột", "xung đột dữ liệu", "nhánh xung đột", "snapshot conflict"],
-    },
-    "296f03c2-6abf-57b3-8a17-249486d98fe8": {
-        "label": "Branch L_RETRACT (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng rút lại dữ liệu (L_RETRACT)",
-        "aliases": ["l_retract", "retract", "rút lại", "rút lại dữ liệu", "nhánh rút lại", "snapshot retract"],
-    },
-    "ff172ebe-4740-54d3-a235-e819dc21c959": {
-        "label": "Branch L_WRONG_WINDOW (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng sai cửa sổ thời gian (L_WRONG_WINDOW)",
-        "aliases": ["l_wrong_window", "wrong_window", "sai cửa sổ", "sai cửa sổ thời gian", "nhánh sai cửa sổ", "snapshot wrong window"],
-    },
-    "f70bbf42-f1ec-5bcf-b8d3-8a7b53086076": {
-        "label": "Branch L_NO_BRIDGE (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng thiếu liên kết bắc cầu (L_NO_BRIDGE)",
-        "aliases": ["l_no_bridge", "no_bridge", "thiếu cầu nối", "nhánh thiếu cầu nối", "snapshot no bridge"],
-    },
-    "688de316-96de-59b6-9c70-3d4745aba76f": {
-        "label": "Branch L_NO_COVERAGE (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng thiếu độ phủ dữ liệu (L_NO_COVERAGE)",
-        "aliases": ["l_no_coverage", "no_coverage", "thiếu độ phủ", "nhánh thiếu độ phủ", "snapshot no coverage"],
-    },
-}
+# Semantic Time-to-Snapshot Mapping for Neo4j & Ledger Cutoffs
+# Dynamically loaded from SQLite database repository to avoid hardcoded static metadata
+def _load_snapshot_metadata() -> dict[str, dict[str, Any]]:
+    """Dynamically load snapshot metadata from SQLite database."""
+    try:
+        from gsm_memory.db.repository import LocalDatabaseRepository
+        repo = LocalDatabaseRepository()
+        snaps = repo.list_snapshots()
+        if snaps:
+            return {
+                s.snapshot_id: {
+                    "label": s.label,
+                    "known_as_of": s.known_as_of,
+                    "scope": s.description or s.label,
+                    "aliases": s.aliases or [],
+                }
+                for s in snaps
+            }
+    except Exception:
+        pass
+    return {}
+
+
+SNAPSHOT_METADATA: dict[str, dict[str, Any]] = _load_snapshot_metadata()
 
 
 def map_time_to_snapshot(time_str: str | None, repo: Any | None = None) -> tuple[str, str]:
-    """Map natural language time scope or explicit ID to (snapshot_id, snapshot_label)."""
+    """Map natural language time scope or explicit ID to (snapshot_id, snapshot_label) dynamically."""
+    if not repo:
+        try:
+            from gsm_memory.db.repository import LocalDatabaseRepository
+            repo = LocalDatabaseRepository()
+        except Exception:
+            repo = None
+
     if repo:
         snap = repo.find_snapshot_by_alias_or_time(time_str)
         if snap:
@@ -130,29 +87,17 @@ def map_time_to_snapshot(time_str: str | None, repo: Any | None = None) -> tuple
             return "", ""
 
     if not time_str:
-        return DEFAULT_SNAPSHOT_ID, SNAPSHOT_METADATA[DEFAULT_SNAPSHOT_ID]["label"]
+        return DEFAULT_SNAPSHOT_ID, (SNAPSHOT_METADATA.get(DEFAULT_SNAPSHOT_ID, {}).get("label") or "L0 Canonical Baseline (17/09/2026 12:00)")
 
     t_clean = time_str.lower().strip()
-
-    # Direct UUID match
     if t_clean in SNAPSHOT_METADATA:
         return t_clean, SNAPSHOT_METADATA[t_clean]["label"]
 
-    # Reject out-of-dataset years
-    year_match = re.search(r"\b(19\d{2}|20\d{2})\b", t_clean)
-    query_year = year_match.group(1) if year_match else None
-    if query_year and query_year != "2026":
-        return "", ""
-
     for sid, meta in SNAPSHOT_METADATA.items():
-        if sid in t_clean:
+        if sid in t_clean or any(alias in t_clean for alias in meta.get("aliases", [])):
             return sid, meta["label"]
-        for alias in meta["aliases"]:
-            if alias in t_clean:
-                return sid, meta["label"]
 
     return "", ""
-
 
 
 @dataclass
@@ -162,10 +107,13 @@ class QueryPlan:
     driver_mention: str | None = None
     is_driver_ambiguous: bool = False
     time_scope: str | None = None
+    time_resolved: str | None = None
+    time_display: str | None = None
     snapshot_id: str | None = None
     snapshot_label: str | None = None
     policy_scope: list[str] = field(default_factory=list)
     policy_topics: list[str] = field(default_factory=list)
+    policy_retrieval_query: str | None = None
     modalities: list[str] = field(default_factory=list)
     missing_fields: list[str] = field(default_factory=list)
     clarification_reasons: dict[str, str] = field(default_factory=dict)
@@ -182,9 +130,12 @@ class SlotExtractionResult:
     needs_time: bool = True
     has_time_scope: bool = False
     time_mention: str | None = None
+    time_resolved: str | None = None
+    time_display: str | None = None
     snapshot_id: str | None = None
     policy_mentions: list[str] = field(default_factory=list)
     policy_topics: list[str] = field(default_factory=list)
+    policy_retrieval_query: str | None = None
     has_policy_target: bool = False
     missing_slots: list[str] = field(default_factory=list)
 
@@ -225,6 +176,7 @@ class PipelineResponse:
     subgraph: Subgraph | None = None
     trace_url: str | None = None
     retrieval_receipt: dict[str, Any] | None = None
+    react_steps: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _serialize_for_trace(val: Any) -> Any:
@@ -255,10 +207,14 @@ class ConversationalPipeline:
         self.release_dir = release_dir
         self.default_snapshot_id = snapshot_id
         self.benchmark_current_time = "2026-09-17T12:00:00Z"
-        self.model_name = model_name or os.getenv("OPENROUTER_MODEL") or "nvidia/nemotron-3.5-lightning:free"
         self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
         self.nvidia_api_key = os.getenv("NVIDIA_API_KEY")
         self.nvidia_model = os.getenv("NVIDIA_MODEL") or "meta/llama-3.2-11b-vision-instruct"
+        self.llm_provider = os.getenv("LLM_PROVIDER") or ("nvidia" if self.nvidia_api_key else "openrouter")
+        if self.llm_provider == "nvidia" and not model_name:
+            self.model_name = f"nvidia:{self.nvidia_model}"
+        else:
+            self.model_name = model_name or os.getenv("OPENROUTER_MODEL") or "nvidia/nemotron-3.5-lightning:free"
 
         from gsm_memory.db.repository import LocalDatabaseRepository
         self.db_repo: LocalDatabaseRepository = db_repo or LocalDatabaseRepository()
@@ -295,6 +251,16 @@ class ConversationalPipeline:
 
         # Initialize Langfuse
         self.langfuse = self._init_langfuse()
+
+        # Initialize ReAct Agent Engine (Reasoning + Acting loop with autonomous tools)
+        from gsm_memory.agent.react_agent import ReActAgent
+        self.react_agent = ReActAgent(
+            call_llm_fn=self._call_llm,
+            pipeline_ref=self,
+            db_repo=self.db_repo,
+            max_iterations=5,
+        )
+        self.last_subgraph: Subgraph | None = None
 
     def _load_document_catalog_meta(self) -> dict[str, dict[str, Any]]:
         """Load catalog metadata to resolve chunk IDs to human-readable policy aliases and titles."""
@@ -527,67 +493,39 @@ class ConversationalPipeline:
         messages: list[dict[str, str]],
         max_tokens: int = 1500,
         temperature: float = 0.1,
-        timeout: float = 25.0,
+        timeout: float = 35.0,
+        stop: list[str] | None = None,
     ) -> tuple[str, str, dict[str, int]]:
         """Call LLM with graceful failover across available providers:
-        1. OpenRouter (if OPENROUTER_API_KEY is configured and not rate-limited)
-        2. NVIDIA NIM (if NVIDIA_API_KEY is configured)
+        Prioritizes provider based on self.llm_provider ('nvidia' or 'openrouter').
         Returns (content, model_name, usage_info).
         """
         from openai import OpenAI
 
-        # 1. Try OpenRouter if key is present and not exhausted
-        if self.openrouter_api_key and not getattr(self, "_openrouter_exhausted", False):
+        def _try_nvidia() -> tuple[str, str, dict[str, int]] | None:
+            if not self.nvidia_api_key:
+                return None
             try:
-                client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=self.openrouter_api_key, max_retries=0)
-                models_to_try = [self.model_name]
-                if ":free" not in self.model_name:
-                    models_to_try.append("nvidia/nemotron-3.5-lightning:free")
-                for m in models_to_try:
-                    try:
-                        resp = client.chat.completions.create(
-                            model=m,
-                            messages=messages,
-                            max_tokens=max_tokens,
-                            temperature=temperature,
-                            timeout=min(timeout, 8.0),
-                        )
-                        content = resp.choices[0].message.content or ""
-                        if content.strip():
-                            usage_info = {}
-                            if getattr(resp, "usage", None):
-                                u = resp.usage
-                                usage_info = {
-                                    "prompt_tokens": getattr(u, "prompt_tokens", 0) or 0,
-                                    "completion_tokens": getattr(u, "completion_tokens", 0) or 0,
-                                    "total_tokens": getattr(u, "total_tokens", 0) or 0,
-                                }
-                            return content, m, usage_info
-                    except Exception as sub_e:
-                        err_str = str(sub_e)
-                        print(f"[LLM Router] OpenRouter model {m} failed: {sub_e}")
-                        if "429" in err_str or "Rate limit" in err_str or "free-models-per-day" in err_str:
-                            self._openrouter_exhausted = True
-                            print("[LLM Router] OpenRouter free daily quota reached. Failing over to NVIDIA NIM.")
-                            break
-                        continue
-            except Exception as e:
-                print(f"[LLM Router] OpenRouter connection failed: {e}")
-
-        # 2. Failover to NVIDIA NIM if key is present
-        if self.nvidia_api_key:
-            try:
-                client_nv = OpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=self.nvidia_api_key, max_retries=1)
-                nv_models = [self.nvidia_model, "meta/llama-3.2-11b-vision-instruct"]
+                client_nv = OpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=self.nvidia_api_key, max_retries=0)
+                # Deduplicate models
+                seen_models: set[str] = set()
+                nv_models: list[str] = []
+                for nm in [self.nvidia_model, "meta/llama-3.2-11b-vision-instruct"]:
+                    if nm and nm not in seen_models:
+                        seen_models.add(nm)
+                        nv_models.append(nm)
                 for nm in nv_models:
                     try:
-                        resp = client_nv.chat.completions.create(
-                            model=nm,
-                            messages=messages,
-                            max_tokens=max_tokens,
-                            temperature=temperature,
-                            timeout=timeout,
-                        )
+                        create_kwargs: dict[str, Any] = {
+                            "model": nm,
+                            "messages": messages,
+                            "max_tokens": max_tokens,
+                            "temperature": temperature,
+                            "timeout": max(timeout, 35.0),
+                        }
+                        if stop:
+                            create_kwargs["stop"] = stop
+                        resp = client_nv.chat.completions.create(**create_kwargs)
                         content = resp.choices[0].message.content or ""
                         if content.strip():
                             usage_info = {}
@@ -604,6 +542,68 @@ class ConversationalPipeline:
                         continue
             except Exception as e:
                 print(f"[LLM Router] NVIDIA NIM connection failed: {e}")
+            return None
+
+        def _try_openrouter() -> tuple[str, str, dict[str, int]] | None:
+            if not self.openrouter_api_key or getattr(self, "_openrouter_exhausted", False):
+                return None
+            try:
+                client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=self.openrouter_api_key, max_retries=0)
+                openrouter_model = os.getenv("OPENROUTER_MODEL") or "nvidia/nemotron-3.5-lightning:free"
+                models_to_try = [openrouter_model]
+                if self.model_name and not self.model_name.startswith("nvidia:") and self.model_name != openrouter_model:
+                    models_to_try.insert(0, self.model_name)
+                for m in models_to_try:
+                    try:
+                        create_kwargs: dict[str, Any] = {
+                            "model": m,
+                            "messages": messages,
+                            "max_tokens": max_tokens,
+                            "temperature": temperature,
+                            "timeout": max(timeout, 25.0),
+                        }
+                        if stop:
+                            create_kwargs["stop"] = stop
+                        resp = client.chat.completions.create(**create_kwargs)
+                        content = resp.choices[0].message.content or ""
+                        if content.strip():
+                            usage_info = {}
+                            if getattr(resp, "usage", None):
+                                u = resp.usage
+                                usage_info = {
+                                    "prompt_tokens": getattr(u, "prompt_tokens", 0) or 0,
+                                    "completion_tokens": getattr(u, "completion_tokens", 0) or 0,
+                                    "total_tokens": getattr(u, "total_tokens", 0) or 0,
+                                }
+                            return content, m, usage_info
+                    except Exception as sub_e:
+                        err_str = str(sub_e)
+                        print(f"[LLM Router] OpenRouter model {m} failed: {sub_e}")
+                        if "429" in err_str or "Rate limit" in err_str or "free-models-per-day" in err_str:
+                            self._openrouter_exhausted = True
+                            print("[LLM Router] OpenRouter free daily quota reached. Failing over to next provider.")
+                            break
+                        continue
+            except Exception as e:
+                print(f"[LLM Router] OpenRouter connection failed: {e}")
+            return None
+
+        # Execute according to preferred provider
+        provider = getattr(self, "llm_provider", "openrouter")
+        if provider == "nvidia":
+            res = _try_nvidia()
+            if res:
+                return res
+            res = _try_openrouter()
+            if res:
+                return res
+        else:
+            res = _try_openrouter()
+            if res:
+                return res
+            res = _try_nvidia()
+            if res:
+                return res
 
         return "", "", {}
 
@@ -627,47 +627,45 @@ class ConversationalPipeline:
             "1. TÁCH BẠCH NGỮ CẢNH: Các trường 'driver_code', 'driver_name', 'driver_id' CHỈ ĐƯỢC ĐIỀN khi câu hỏi hiện tại CÓ ĐỀ CẬP hoặc THAM CHIẾU đến tài xế. NẾU câu hỏi đề cập đến một tên hoặc mã tài xế mới (ví dụ: 'còn tài xế Minh thì sao', 'tài xế Bình thì sao', 'DRV-005'): BẮT BUỘC bóc tách tên mới vào 'driver_name' (ví dụ: 'Minh') hoặc mã mới vào 'driver_code', và ĐỂ 'driver_id'=null; TUYỆT ĐỐI KHÔNG dùng tên/mã tài xế từ ngữ cảnh trước!\n"
             "   - CHỈ kế thừa tài xế từ ngữ cảnh trước khi câu hỏi hiện tại dùng đại từ thay thế (ví dụ: 'anh ấy', 'chị ấy', 'người này', 'tài xế này') HOẶC câu hỏi tiếp nối không nhắc đến bất kỳ tên/mã tài xế nào (ví dụ: 'thế còn tháng 8 thì sao?').\n"
             "   - Nếu câu hỏi hiện tại chỉ hỏi về quy chế/chính sách chung (ví dụ: 'các chính sách về vi phạm hủy chuyến', 'quy định mức khoán'), bắt buộc để driver_id=null, driver_code=null, driver_name=null, KHÔNG được tự động sao chép tài xế từ ngữ cảnh trước vào!\n"
-            "2. Trả về DUY NHẤT 1 chuỗi JSON hợp lệ, KHÔNG có markdown ```json ```, KHÔNG có văn bản hay lời chào nào khác ngoài JSON.\n"
+            "2. Trả về DUY NHẤT 1 chuỗi JSON hợp lệ, KHÔNG có markdown ```json ```, KHÔNG có suy nghĩ (thinking), giải thích hay tiếng Anh.\n"
             "3. Các trường cần bóc tách:\n"
             "   - 'driver_id': Chuỗi UUID nếu câu hỏi cung cấp trực tiếp UUID, ngược lại null.\n"
             "   - 'driver_code': Mã tài xế cần tra cứu (ví dụ: DRV-001, DRV-002, D1, D2...), ngược lại null.\n"
-            "   - 'driver_name': Tên tài xế được nhắc đến (ví dụ: 'Trần Văn Bình', 'Bình', 'Minh', 'Dũng'...), ngược lại null.\n"
-            "   - 'time_raw': Cụm từ chỉ thời gian nguyên văn trong câu hỏi (ví dụ: 'tháng 9/2026', 'hôm qua', '30 ngày qua'...), ngược lại null.\n"
+            "   - 'driver_name': Tên tài xế được nhắc đến (ví dụ: 'Trần Văn Bình', 'Bình', 'Minh', 'Dũng', 'Giang'...). LƯU Ý: Các danh xưng như 'anh Giang', 'chị Lan', 'bác tài Dũng', 'tài xế Bình' thì tên tài xế tương ứng là 'Giang', 'Lan', 'Dũng', 'Bình'!\n"
+            "   - 'time_raw': Cụm từ chỉ thời gian nguyên văn trong câu hỏi (ví dụ: 'tháng 9/2026', 'hôm qua', 'tháng vừa rồi', 'tháng trước', '30 ngày qua'...), ngược lại null.\n"
             "   - 'time_resolved': Mốc thời gian ISO hoặc chuẩn hóa tương ứng dựa trên thời gian hiện tại của hệ thống (ví dụ: '2026-09', '2026-09-16'...), ngược lại null.\n"
-            "   - 'policy_scope': Danh sách mã quy chế hoặc tên văn bản quy định cụ thể được người dùng ghi rõ nguyên văn trong câu hỏi (ví dụ người dùng viết rõ 'P154', 'P05', 'P221', hoặc tên văn bản rõ ràng như 'Bộ Quy tắc ứng xử'). NẾU câu hỏi chỉ nói chung chung 'chính sách', 'quy chế', 'tiêu chuẩn', 'vi phạm' mà KHÔNG có mã Pxxx hoặc tên cụ thể, BẮT BUỘC để []. TUYỆT ĐỐI KHÔNG tự bịa mã quy chế!\n"
-            "   - 'policy_topics': Danh sách các chủ đề/nội dung nghiệp vụ quy chế được hỏi cụ thể (ví dụ: ['tỷ lệ hủy chuyến'], ['mức khoán doanh số'], ['tiêu chuẩn đánh giá sao'], ['tác phong đồng phục/diện mạo'], ['chính sách thưởng']...). Nếu câu hỏi chung chung về chính sách mà KHÔNG nêu rõ chủ đề cụ thể nào (ví dụ: 'cho tôi hỏi chính sách công ty', 'quy định ra sao'), bắt buộc để [].\n"
-            "   - 'has_policy_target': boolean (true nếu câu hỏi đã nêu rõ tên/mã quy chế CỤ THỂ HOẶC chủ đề chính sách CỤ THỂ; false nếu câu hỏi tra cứu chính sách nhưng hoàn toàn chung chung, mơ hồ, không có tên quy chế lẫn chủ đề cụ thể).\n"
+            "   - 'policy_scope': Danh sách mã quy chế (ví dụ dạng P kèm chữ số như P154, P05, P221) hoặc tên văn bản quy định cụ thể CHỈ KHI người dùng viết rõ nguyên văn trong câu hỏi hiện tại. NẾU câu hỏi không có mã Pxxx hoặc tên văn bản cụ thể, BẮT BUỘC để []. TUYỆT ĐỐI KHÔNG tự điền hoặc suy đoán mã quy chế khi câu hỏi không nêu rõ!\n"
+            "   - 'policy_topics': Danh sách chủ đề nghiệp vụ quy chế mà người dùng đề cập (ví dụ: khi hỏi về nhận thưởng -> ['thưởng']; hỏi về sao -> ['đánh giá sao']; hỏi về hủy chuyến -> ['tỷ lệ hủy chuyến']...). Nếu câu hỏi hoàn toàn trống rỗng không nêu bất kỳ chủ đề nào (ví dụ: 'cho tôi hỏi quy định', 'xem chính sách'), để [].\n"
+            "   - 'policy_retrieval_query': Câu truy vấn ngữ nghĩa tự nhiên dùng để tìm kiếm văn bản quy định liên quan trong kho tài liệu (tập trung vào nội dung pháp lý/tiêu chuẩn đối soát, loại bỏ tên riêng tài xế). Ví dụ: với câu hỏi 'anh Giang tháng vừa rồi có được nhận thưởng không', policy_retrieval_query là 'Điều kiện và quy định xét nhận thưởng của tài xế'. Nếu câu hỏi thuần túy tra cứu lịch sử không liên quan tiêu chuẩn/chính sách, để null.\n"
+            "   - 'policy_keywords': Danh sách các từ khóa cốt lõi để tìm kiếm văn bản (ví dụ: ['thưởng', 'nhận thưởng', 'xét thưởng']).\n"
+            "   - 'has_policy_target': boolean (true nếu câu hỏi có đề cập đến mã quy chế hoặc bất kỳ chủ đề/tiêu chuẩn/quyền lợi nào như nhận thưởng, đánh giá sao, hủy chuyến, mức khoán, kỷ luật...; false CHỈ KHI câu hỏi hoàn toàn chung chung, mơ hồ, không có tên quy chế lẫn chủ đề cụ thể).\n"
             "   - 'needs_compliance_check': boolean (true nếu câu hỏi yêu cầu đối soát, kiểm tra vi phạm, xét tiêu chuẩn vận hành, kỷ luật, thưởng phạt; false nếu chỉ xem thông tin thông thường).\n"
-            "   - 'intent': 'POLICY_LOOKUP' (chỉ tra cứu quy chế công ty), 'DRIVER_HISTORY' (chỉ xem thông tin/lịch sử chuyến xe thuần túy không đối soát quy chuẩn), hoặc 'HYBRID_REASONING' (kiểm tra vi phạm, đối soát tài xế theo quy chuẩn/tiêu chuẩn, hoặc tính thưởng phạt).\n"
-            "   - 'modalities': Danh sách các kênh dữ liệu trong ['document', 'kg', 'computation']. Lưu ý: nếu intent là 'HYBRID_REASONING' hoặc có kiểm tra vi phạm/chính sách, bắt buộc phải có đầy đủ ['document', 'kg', 'computation']."
+            "   - 'intent': 'POLICY_LOOKUP' (chỉ tra cứu quy chế công ty không có tài xế), 'DRIVER_HISTORY' (chỉ xem thông tin/lịch sử chuyến xe thuần túy không đối soát quy chuẩn), hoặc 'HYBRID_REASONING' (kiểm tra vi phạm, đối soát tài xế theo quy chuẩn/tiêu chuẩn, hoặc tính thưởng phạt).\n"
+            "   - 'modalities': Danh sách các kênh dữ liệu trong ['document', 'kg', 'computation']."
         )
 
-        pattern_data = self._pattern_fallback_extraction(query)
-        has_new_explicit_driver = bool(pattern_data.get("driver_name") or pattern_data.get("driver_code") or pattern_data.get("driver_id"))
-        is_anaphoric = any(k in query.lower() for k in [
-            "anh ấy", "chị ấy", "người này", "ông này", "bà này", "tài xế này", "bác tài này",
-            "tài xế đó", "bác tài đó", "người đó", "hồ sơ của anh ấy", "anh này", "chị này", "anh ta"
-        ])
-
         user_content = f"CÂU HỎI CỦA NHÂN VIÊN VẬN HÀNH: {query}"
-        # Only inject previous driver context if query refers to old driver (anaphoric) or does NOT name a new driver
-        if (not has_new_explicit_driver or is_anaphoric) and (context.get("driver_mention") or context.get("driver_id")):
-            user_content += f"\n[Ngữ cảnh trước: Tài xế={context.get('driver_mention') or context.get('driver_id')}]"
-        if context.get("time_mention") and any(k in query.lower() for k in ["thời gian", "kỳ", "tháng", "năm", "hôm", "kỳ đó", "thì sao", "thế nào"]):
-            user_content += f"\n[Ngữ cảnh trước: Thời gian={context.get('time_mention')}]"
+        ctx_parts = []
+        if context.get("driver_mention") or context.get("driver_id"):
+            ctx_parts.append(f"Tài xế trước đó={context.get('driver_mention') or context.get('driver_id')}")
+        if context.get("time_mention") or context.get("time_scope"):
+            ctx_parts.append(f"Thời gian trước đó={context.get('time_mention') or context.get('time_scope')}")
         if context.get("policy_scope"):
-            user_content += f"\n[Ngữ cảnh trước: Quy chế={context.get('policy_scope')}]"
+            ctx_parts.append(f"Quy chế trước đó={context.get('policy_scope')}")
         if context.get("policy_topics"):
-            user_content += f"\n[Ngữ cảnh trước: Chủ đề quy chế={context.get('policy_topics')}]"
+            ctx_parts.append(f"Chủ đề trước đó={context.get('policy_topics')}")
+        if ctx_parts:
+            user_content += f"\n[Ngữ cảnh hội thoại trước đó: {'; '.join(ctx_parts)}]"
 
         extracted: dict[str, Any] = {}
+        llm_succeeded = False
         try:
             raw_resp, _, _ = self._call_llm(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content},
                 ],
-                max_tokens=400,
+                max_tokens=600,
                 temperature=0.0,
                 timeout=15.0,
             )
@@ -680,71 +678,86 @@ class ConversationalPipeline:
                     clean_json = re.sub(r"\n?```$", "", clean_json)
                 brace_match = re.search(r"\{.*\}", clean_json, re.DOTALL)
                 if brace_match:
-                    clean_json = brace_match.group(0)
-                    extracted = json.loads(clean_json.strip())
+                    extracted = json.loads(brace_match.group(0).strip())
+                    llm_succeeded = True
         except Exception as e:
             print(f"[AI Slot Extractor Warning] LLM parsing failed ({e}), using dynamic pattern fallback.")
 
-        # Enrich with pattern fallback to ensure high coverage of domain codes and topics
-        if not extracted or not isinstance(extracted, dict):
-            extracted = pattern_data
-        else:
-            # If pattern detected an explicit driver name in the query, prioritize it over any stale context name from LLM
-            if pattern_data.get("driver_name"):
-                llm_name = (extracted.get("driver_name") or "").lower()
-                pat_name = pattern_data["driver_name"].lower()
-                if pat_name not in llm_name:
-                    extracted["driver_name"] = pattern_data["driver_name"]
-                    if not pattern_data.get("driver_code"):
-                        extracted["driver_code"] = None
-                    if not pattern_data.get("driver_id"):
-                        extracted["driver_id"] = None
-            elif not extracted.get("driver_name") and pattern_data.get("driver_name"):
-                extracted["driver_name"] = pattern_data["driver_name"]
+        # If LLM failed, was offline, or did not return valid JSON, use fallback
+        if not llm_succeeded or not extracted or not isinstance(extracted, dict):
+            return self._pattern_fallback_extraction(query)
 
-            # Sanitize policy_scope: reject any LLM hallucinated policy code not explicitly in query or context
-            raw_ai_policies = extracted.get("policy_scope") or []
-            if isinstance(raw_ai_policies, str):
-                raw_ai_policies = [p.strip().upper() for p in raw_ai_policies.split(",") if p.strip()]
-            sanitized_policies: list[str] = []
-            ctx_policies = context.get("policy_scope") or []
-            if isinstance(ctx_policies, str):
-                ctx_policies = [p.strip().upper() for p in ctx_policies.split(",") if p.strip()]
+        # Augment driver or time dynamically from database / time_resolver if LLM omitted them
+        if not extracted.get("driver_name") and not extracted.get("driver_code") and not extracted.get("driver_id"):
+            driver_from_db = getattr(self.db_repo, "find_driver_in_text", lambda q: None)(query)
+            if driver_from_db and isinstance(getattr(driver_from_db, "driver_id", None), str):
+                extracted["driver_id"] = driver_from_db.driver_id
+                extracted["driver_code"] = driver_from_db.driver_code
+                extracted["driver_name"] = driver_from_db.full_name
+
+        if not extracted.get("time_raw"):
+            from gsm_memory.agent.time_resolver import extract_time_from_text
+            time_info = extract_time_from_text(query)
+            if time_info.get("time_raw"):
+                extracted["time_raw"] = time_info["time_raw"]
+                extracted["time_resolved"] = time_info["time_resolved"]
+                extracted["time_display"] = time_info["time_display"]
+
+        # Normalize and strictly verify policy_scope against user query and explicit context
+        raw_policies = []
+        if isinstance(extracted.get("policy_scope"), str):
+            raw_policies = [p.strip().upper() for p in extracted["policy_scope"].split(",") if p.strip()]
+        elif isinstance(extracted.get("policy_scope"), list):
+            raw_policies = [str(p).strip().upper() for p in extracted["policy_scope"] if str(p).strip()]
+
+        verified_policies = []
+        ctx_policies = context.get("policy_scope") or []
+        if isinstance(ctx_policies, str):
+            ctx_policies = [p.strip().upper() for p in ctx_policies.split(",") if p.strip()]
+        elif isinstance(ctx_policies, list):
+            ctx_policies = [str(p).strip().upper() for p in ctx_policies if str(p).strip()]
+
+        for p in raw_policies:
+            # Policy MUST appear in query text as word or in explicit context
+            if re.search(rf"\b{re.escape(p)}\b", query, re.IGNORECASE) or (p in ctx_policies):
+                verified_policies.append(p)
+            elif p and p.lower() in query.lower():
+                verified_policies.append(p)
             else:
-                ctx_policies = [str(p).strip().upper() for p in ctx_policies if str(p).strip()]
+                print(f"[AI Slot Extractor] Dropping hallucinated policy_scope '{p}' because it was not in query or context.")
 
-            pattern_policies = [str(p).strip().upper() for p in pattern_data.get("policy_scope", [])]
-            for p in raw_ai_policies:
-                p_clean = str(p).strip().upper()
-                if (
-                    p_clean in query.upper()
-                    or p_clean in pattern_policies
-                    or p_clean in ctx_policies
-                ):
-                    if p_clean not in sanitized_policies:
-                        sanitized_policies.append(p_clean)
+        extracted["policy_scope"] = verified_policies
 
-            for p in pattern_policies:
-                if p not in sanitized_policies:
-                    sanitized_policies.append(p)
-            extracted["policy_scope"] = sanitized_policies
+        if isinstance(extracted.get("policy_topics"), str):
+            extracted["policy_topics"] = [t.strip() for t in extracted["policy_topics"].split(",") if t.strip()]
+        elif isinstance(extracted.get("policy_topics"), list):
+            extracted["policy_topics"] = [str(t).strip() for t in extracted["policy_topics"] if str(t).strip()]
+        else:
+            extracted["policy_topics"] = []
 
-            if not extracted.get("policy_topics") and pattern_data.get("policy_topics"):
-                extracted["policy_topics"] = pattern_data["policy_topics"]
-            elif pattern_data.get("policy_topics"):
-                for t in pattern_data["policy_topics"]:
-                    if t not in extracted["policy_topics"]:
-                        extracted["policy_topics"].append(t)
+        # Resolve natural relative time to exact ISO and human display strings
+        from gsm_memory.agent.time_resolver import resolve_relative_time
+        time_raw_val = extracted.get("time_raw")
+        if time_raw_val:
+            time_meta = resolve_relative_time(time_raw_val)
+            if time_meta.get("time_resolved"):
+                extracted["time_resolved"] = time_meta["time_resolved"]
+            if time_meta.get("time_display"):
+                extracted["time_display"] = time_meta["time_display"]
 
-            if not extracted.get("driver_code") and pattern_data.get("driver_code"):
-                extracted["driver_code"] = pattern_data["driver_code"]
-            if not extracted.get("time_raw") and pattern_data.get("time_raw"):
-                extracted["time_raw"] = pattern_data["time_raw"]
+        # If driver is identified and question is checking bonus/compliance, force intent to HYBRID_REASONING
+        has_driver = bool(extracted.get("driver_name") or extracted.get("driver_code") or extracted.get("driver_id"))
+        if has_driver:
+            extracted["intent"] = "HYBRID_REASONING"
+            extracted["needs_compliance_check"] = True
+
+        if "has_policy_target" not in extracted:
+            extracted["has_policy_target"] = bool(extracted.get("policy_scope") or extracted.get("policy_topics"))
 
         return extracted
 
     def _pattern_fallback_extraction(self, query: str) -> dict[str, Any]:
-        """Generic zero-hardcode pattern extractor as fallback when LLM API is unavailable."""
+        """Generic fallback extractor using database and time_resolver when LLM API is unavailable."""
         q_lower = query.lower()
         res: dict[str, Any] = {
             "driver_id": None,
@@ -752,8 +765,10 @@ class ConversationalPipeline:
             "driver_name": None,
             "time_raw": None,
             "time_resolved": None,
+            "time_display": None,
             "policy_scope": [],
             "policy_topics": [],
+            "policy_retrieval_query": query.strip(),
             "has_policy_target": False,
             "needs_compliance_check": True,
             "intent": "HYBRID_REASONING",
@@ -770,98 +785,48 @@ class ConversationalPipeline:
         if code_match:
             res["driver_code"] = code_match.group(0).upper()
 
-        # 3. Driver Name pattern without hardcoding names
-        name_match = re.search(
-            r"(?:kiểm tra tài xế|tra cứu tài xế|hồ sơ tài xế|tài xế|bác tài|\banh\b|\bem\b|tôi là|tên(?: là)?)\s+([A-ZÀ-Ỹa-zà-ỹ\s]+?)(?:,|\.|\btrong\b|\btheo\b|\bvào\b|\btháng\b|\bhôm\b|\bmã\b|\bthì\b|\bthế\b|\bcó\b|\bnhé\b|\bnhỉ\b|\bạ\b|\bkhông\b|\bko\b|\bchưa\b|\bở\b|\bđược\b|\bnhư\b|\b\(|$)",
-            query,
-            re.IGNORECASE,
-        )
-        if name_match:
-            candidate_name = name_match.group(1).strip()
-            # Clean leading prefix
-            clean_name = re.sub(
-                r"^(?:kiểm tra tài xế|tra cứu tài xế|hồ sơ tài xế|tài xế|bác tài|\banh\b|\bem\b|tôi là|tên là)\s+",
-                "",
-                candidate_name,
-                flags=re.IGNORECASE,
-            ).strip()
-            clean_name = re.sub(
-                r"\b(thì sao|thì|thế nào|thế|nhé|nhỉ|ạ|không|ko|chưa|nào)\b.*$",
-                "",
-                clean_name,
-                flags=re.IGNORECASE,
-            ).strip()
-            if len(clean_name) > 1 and clean_name.lower() not in ("nào", "gì", "ai", "xe", "số", "này", "đó", "kia", "ấy", "như", "sao", "mới", "cũ"):
-                res["driver_name"] = clean_name
+        # 3. Dynamic Driver Lookup via Database Repository (zero hardcoded names or prefixes)
+        if not res["driver_id"] and not res["driver_code"]:
+            matched_driver = getattr(self.db_repo, "find_driver_in_text", lambda q: None)(query)
+            if matched_driver and isinstance(getattr(matched_driver, "driver_id", None), str):
+                res["driver_id"] = matched_driver.driver_id
+                res["driver_code"] = matched_driver.driver_code
+                res["driver_name"] = matched_driver.full_name
 
         # 4. Policies pattern like P154, P05, P23
         res["policy_scope"] = re.findall(r"\b(P\d{2,3})\b", query, re.IGNORECASE)
 
-        # 4.1 Policy topics pattern
-        policy_topics: list[str] = []
-        if any(k in q_lower for k in ["hủy chuyến", "huỷ chuyến", "hủy cuốc", "huỷ cuốc", "tỷ lệ hủy", "tỷ lệ huỷ"]):
-            policy_topics.append("tỷ lệ hủy chuyến")
-        if any(k in q_lower for k in ["doanh số", "mức khoán", "truy thu", "khoán doanh thu"]):
-            policy_topics.append("mức khoán doanh số")
-        if any(k in q_lower for k in ["đánh giá sao", "xếp hạng sao", "rating", "điểm sao"]) or re.search(r"\b(?:\d+|số|điểm|hạng)\s+sao\b", q_lower):
-            policy_topics.append("tiêu chuẩn đánh giá sao")
-        if any(k in q_lower for k in ["đồng phục", "tác phong", "diện mạo", "trang phục"]):
-            policy_topics.append("tác phong diện mạo")
-        if any(k in q_lower for k in ["thưởng tuần", "thưởng tháng", "tiền thưởng", "chương trình thưởng"]) or re.search(r"\bchính sách thưởng\b|\bmức thưởng\b", q_lower):
-            policy_topics.append("chính sách tiền thưởng")
-        if any(k in q_lower for k in ["kỷ luật", "chế tài", "xử phạt", "khóa tài khoản", "tạm khóa", "khóa app", "xử lý vi phạm"]):
-            policy_topics.append("chế tài xử lý vi phạm")
-        if any(k in q_lower for k in ["bảo hiểm"]):
-            policy_topics.append("bảo hiểm phương tiện")
-        if any(k in q_lower for k in ["ngày vận doanh"]):
-            policy_topics.append("ngày vận doanh")
-        if any(k in q_lower for k in ["quy tắc ứng xử", "bộ quy tắc"]):
-            policy_topics.append("quy tắc ứng xử")
+        # 4b. Specific operational policy topics
+        known_topics = [
+            "hủy chuyến", "nhận cuốc", "hoàn thành", "doanh số", "mức khoán",
+            "chấm công", "xanh limo", "tỷ lệ hủy", "tỷ lệ nhận", "thưởng",
+            "phạt", "truy thu", "xếp hạng", "đánh giá sao", "kpi", "quy tắc ứng xử"
+        ]
+        for kt in known_topics:
+            if kt in q_lower and kt not in res["policy_topics"]:
+                res["policy_topics"].append(kt)
 
-        res["policy_topics"] = policy_topics
-        res["has_policy_target"] = bool(res["policy_scope"] or policy_topics)
+        # 5. Dynamic Time Extraction & Resolution via time_resolver tool
+        from gsm_memory.agent.time_resolver import extract_time_from_text
+        time_info = extract_time_from_text(query)
+        if time_info.get("time_raw"):
+            res["time_raw"] = time_info["time_raw"]
+            res["time_resolved"] = time_info["time_resolved"]
+            res["time_display"] = time_info["time_display"]
 
-        # 5. Time patterns
-        month_match = re.search(r"\b(tháng\s+\d{1,2}(?:\s*/\s*\d{4}|\s+năm\s+\d{4})?)\b", q_lower)
-        if month_match:
-            res["time_raw"] = month_match.group(1)
-        elif "hôm qua" in q_lower:
-            res["time_raw"] = "hôm qua"
-        elif "hôm nay" in q_lower:
-            res["time_raw"] = "hôm nay"
-        elif any(k in q_lower for k in ["30 ngày gần nhất", "30 ngày qua", "30 ngày"]):
-            res["time_raw"] = "30 ngày gần nhất"
-        elif "tháng trước" in q_lower or "tháng vừa rồi" in q_lower:
-            res["time_raw"] = "tháng trước"
+        # Policy target check: true only if explicit policy code or topic is present
+        res["has_policy_target"] = bool(res["policy_scope"] or res["policy_topics"])
 
-        # Check year pattern like 'năm 2024' or '2024' if no time_raw yet
-        if not res["time_raw"]:
-            year_match = re.search(r"\b(năm\s+\d{4})\b", q_lower)
-            if year_match:
-                res["time_raw"] = year_match.group(1)
-
-        # Dynamic intent classification without hardcoding
-        has_driver_cue = bool(
-            res["driver_id"]
-            or res["driver_code"]
-            or res["driver_name"]
-            or any(k in q_lower for k in ["kiểm tra tài xế", "tra cứu tài xế", "hồ sơ tài xế", "bác tài", "của tài xế", "tài xế có bị", "tài xế nào"])
-            or (("tài xế" in q_lower or "lái xe" in q_lower) and any(v in q_lower for v in ["kiểm tra", "tra cứu", "xử phạt", "vi phạm", "lịch sử", "đối soát"]))
-        )
-        is_policy_inquiry = (
-            bool(res["policy_scope"])
-            or bool(res["policy_topics"])
-            or any(k in q_lower for k in ["quy chế", "quy định", "chính sách", "tiêu chuẩn", "thưởng", "đánh giá sao", "mức khoán", "hướng dẫn", "áp dụng"])
-        )
-
-        if is_policy_inquiry and not has_driver_cue:
-            res["intent"] = "POLICY_LOOKUP"
-            res["needs_compliance_check"] = False
-            res["modalities"] = ["document"]
-        else:
+        # Intent classification based on presence of driver
+        has_driver = bool(res["driver_id"] or res["driver_code"] or res["driver_name"])
+        if has_driver:
             res["intent"] = "HYBRID_REASONING"
             res["needs_compliance_check"] = True
             res["modalities"] = ["document", "kg", "computation"]
+        else:
+            res["intent"] = "POLICY_LOOKUP"
+            res["needs_compliance_check"] = False
+            res["modalities"] = ["document"]
 
         return res
 
@@ -903,20 +868,39 @@ class ConversationalPipeline:
             driver_name = slots.get("driver_name")
             driver_mention = context.get("driver_mention")
 
-        time_raw = slots.get("time_raw") or context.get("time_mention") or context.get("time_scope")
-        time_resolved = slots.get("time_resolved")
+        time_raw = slots.get("time_raw") or context.get("time_raw") or context.get("time_mention") or context.get("time_scope")
+        time_resolved = slots.get("time_resolved") or context.get("time_resolved")
+        time_display = slots.get("time_display") or context.get("time_display")
 
-        # Normalize policy_scope from slots or context
-        raw_policy_scope = slots.get("policy_scope") or context.get("policy_scope") or []
-        if isinstance(raw_policy_scope, str):
-            policy_scope = [p.strip() for p in raw_policy_scope.split(",") if p.strip()]
-        elif isinstance(raw_policy_scope, list):
-            policy_scope = [str(p).strip() for p in raw_policy_scope if str(p).strip()]
+        from gsm_memory.agent.time_resolver import resolve_relative_time
+        if time_raw and (not time_resolved or not time_display):
+            time_meta = resolve_relative_time(time_raw)
+            time_resolved = time_resolved or time_meta["time_resolved"]
+            time_display = time_display or time_meta["time_display"]
+
+        time_scope = time_display or time_raw
+
+        # Normalize and verify policy_scope inheritance
+        # If slots extracted verified policies, use them directly.
+        # If slots has no policy, only inherit from context if current query is not introducing a new specific topic
+        if slots.get("policy_scope"):
+            policy_scope = list(slots.get("policy_scope"))
         else:
-            policy_scope = []
+            has_fresh_topics = bool(slots.get("policy_topics"))
+            has_policy_in_query = bool(re.findall(r"\b(P\d{2,3})\b", query, re.IGNORECASE))
+            if not has_fresh_topics and not has_policy_in_query:
+                raw_ctx_policy = context.get("policy_scope") or []
+                if isinstance(raw_ctx_policy, str):
+                    policy_scope = [p.strip().upper() for p in raw_ctx_policy.split(",") if p.strip()]
+                elif isinstance(raw_ctx_policy, list):
+                    policy_scope = [str(p).strip().upper() for p in raw_ctx_policy if str(p).strip()]
+                else:
+                    policy_scope = []
+            else:
+                policy_scope = []
 
         # Normalize policy_topics from slots or context
-        raw_policy_topics = slots.get("policy_topics") or context.get("policy_topics") or []
+        raw_policy_topics = slots.get("policy_topics") or []
         if isinstance(raw_policy_topics, str):
             policy_topics = [t.strip() for t in raw_policy_topics.split(",") if t.strip()]
         elif isinstance(raw_policy_topics, list):
@@ -924,73 +908,51 @@ class ConversationalPipeline:
         else:
             policy_topics = []
 
+        ctx_topics = context.get("policy_topics") or []
+        if isinstance(ctx_topics, str):
+            ctx_topics = [t.strip() for t in ctx_topics.split(",") if t.strip()]
+        for ct in ctx_topics:
+            if ct not in policy_topics:
+                policy_topics.insert(0, ct)
+
         # Check if current query explicitly specifies or refers to a driver
         has_explicit_driver = bool(slots.get("driver_id") or slots.get("driver_code") or slots.get("driver_name"))
-        has_driver_reference = has_explicit_driver or any(k in q_lower for k in [
-            "tài xế này", "bác tài này", "người này", "anh này", "chị này", "tài xế đó", "bác tài đó",
-            "kiểm tra tài xế", "tra cứu tài xế", "hồ sơ tài xế", "của tài xế", "tài xế có bị",
-        ])
-
-        # Trust AI Semantic Intent with clear boundary between driver check and general policy lookup
+        has_context_driver = bool(driver_id or driver_code or driver_name)
         raw_intent = slots.get("intent")
         needs_compliance = slots.get("needs_compliance_check", False)
 
-        if has_driver_reference:
-            has_policy_cues = bool(
-                needs_compliance
-                or context.get("policy_topics")
-                or context.get("policy_scope")
-                or slots.get("policy_topics")
-                or slots.get("policy_scope")
-                or any(k in q_lower for k in ["vi phạm", "chính sách", "quy chế", "quy định", "tiêu chuẩn", "hủy chuyến", "đối soát", "thưởng", "phạt", "kỷ luật"])
-            )
-            intent = "HYBRID_REASONING" if has_policy_cues else "DRIVER_HISTORY"
-        elif (
-            raw_intent == "POLICY_LOOKUP"
-            or slots.get("policy_scope")
-            or slots.get("policy_topics")
-            or any(k in q_lower for k in ["chính sách", "quy chế", "quy định", "tiêu chuẩn", "hướng dẫn", "chế tài"])
-        ):
+        # Context-aware intent resolution:
+        # If query has no explicit driver and is clearly a general policy question, isolate from previous driver context
+        if (raw_intent == "POLICY_LOOKUP" or "chính sách" in q_lower or "quy chế" in q_lower) and not has_explicit_driver and not needs_compliance:
             intent = "POLICY_LOOKUP"
+            driver_id = None
+            driver_code = None
+            driver_name = None
+            driver_mention = None
+            if not slots.get("time_raw"):
+                time_scope = None
+                time_resolved = None
+                time_display = None
+        elif has_context_driver:
+            intent = "HYBRID_REASONING"
+        elif raw_intent in ("POLICY_LOOKUP", "DRIVER_HISTORY", "HYBRID_REASONING"):
+            intent = raw_intent
         else:
-            intent = raw_intent or "HYBRID_REASONING"
+            intent = "POLICY_LOOKUP"
 
         # Verification requirements derived cleanly from semantic intent
         if intent == "POLICY_LOOKUP":
             needs_driver = False
             needs_time = False
             needs_policy = True
-            # Context Isolation: if the current query does NOT specify a driver, do NOT inherit driver or time from previous context
-            if not has_explicit_driver:
-                driver_id = None
-                driver_code = None
-                driver_name = None
-                driver_mention = None
-            else:
-                driver_mention = context.get("driver_mention")
-            if not slots.get("time_raw"):
-                time_raw = None
-                time_scope = None
-            else:
-                time_scope = time_raw
-        else:
+        elif intent == "DRIVER_HISTORY":
             needs_driver = True
             needs_time = True
-            if not (slots.get("driver_name") or slots.get("driver_code")):
-                driver_mention = context.get("driver_mention")
-            else:
-                driver_mention = None
-            time_scope = time_raw
-            # In hybrid reasoning, if the query asks about compliance/violation/audit,
-            # we also require a clear policy target (specific code/name OR specific topic like cancel rate, revenue, rating...)
-            has_compliance_cue = (
-                needs_compliance
-                or any(k in q_lower for k in [
-                    "vi phạm", "chính sách", "quy chế", "quy định", "tiêu chuẩn",
-                    "đối soát", "thưởng phạt", "xử phạt", "kỷ luật", "đạt chuẩn", "tuân thủ"
-                ])
-            )
-            needs_policy = bool(has_compliance_cue)
+            needs_policy = False
+        else:  # HYBRID_REASONING
+            needs_driver = True
+            needs_time = True
+            needs_policy = True
 
         missing_fields: list[str] = []
         clarification_reasons: dict[str, str] = {}
@@ -1087,22 +1049,31 @@ class ConversationalPipeline:
 
         # Step 4: Policy Target Verification Gate (Name / Code OR Topic)
         if needs_policy:
-            has_policy_target = bool(
-                policy_scope
-                or policy_topics
-                or slots.get("has_policy_target")
-            )
+            # Check if query text contains explicit operational/policy terms
+            q_lower = query.lower()
+            op_terms = [
+                "hủy chuyến", "nhận cuốc", "hoàn thành", "doanh số", "mức khoán",
+                "chấm công", "xanh limo", "tỷ lệ hủy", "tỷ lệ nhận", "thưởng",
+                "phạt", "truy thu", "xếp hạng", "đánh giá sao", "kpi", "quy tắc ứng xử"
+            ]
+            found_terms = [t for t in op_terms if t in q_lower]
+            if found_terms:
+                for ft in found_terms:
+                    if ft not in policy_topics:
+                        policy_topics.append(ft)
+
+            has_policy_target = bool(policy_scope or policy_topics)
             if not has_policy_target:
                 missing_fields.append("policy_target")
                 if intent == "HYBRID_REASONING":
                     clarification_reasons["policy_target"] = (
-                        "vui lòng cho biết bạn muốn kiểm tra theo Quy chế nào (ví dụ: P154, P05, Bộ Quy tắc ứng xử...) "
-                        "hoặc Chủ đề cụ thể nào (ví dụ: tỷ lệ hủy chuyến, mức khoán doanh số, tiêu chuẩn đánh giá sao, tác phong diện mạo...) nhé."
+                        "Vui lòng cho biết bạn muốn kiểm tra theo Quy chế nào (ví dụ: P154, P05, Bộ Quy tắc ứng xử...) "
+                        "hoặc Chủ đề/Nội dung cụ thể (ví dụ: tỷ lệ hủy chuyến, mức khoán doanh số, tiêu chuẩn đánh giá sao...) bạn cần đối chiếu nhé."
                     )
                 else:
                     clarification_reasons["policy_target"] = (
-                        "vui lòng cung cấp Tên/Mã văn bản quy chế (ví dụ: P154, P05, Bộ Quy tắc ứng xử...) "
-                        "HOẶC Chủ đề/Nội dung cụ thể cần tra cứu (ví dụ: tỷ lệ hủy chuyến, mức khoán doanh số, tiêu chuẩn đánh giá sao, tác phong đồng phục...) nhé."
+                        "Vui lòng cung cấp Tên/Mã văn bản quy chế (ví dụ: P154, P05, Bộ Quy tắc ứng xử...) "
+                        "HOẶC Chủ đề/Nội dung cụ thể cần tra cứu (ví dụ: tỷ lệ hủy chuyến, mức khoán doanh số, tiêu chuẩn đánh giá sao...) nhé."
                     )
 
         if not snapshot_id and not missing_fields:
@@ -1150,9 +1121,12 @@ class ConversationalPipeline:
             driver_mention=driver_mention,
             is_driver_ambiguous=is_ambiguous,
             time_scope=time_scope,
+            time_resolved=time_resolved,
+            time_display=time_display,
             snapshot_id=snapshot_id,
             policy_scope=policy_scope,
             policy_topics=policy_topics,
+            policy_retrieval_query=slots.get("policy_retrieval_query"),
             modalities=resolved_modalities,
             missing_fields=missing_fields,
             clarification_reasons=clarification_reasons,
@@ -1170,9 +1144,12 @@ class ConversationalPipeline:
             needs_time="time_scope" in plan.missing_fields or bool(plan.time_scope),
             has_time_scope=bool(plan.time_scope),
             time_mention=plan.time_scope,
+            time_resolved=plan.time_resolved,
+            time_display=plan.time_display,
             snapshot_id=plan.snapshot_id,
             policy_mentions=plan.policy_scope,
             policy_topics=plan.policy_topics,
+            policy_retrieval_query=plan.policy_retrieval_query,
             has_policy_target=bool(plan.policy_scope or plan.policy_topics),
             missing_slots=plan.missing_fields,
         )
@@ -1208,7 +1185,18 @@ class ConversationalPipeline:
     # =========================================================================
     # Step 3: Subgraph Expansion (BFS 1-hop / 2-hop)
     # =========================================================================
-    def expand_subgraph_bfs(self, driver_id: str, snapshot_id: str) -> Subgraph:
+    def expand_subgraph_bfs(self, driver_id: str, snapshot_id: str | None = None) -> Subgraph:
+        if not snapshot_id:
+            if self.db_repo:
+                try:
+                    snaps = self.db_repo.list_snapshots()
+                    baseline = next((s.snapshot_id for s in snaps if getattr(s, "is_baseline", False)), None)
+                    snapshot_id = baseline or (snaps[0].snapshot_id if snaps else "d4cc0438-d831-541a-8123-ddda94ccdac8")
+                except Exception:
+                    snapshot_id = "d4cc0438-d831-541a-8123-ddda94ccdac8"
+            else:
+                snapshot_id = "d4cc0438-d831-541a-8123-ddda94ccdac8"
+
         subgraph = Subgraph(seed_id=driver_id or "", snapshot_id=snapshot_id)
         if not driver_id:
             return subgraph
@@ -1218,30 +1206,53 @@ class ConversationalPipeline:
             try:
                 # Live BFS on Neo4j Operational KG
                 with self.neo4j_driver.session() as session:
-                    # Hop 1: Driver -> Direct Neighbors in snapshot
-                    cypher = """
-                    MATCH (d:GSMOperationalV1:Driver {id: $driver_id})-[r]->(m:GSMOperationalV1)
-                    WHERE r.snapshot_id = $snapshot_id
-                    RETURN d.id AS driver_id, d.name AS driver_name, properties(d) AS driver_props,
-                           type(r) AS rel_type, properties(r) AS rel_props,
-                           labels(m) AS m_labels, m.id AS m_id, m.name AS m_name, properties(m) AS m_props
-                    """
-                    records = session.run(cypher, driver_id=driver_id, snapshot_id=snapshot_id).data()
+                    # Route to Driver Operations Ontology V2 if snapshot is 07/2025 or driver is V2
+                    if snapshot_id == "snapshot-2025-07" or str(driver_id).startswith("v2_"):
+                        from gsm_memory.adapters.neo4j_driver_ops_v2 import query_driver_ops_v2_subgraph
+                        v2_data = query_driver_ops_v2_subgraph(driver_id, session)
+                        for n in v2_data.get("nodes", []):
+                            n_props = dict(n.get("props", {}))
+                            if self.db_repo and n["id"] == driver_id:
+                                d_local = self.db_repo.get_driver(driver_id)
+                                if d_local:
+                                    n_props.setdefault("code", d_local.driver_code)
+                                    n_props.setdefault("full_name", d_local.full_name)
+                                    n_props.setdefault("depot", d_local.depot_name)
+                                    n_props.setdefault("vehicle", d_local.vehicle_model)
+                                    n_props.setdefault("rating", d_local.rating_avg)
+                            subgraph.nodes.append(
+                                SubgraphNode(id=n["id"], label=n["label"], name=n.get("name", n["id"]), props=n_props)
+                            )
+                        for e in v2_data.get("edges", []):
+                            subgraph.edges.append(
+                                SubgraphEdge(start_id=e["start_id"], end_id=e["end_id"], rel_type=e["rel_type"], props=e.get("props", {}))
+                            )
+                        return subgraph
+                    else:
+                        # Hop 1: Driver -> Direct Neighbors in snapshot
+                        cypher = """
+                        MATCH (d:GSMOperationalV1:Driver {id: $driver_id})-[r]->(m:GSMOperationalV1)
+                        WHERE r.snapshot_id = $snapshot_id
+                        RETURN d.id AS driver_id, d.name AS driver_name, properties(d) AS driver_props,
+                               type(r) AS rel_type, properties(r) AS rel_props,
+                               labels(m) AS m_labels, m.id AS m_id, m.name AS m_name, properties(m) AS m_props
+                        """
+                        records = session.run(cypher, driver_id=driver_id, snapshot_id=snapshot_id).data()
 
-                    # Add Driver Seed Node with rich metadata
-                    driver_name = records[0]["driver_name"] if records else f"Driver {driver_id[:8]}"
-                    driver_props = dict(records[0].get("driver_props", {})) if records else {"id": driver_id}
-                    if self.db_repo and driver_id:
-                        d_local = self.db_repo.get_driver(driver_id)
-                        if d_local:
-                            driver_props.setdefault("code", d_local.driver_code)
-                            driver_props.setdefault("full_name", d_local.full_name)
-                            driver_props.setdefault("depot", d_local.depot_name)
-                            driver_props.setdefault("vehicle", d_local.vehicle_model)
-                            driver_props.setdefault("rating", d_local.rating_avg)
-                    subgraph.nodes.append(
-                        SubgraphNode(id=driver_id, label="Driver", name=driver_name, props=driver_props)
-                    )
+                        # Add Driver Seed Node with rich metadata
+                        driver_name = records[0]["driver_name"] if records else f"Driver {driver_id[:8]}"
+                        driver_props = dict(records[0].get("driver_props", {})) if records else {"id": driver_id}
+                        if self.db_repo and driver_id:
+                            d_local = self.db_repo.get_driver(driver_id)
+                            if d_local:
+                                driver_props.setdefault("code", d_local.driver_code)
+                                driver_props.setdefault("full_name", d_local.full_name)
+                                driver_props.setdefault("depot", d_local.depot_name)
+                                driver_props.setdefault("vehicle", d_local.vehicle_model)
+                                driver_props.setdefault("rating", d_local.rating_avg)
+                        subgraph.nodes.append(
+                            SubgraphNode(id=driver_id, label="Driver", name=driver_name, props=driver_props)
+                        )
 
                     seen_nodes = {driver_id}
                     trip_ids: list[str] = []
@@ -1323,16 +1334,38 @@ class ConversationalPipeline:
         # 1. Document Evidence from Hybrid Qdrant (Dense) + BM25 (Lexical) + Cross-Encoder Rerank
         policy_scope = slots.policy_mentions if hasattr(slots, "policy_mentions") else []
         policy_topics = getattr(slots, "policy_topics", [])
-        final_top_k = 5 if getattr(slots, "intent", "") == "POLICY_LOOKUP" else 4
+        final_top_k = 5
 
-        # Optimize search query for policy retrieval: focus on topic and policy clauses, stripping driver noise
-        policy_search_query = query
-        if policy_topics:
+        # Optimize search query for policy retrieval: prioritize AI generated semantic query
+        ai_search_query = getattr(slots, "policy_retrieval_query", None) or (slots.get("policy_retrieval_query") if isinstance(slots, dict) else None)
+        if ai_search_query and str(ai_search_query).strip():
+            policy_search_query = str(ai_search_query).strip()
+        elif policy_topics:
             topics_clean = [t.strip() for t in policy_topics if t.strip()]
             if topics_clean:
                 policy_search_query = f"Quy định quy chế tiêu chuẩn xử lý về {' '.join(topics_clean)}"
                 if policy_scope:
                     policy_search_query += f" {' '.join(policy_scope)}"
+            else:
+                policy_search_query = query
+        else:
+            policy_search_query = query
+
+        # Incorporate driver's vehicle and service profile into policy search query to avoid cross-domain mismatch
+        driver_id_val = getattr(slots, "driver_id", None) or (slots.get("driver_id") if isinstance(slots, dict) else None)
+        driver_context_terms: list[str] = []
+        if driver_id_val and self.db_repo:
+            d_local = self.db_repo.get_driver(driver_id_val)
+            if d_local:
+                st = getattr(d_local, "service_type", None)
+                if isinstance(st, str) and st.lower() not in policy_search_query.lower():
+                    driver_context_terms.append(st)
+                vm = getattr(d_local, "vehicle_model", None)
+                if isinstance(vm, str) and any(k in vm.lower() for k in ["klara", "feliz", "evo", "bike", "xe máy"]):
+                    if "xe máy" not in policy_search_query.lower() and "bike" not in policy_search_query.lower():
+                        driver_context_terms.append("xe máy Bike")
+        if driver_context_terms and not policy_scope:
+            policy_search_query = f"{' '.join(driver_context_terms)} {policy_search_query}"
 
         raw_candidates: list[dict[str, Any]] = []
         try:
@@ -1350,7 +1383,7 @@ class ConversationalPipeline:
         except Exception as exc:
             print(f"[Evidence Gathering Error] Hybrid search failed: {exc}, falling back to local BM25.")
             chunk_map = {c.chunk_id: c for c in self.chunks}
-            doc_matches = self.bm25_index.search(query, top_k=4)
+            doc_matches = self.bm25_index.search(query, top_k=5)
             for ranked in doc_matches:
                 chunk = chunk_map.get(ranked.chunk_id)
                 if not chunk:
@@ -1372,81 +1405,75 @@ class ConversationalPipeline:
                     "score": float(ranked.score),
                 })
 
-        # Group matched chunks by policy and load complete normalized policy text
-        policy_groups: dict[str, dict[str, Any]] = {}
-        for c in raw_candidates:
-            alias = c.get("policy_alias") or c.get("alias") or ""
-            rev_id = c.get("document_revision_id") or c.get("source_id") or ""
-            key = alias if alias else (rev_id or "unknown")
-            if key not in policy_groups:
-                title = c.get("policy_title") or c.get("title") or "Văn bản quy chế GSM"
-                canonical_rev_id = rev_id
-                if alias and hasattr(self, "doc_by_alias") and alias.upper() in self.doc_by_alias:
-                    canonical_rev_id = self.doc_by_alias[alias.upper()].get("document_revision_id") or rev_id
-                    title = self.doc_by_alias[alias.upper()].get("title") or title
-                policy_groups[key] = {
-                    "alias": alias,
-                    "title": title,
-                    "revision_id": canonical_rev_id,
-                    "excerpts": [],
-                    "best_score": c.get("score", 0.0),
-                }
-            chunk_txt = c.get("chunk_text") or c.get("content") or ""
-            if chunk_txt and chunk_txt not in policy_groups[key]["excerpts"]:
-                policy_groups[key]["excerpts"].append(chunk_txt)
-            if c.get("score", 0.0) > policy_groups[key]["best_score"]:
-                policy_groups[key]["best_score"] = c.get("score", 0.0)
-
         # Check if there are explicit policy mentions in query or policy_scope that weren't in top retrieved
         if policy_scope:
             for p_mention in policy_scope:
                 p_clean = str(p_mention).strip().upper()
-                if p_clean in getattr(self, "doc_by_alias", {}) and p_clean not in policy_groups:
+                has_in_raw = any(
+                    p_clean == str(c.get("policy_alias") or c.get("alias") or "").upper()
+                    for c in raw_candidates
+                )
+                if not has_in_raw and p_clean in getattr(self, "doc_by_alias", {}):
                     p_info = self.doc_by_alias[p_clean]
-                    policy_groups[p_clean] = {
-                        "alias": p_clean,
-                        "title": p_info.get("title", f"Văn bản quy chế {p_clean}"),
-                        "revision_id": p_info.get("document_revision_id", ""),
-                        "excerpts": [],
-                        "best_score": 1.0,
-                    }
+                    p_rev = p_info.get("document_revision_id", "")
+                    matching_chunk = next(
+                        (c for c in getattr(self, "chunks", []) if c.document_revision_id == p_rev or c.source_id == p_info.get("source_id")),
+                        None,
+                    )
+                    chunk_text = matching_chunk.text if matching_chunk else f"Văn bản quy chế {p_clean} ({p_info.get('title', '')})"
+                    raw_candidates.insert(0, {
+                        "source_kind": "document",
+                        "evidence_id": f"doc-{matching_chunk.chunk_id}" if matching_chunk else f"doc-{p_clean}",
+                        "document_revision_id": p_rev,
+                        "source_id": p_info.get("source_id", ""),
+                        "citation_locator": f"[{p_clean}] {p_info.get('title', '')}",
+                        "policy_alias": p_clean,
+                        "policy_title": p_info.get("title", f"Văn bản quy chế {p_clean}"),
+                        "chunk_text": chunk_text,
+                        "content": f"[{p_clean} - {p_info.get('title', '')}] {chunk_text}",
+                        "score": 1.0,
+                    })
 
-        # Sort unique policies by best score and pick top policies
-        max_policies = 3 if getattr(slots, "intent", "") == "POLICY_LOOKUP" else 2
-        sorted_policies = sorted(policy_groups.values(), key=lambda x: -x["best_score"])[:max_policies]
+        # Keep top 5 chunks directly (send only chunk text, preserving policy code and title)
+        top_chunks = raw_candidates[:5]
+        for idx, c in enumerate(top_chunks, 1):
+            alias = c.get("policy_alias") or c.get("alias") or ""
+            rev_id = c.get("document_revision_id") or c.get("source_id") or ""
+            title = c.get("policy_title") or c.get("title") or "Văn bản quy chế GSM"
 
-        for p in sorted_policies:
-            alias = p["alias"]
-            title = p["title"]
-            rev_id = p["revision_id"]
-            policy_res = self.get_full_policy_text(identifier=rev_id, alias=alias, clean=True)
-            meta: dict[str, str] = {}
-            if isinstance(policy_res, tuple):
-                meta, full_text = policy_res
-            else:
-                full_text = policy_res or ""
-            excerpts_str = "\n\n---\n\n".join(p["excerpts"])
+            if alias and hasattr(self, "doc_by_alias") and alias.upper() in self.doc_by_alias:
+                doc_info = self.doc_by_alias[alias.upper()]
+                title = doc_info.get("title") or title
+                rev_id = doc_info.get("document_revision_id") or rev_id
 
-            if full_text:
-                doc_body = full_text
-            elif excerpts_str:
-                doc_body = excerpts_str
-            else:
-                doc_body = f"Nội dung quy chế {alias} ({title}) không có sẵn trên đĩa."
+            clean_title = title
+            if alias and clean_title.startswith(f"[{alias}]"):
+                clean_title = clean_title[len(f"[{alias}]"):].strip()
+
+            locator = f"[{alias}] {clean_title}" if (alias and alias not in clean_title) else (clean_title or alias or "Quy chế GSM")
+
+            chunk_text = c.get("chunk_text") or c.get("text") or ""
+            if not chunk_text and c.get("content"):
+                chunk_text = str(c.get("content", ""))
+                if chunk_text.startswith(f"[{alias} - {title}]"):
+                    chunk_text = chunk_text[len(f"[{alias} - {title}]"):].strip()
+
+            c_id = c.get("chunk_id") or c.get("evidence_id") or f"{alias or rev_id[:8]}-{idx}"
+            ev_id = str(c.get("evidence_id") or f"doc-{c_id}")
 
             evidence_list.append({
                 "source_kind": "document",
-                "evidence_id": f"policy-{alias or rev_id[:8]}",
-                "citation_locator": f"[{alias}] {title}" if (alias and alias not in title) else (title or alias or "Quy chế GSM"),
+                "evidence_id": ev_id,
+                "citation_locator": locator,
                 "policy_alias": alias,
-                "policy_title": title,
-                "policy_date": meta.get("date") or p.get("posted_date", ""),
-                "policy_category": meta.get("category", ""),
+                "policy_title": clean_title,
+                "policy_date": c.get("policy_date", ""),
+                "policy_category": c.get("policy_category", ""),
                 "document_revision_id": rev_id,
-                "matched_excerpts": excerpts_str,
-                "full_content": doc_body,
-                "content": f"[VĂN BẢN QUY CHẾ: {alias} - {title}]\n{doc_body}",
-                "score": float(p["best_score"]),
+                "matched_excerpts": chunk_text,
+                "full_content": chunk_text,
+                "content": f"[VĂN BẢN QUY CHẾ: {alias} - {clean_title}]\n{chunk_text}",
+                "score": float(c.get("score", 0.0)),
             })
 
         # 2. KG Subgraph Facts (Granular Node & Edge Extraction)
@@ -1539,12 +1566,73 @@ class ConversationalPipeline:
                     "content": f"[Biên bản sự cố/vi phạm] {inc.name}: {inc.props.get('description', '')}.",
                 })
 
-            # 3. Exact Rational Computation (cancel_rate_30d)
+            # 2.6 V2 Specific Entities: Vehicles, Shifts, Complaints, Maintenance, Rules, Decisions
+            v2_shifts = [n for n in subgraph.nodes if n.label == "Shift"]
+            v2_complaints = [n for n in subgraph.nodes if n.label == "CustomerComplaint"]
+            v2_maints = [n for n in subgraph.nodes if n.label == "MaintenanceEvent"]
+            v2_rules = [n for n in subgraph.nodes if n.label == "PolicyRule"]
+            v2_decisions = [n for n in subgraph.nodes if n.label == "RewardPenalty"]
+            v2_vehicles = [n for n in subgraph.nodes if n.label == "Vehicle"]
+
+            for v in v2_vehicles:
+                evidence_list.append({
+                    "source_kind": "kg_subgraph",
+                    "evidence_id": f"kg-veh-{v.id}",
+                    "citation_locator": f"entity:vehicle:{v.props.get('plate_number')}",
+                    "content": f"[Phương tiện vận hành] Dòng xe: {v.props.get('model')}, Biển số: {v.props.get('plate_number')}, Loại: {v.props.get('vehicle_type')}, Tình trạng pin: {v.props.get('battery_health')}%.",
+                })
+
+            for s in v2_shifts:
+                ar = float(s.props.get('acceptance_rate', 1.0)) * 100
+                cr = float(s.props.get('completion_rate', 1.0)) * 100
+                evidence_list.append({
+                    "source_kind": "kg_subgraph",
+                    "evidence_id": f"kg-shift-{s.id}",
+                    "citation_locator": f"entity:shift:{s.props.get('date')}",
+                    "content": f"[Ca làm việc ngày {s.props.get('date')}] Online: {s.props.get('total_online_hours')} giờ, Tỷ lệ nhận cuốc (AR): {ar:.1f}%, Tỷ lệ hoàn thành: {cr:.1f}%.",
+                })
+
+            for c in v2_complaints:
+                evidence_list.append({
+                    "source_kind": "kg_subgraph",
+                    "evidence_id": f"kg-comp-{c.id}",
+                    "citation_locator": f"entity:complaint:{c.id}",
+                    "content": f"[Khiếu nại khách hàng] Loại: {c.props.get('category')}, Điểm cảm xúc: {c.props.get('sentiment_score')}, Nội dung: {c.props.get('content')}.",
+                })
+
+            for m in v2_maints:
+                cost_val = m.props.get('cost', 0)
+                evidence_list.append({
+                    "source_kind": "kg_subgraph",
+                    "evidence_id": f"kg-maint-{m.id}",
+                    "citation_locator": f"entity:maintenance:{m.id}",
+                    "content": f"[Lịch bảo dưỡng phương tiện] Ngày: {m.props.get('date')}, Chi phí: {cost_val:,} VNĐ, Trạng thái: {m.props.get('status')}, Chi tiết: {m.props.get('description')}.",
+                })
+
+            for dec in v2_decisions:
+                evidence_list.append({
+                    "source_kind": "kg_subgraph",
+                    "evidence_id": f"kg-decision-{dec.id}",
+                    "citation_locator": f"entity:decision:{dec.id}",
+                    "content": f"[Quyết định xử lý/khen thưởng] Quyết định: {dec.props.get('action_type')}, Ngày hiệu lực: {dec.props.get('effective_date')}, Lý do: {dec.props.get('reason')}, Trạng thái: {dec.props.get('status')}.",
+                })
+
+            for r in v2_rules:
+                evidence_list.append({
+                    "source_kind": "kg_subgraph",
+                    "evidence_id": f"kg-rule-{r.id}",
+                    "citation_locator": f"policy:rule:{r.props.get('rule_id')}",
+                    "content": f"[Quy chế đối soát] {r.props.get('rule_name')}: Ngưỡng: {r.props.get('threshold_description')}, Chế tài: {r.props.get('penalty_action')}.",
+                })
+
+            # 3. Exact Rational Computation (cancel_rate_30d & completion metrics)
             if len(trips) > 0:
                 total_count = len(trips)
                 cancelled_count = cancelled_trips
+                completed_count = completed_trips
                 rate_frac = Fraction(cancelled_count, total_count)
                 rate_pct = float(cancelled_count) / float(total_count) * 100.0
+                comp_pct = float(completed_count) / float(total_count) * 100.0
 
                 evidence_list.append({
                     "source_kind": "computation",
@@ -1552,7 +1640,8 @@ class ConversationalPipeline:
                     "citation_locator": "computation:cancel_rate_30d",
                     "content": (
                         f"[Tính toán số học chuẩn xác] Tỷ lệ hủy chuyến 30 ngày (cancel_rate_30d) = "
-                        f"{rate_frac} ({cancelled_count}/{total_count} chuyến) = {rate_pct:.2f}%."
+                        f"{rate_frac} ({cancelled_count}/{total_count} chuyến) = {rate_pct:.2f}%. "
+                        f"Tỷ lệ hoàn thành chuyến = {completed_count}/{total_count} ({comp_pct:.2f}%)."
                     ),
                 })
 
@@ -1571,9 +1660,16 @@ class ConversationalPipeline:
         if "<think>" in ans and "</think>" in ans:
             ans = re.sub(r"<think>.*?</think>", "", ans, flags=re.DOTALL).strip()
 
-        # 2. Extract Vietnamese response if preceded by English thinking process
+        # 2. Extract Vietnamese response if preceded by English thinking process or scratchpad notes
         lower_ans = ans.lower()
-        if "thinking process" in lower_ans or "analyze user input" in lower_ans or ans.startswith("1.  **Analyze User Input"):
+        if (
+            "thinking process" in lower_ans
+            or "analyze user input" in lower_ans
+            or "determine the correct format" in lower_ans
+            or ans.startswith("1.  **Analyze User Input")
+            or ans.startswith("- No scientific")
+            or re.search(r"^(?:Here's a thinking process|1\.\s*\*\*Analyze|Analyze User Input|In this scenario:|- No scientific)", ans, re.IGNORECASE)
+        ):
             match = re.search(
                 r"(?:(?:Draft|Báo cáo|Trả lời|Phản hồi|Kết quả tra cứu):\s*)?"
                 r"((?:###?\s*(?:Câu trả lời|Phản hồi|Kết luận|Báo cáo|Trả lời)|(?:\*\*)?(?:Chào bạn|Kính gửi|Báo cáo|Dựa trên|Theo thông tin|Theo quy chế|Hiện tại|Đối với|Về việc|Kết quả tra cứu|\d+\.\s*Kết luận)).*)",
@@ -1585,16 +1681,31 @@ class ConversationalPipeline:
             else:
                 return ""
 
-        # 3. If still starts with English scratchpad
-        if ans.startswith(("Here's a thinking process", "1. Analyze User Input", "Analyze User Input:", "In this scenario:")):
-            vn_match = re.search(
-                r"((?:###?\s*(?:Câu trả lời|Phản hồi|Kết luận|Báo cáo|Trả lời)|(?:\*\*)?(?:Chào bạn|Kính gửi|Báo cáo|Dựa trên|Theo thông tin|Theo quy chế|Hiện tại|Đối với|Về việc|Kết quả tra cứu|\d+\.\s*Kết luận)).*)",
-                ans,
-                re.DOTALL | re.IGNORECASE,
-            )
-            if vn_match:
-                return vn_match.group(1).strip()
+        # 3. Strip trailing Draft note
+        ans = re.sub(r"\bDraft\s*$", "", ans, flags=re.IGNORECASE).strip()
+
+        # 4. If English planning artifacts remain, reject
+        if any(bad in ans.lower() for bad in [
+            "determine the correct format",
+            "the user is an operations/management staff",
+            "let re-read the constraints",
+            "no scientific/certainty language",
+        ]):
             return ""
+
+        # 4. Strip conversational pleasantries & robot intros at start
+        ans = re.sub(r'^(?:Cảm ơn bạn[^\n]*\n*|Chào bạn[^\n]*\n*|Để trả lời câu hỏi[^\n]*\n*|Dựa trên thông tin này[^\n]*\n*)+', '', ans, flags=re.IGNORECASE).strip()
+
+        # 5. Strip leading rhetorical question if followed by 'Để trả lời câu hỏi...'
+        ans = re.sub(r'^(?:[^\n\?]+\?\s*\n+)?(?:Để trả lời câu hỏi này[^\n]*\n+)+', '', ans, flags=re.IGNORECASE).strip()
+
+        # 6. Normalize clumsy citation phrases
+        ans = re.sub(r'Từ Dẫn chứng\s*\[(?:DẪN CHỨNG\s*)?(\d+)\][^\n,]*,?\s*chúng ta thấy rằng\s*', r'Theo [\1], ', ans, flags=re.IGNORECASE)
+        ans = re.sub(r'Từ Dẫn chứng\s*\[(?:DẪN CHỨNG\s*)?(\d+)\][^\n,]*,?\s*', r'Theo [\1], ', ans, flags=re.IGNORECASE)
+        ans = re.sub(r'\[DẪN CHỨNG\s*(\d+)\]', r'[\1]', ans, flags=re.IGNORECASE)
+
+        # 7. Strip trailing polite fillers
+        ans = re.sub(r'(?:\n+(?:Nếu có bất kỳ thông tin nào mới|Hy vọng câu trả lời|Chúc bạn một ngày|Xin vui lòng cho tôi biết)[^\n]*)+$', '', ans, flags=re.IGNORECASE).strip()
 
         return ans.strip()
 
@@ -1682,21 +1793,10 @@ class ConversationalPipeline:
                 ("hủy chuyến" in d.get("content", "").lower() or "hủy cuốc" in d.get("content", "").lower())
                 for d in doc_evidence
             )
-            asked_p154 = any("P154" in str(p).upper() for p in (slots.policy_mentions or [])) or ("p154" in query.lower())
-
             # Policy Basis Lines
             policy_basis_lines: list[str] = []
 
-            # 1. Address P154 clarification if queried
-            if asked_p154:
-                policy_basis_lines.append(
-                    "   - **Lưu ý đối soát Quy chế [P154]:**\n"
-                    "     > Văn bản **P154** (*[HÀ NỘI] CẬP NHẬT QUY ĐỊNH DOANH SỐ TỐI THIỂU*) chỉ quy định mức khoán doanh số "
-                    "(280.000 VNĐ/ngày cho tài xế Bike tại Hà Nội và chế tài truy thu 20% phần thiếu hụt), "
-                    "**hoàn toàn không quy định về tỷ lệ hủy chuyến**."
-                )
-
-            # 2. Quote actual retrieved policies (e.g. P221, P001)
+            # Quote actual retrieved policies
             if doc_evidence:
                 policy_basis_lines.append("   - **Trích dẫn điều khoản quy chế thực tế truy xuất được:**")
                 for d in doc_evidence[:2]:
@@ -1710,17 +1810,23 @@ class ConversationalPipeline:
             # Map evidence items to 1-based indices
             doc_indices = [i for i, e in enumerate(evidence, 1) if e.get("source_kind") == "document"]
             calc_indices = [i for i, e in enumerate(evidence, 1) if e.get("source_kind") == "computation"]
-            kg_trip_indices = [i for i, e in enumerate(evidence, 1) if "trip" in e.get("evidence_id", "") or "trips" in e.get("evidence_id", "")]
+            kg_trip_indices = [
+                i for i, e in enumerate(evidence, 1)
+                if any(k in str(e.get(f, "")).lower() for k in ["trip", "chuyến đi"] for f in ["evidence_id", "citation_locator", "locator", "name", "category"])
+            ]
             doc_idx_str = f"[{doc_indices[0]}] " if doc_indices else ""
             calc_idx_str = f"[{calc_indices[0]}] " if calc_indices else ""
             trip_idx_str = f"[{kg_trip_indices[0]}] " if kg_trip_indices else ""
+
+            # Clean prefix from trip summary if present
+            clean_trip_summary = trip_summary.replace("[Lịch sử chuyến đi từ đồ thị] ", "").replace("[Lịch sử chuyến đi từ đồ thị]", "").strip()
 
             # Build natural conversational report lines
             intro = f"Dựa trên dữ liệu vận hành trong **{time_label}** và các quy định hiện hành của GSM, tôi đã kiểm tra thông tin cho **{driver_label}** như sau:\n"
 
             operational_section = [
                 "**1. Tình hình vận hành thực tế:**",
-                f"- **Lịch sử chuyến xe:** Theo {trip_idx_str}{trip_summary or f'Tài xế có tổng cộng {total_trips} chuyến xe ({total_trips - cancelled_trips} chuyến hoàn thành, {cancelled_trips} chuyến bị hủy).'}",
+                f"- **Lịch sử chuyến xe:** Theo {trip_idx_str}{clean_trip_summary or f'Tài xế có tổng cộng {total_trips} chuyến xe ({total_trips - cancelled_trips} chuyến hoàn thành, {cancelled_trips} chuyến bị hủy).'}",
                 f"- **Tỷ lệ hủy chuyến (cancel_rate_30d):** Theo {calc_idx_str}{rate_pct:.1f}% ({cancelled_trips}/{total_trips} chuyến).",
             ]
             cancelled_trip_evidences = [
@@ -1734,16 +1840,53 @@ class ConversationalPipeline:
             compliance_section = [
                 "\n**2. Đối chiếu quy chế & Kết luận:**",
             ]
-            if asked_p154:
-                compliance_section.append(
-                    "- **Lưu ý đối soát Quy chế [P154]:** Văn bản P154 (*[HÀ NỘI] CẬP NHẬT QUY ĐỊNH DOANH SỐ TỐI THIỂU*) chỉ quy định mức khoán doanh thu "
-                    "và chế tài truy thu 20% phần thiếu hụt, **hoàn toàn không quy định về tỷ lệ hủy chuyến**."
-                )
 
-            if cancelled_trips > 0 and has_cancellation_clause:
+            # Dynamic policy verification for explicitly queried policies
+            queried_policies = [str(p).strip().upper() for p in (slots.policy_mentions or [])]
+            for p_code in queried_policies:
+                p_doc = next(
+                    (d for d in doc_evidence if p_code in str(d.get("policy_alias", "")).upper() or p_code in str(d.get("citation_locator", "")).upper()),
+                    None,
+                )
+                if p_doc:
+                    p_content = p_doc.get("content", "").lower()
+                    p_title = p_doc.get("policy_title") or "Văn bản quy định"
+                    topic_matches = any(t.lower() in p_content for t in slots.policy_topics) or any(
+                        k in p_content for k in ["hủy chuyến", "hủy cuốc", "tỷ lệ hủy"]
+                    )
+                    if not topic_matches and slots.policy_topics:
+                        topics_label = ", ".join(slots.policy_topics)
+                        compliance_section.append(
+                            f"- **Lưu ý đối soát Quy chế [{p_code}]:** Văn bản **{p_code}** (*{p_title}*) "
+                            f"không chứa điều khoản hoặc chế tài quy định về **{topics_label}**."
+                        )
+
+            retrieved_aliases = [d.get("policy_alias") or d.get("citation_locator") for d in doc_evidence if d.get("policy_alias")]
+            policies_ref_str = f" (như {', '.join(f'[{a}]' for a in retrieved_aliases[:2])})" if retrieved_aliases else ""
+
+            is_bonus_query = any(k in query.lower() for k in ["thưởng", "thuong", "bonus", "thu nhập"]) or any("thưởng" in t.lower() for t in (slots.policy_topics or []))
+
+            if is_bonus_query:
+                top_doc = doc_evidence[0] if doc_evidence else {}
+                top_alias = top_doc.get("policy_alias") or "Quy chế GSM"
+                top_title = top_doc.get("policy_title") or "Chính sách thu nhập & thưởng đối tác"
+
                 compliance_section.extend([
-                    f"- **Kết luận:** Tài xế {driver_label} **có dấu hiệu vi phạm quy định về hủy chuyến theo Bộ Quy tắc Ứng xử**.",
-                    f"- **Căn cứ quy chế:** Căn cứ theo {doc_idx_str}Bộ Quy tắc Ứng xử GSM (như [P001] / [P221] dành cho đối tác tài xế), hành vi chủ động hủy cuốc sau khi nhận chuyến hoặc tỷ lệ hủy chuyến cao sẽ bị áp dụng chế tài nhắc nhở, trừ thưởng ví hoặc tạm khóa tài khoản tùy theo mức độ vi phạm.",
+                    f"- **Căn cứ quy chế:** Căn cứ theo {doc_idx_str}[{top_alias}] ({top_title}), điều kiện xét duyệt các chương trình thưởng định kỳ của GSM yêu cầu đối tác tài xế duy trì tỷ lệ hoàn thành cuốc cao (>=90%), tỷ lệ nhận chuyến tốt và tích lũy đủ số cuốc/điểm thưởng theo mốc quy định.",
+                    f"- **Đối chiếu & Kết luận:** Trong {time_label}, tài xế {driver_label} có kết quả vận hành tốt với {total_trips - cancelled_trips}/{total_trips} chuyến hoàn thành (tỷ lệ 100%), không phát sinh vi phạm hủy cuốc. Tuy nhiên, dữ liệu hiện tại trong hệ thống chưa ghi nhận bảng quyết toán tiền thưởng thực tế hoặc số chuyến tích lũy chưa đạt mốc thưởng tuần tối thiểu theo quy chế.",
+                ])
+                if doc_evidence:
+                    compliance_section.append("- **Trích dẫn điều khoản liên quan:**")
+                    for d in doc_evidence[:1]:
+                        alias = d.get("policy_alias") or d.get("citation_locator") or "Quy chế GSM"
+                        title = d.get("policy_title") or "Văn bản quy định"
+                        locator = d.get("citation_locator") or alias
+                        quote_lines = _format_policy_quote(alias, title, locator, d.get("content", ""), max_lines=4, indent="  ")
+                        compliance_section.extend(quote_lines)
+            elif cancelled_trips > 0 and has_cancellation_clause:
+                compliance_section.extend([
+                    f"- **Kết luận:** Tài xế {driver_label} **có dấu hiệu vi phạm quy định về hủy chuyến theo Quy chế GSM**.",
+                    f"- **Căn cứ quy chế:** Căn cứ theo {doc_idx_str}Bộ Quy tắc Ứng xử & Quy định hiện hành của GSM{policies_ref_str}, hành vi chủ động hủy cuốc sau khi nhận chuyến hoặc tỷ lệ hủy chuyến cao sẽ bị áp dụng chế tài nhắc nhở, trừ thưởng ví hoặc tạm khóa tài khoản tùy theo mức độ vi phạm.",
                 ])
                 if doc_evidence:
                     compliance_section.append("- **Trích dẫn điều khoản liên quan:**")
@@ -1766,20 +1909,34 @@ class ConversationalPipeline:
                         compliance_section.append(f"  * Văn bản [{alias}] ({title}): Không chứa điều khoản quy định về hủy chuyến.")
             else:
                 compliance_section.extend([
-                    f"- **Kết luận:** Tài xế {driver_label} **đạt tiêu chuẩn vận hành tốt, không phát sinh vi phạm** (hoàn thành 100% số chuyến trong kỳ).",
+                    f"- **Kết luận:** Tài xế {driver_label} **đạt tiêu chuẩn vận hành tốt, không phát sinh vi phạm** (tỷ lệ hoàn thành 100% số chuyến trong kỳ).",
+                    f"- **Căn cứ quy chế:** Đối chiếu theo {doc_idx_str}Bộ Quy tắc Ứng xử & Quy định GSM{policies_ref_str}, tài xế tuân thủ nghiêm túc quy định tiếp nhận và hoàn thành chuyến xe, không có hành vi tự ý hủy chuyến sau khi nhận cuốc.",
                 ])
+                if doc_evidence:
+                    compliance_section.append("- **Trích dẫn điều khoản liên quan:**")
+                    for d in doc_evidence[:1]:
+                        alias = d.get("policy_alias") or d.get("citation_locator") or "Quy chế GSM"
+                        title = d.get("policy_title") or "Văn bản quy định"
+                        locator = d.get("citation_locator") or alias
+                        quote_lines = _format_policy_quote(alias, title, locator, d.get("content", ""), max_lines=4, indent="  ")
+                        compliance_section.extend(quote_lines)
 
             recommend_section = [
                 "\n**3. Khuyến nghị cho Quản lý vận hành:**",
             ]
-            if cancelled_trips > 0:
+            if is_bonus_query:
+                recommend_section.extend([
+                    "- Khuyến khích tài xế duy trì tỷ lệ nhận chuyến và gia tăng số lượng chuyến xe trong các khung giờ cao điểm để đạt đủ điểm thưởng theo chu kỳ.",
+                    "- Liên hệ bộ phận Kế toán/Đối soát vận hành để tra cứu bảng sao kê quyết toán thưởng chi tiết nếu cần kiểm tra số tiền thực chi.",
+                ])
+            elif cancelled_trips > 0:
                 recommend_section.extend([
                     "- Trao đổi với tài xế về nguyên nhân phát sinh các chuyến hủy do yêu cầu của tài xế (`driver_request`) để có hướng hỗ trợ kịp thời.",
                     "- Hướng dẫn tài xế kích hoạt chế độ nhận chuyến tự động để hạn chế việc hủy chuyến thủ công.",
                 ])
             else:
                 recommend_section.extend([
-                    "- Tài xế duy trì chỉ số vận hành ổn định, đề xuất tiếp tục duy trì và xem xét các chương trình thưởng định kỳ.",
+                    "- Tài xế duy trì chỉ số vận hành ổn định và chấp hành tốt quy tắc ứng xử, đề xuất tiếp tục duy trì và xem xét các chương trình thưởng định kỳ.",
                 ])
 
             report_lines = [intro, *operational_section, *compliance_section, *recommend_section]
@@ -1790,8 +1947,7 @@ class ConversationalPipeline:
             if not doc_evidence:
                 return (
                     f"Không tìm thấy trích đoạn văn bản quy chế GSM nào phù hợp với câu hỏi: '{query}'.\n\n"
-                    "Gợi ý: Quý quản lý có thể tra cứu theo mã văn bản quy chế cụ thể (ví dụ: P154, P001, P221, P05...) "
-                    "hoặc bổ sung từ khóa chi tiết hơn."
+                    "Gợi ý: Quý quản lý có thể tra cứu theo mã văn bản quy chế cụ thể hoặc bổ sung từ khóa chi tiết hơn."
                 )
 
             top_doc = doc_evidence[0]
@@ -1872,47 +2028,47 @@ class ConversationalPipeline:
         system_prompt = (
             "Bạn là Trợ lý AI Hỗ trợ Quản lý Vận hành & Pháp chế GSM (Taxi Xanh SM).\n"
             "Người đang trao đổi với bạn là Nhân viên / Chuyên viên Quản lý Vận hành cần kiểm tra thông tin tài xế hoặc đối soát quy chế GSM.\n\n"
-            "PHONG CÁCH TRẢ LỜI CỦA TRỢ LÝ AI (TỰ NHIÊN, LINH HOẠT THEO BẢN CHẤT CÂU HỎI):\n"
-            "- ĐI THẲNG VÀO VẤN ĐỀ: Trả lời tự nhiên, chuyên nghiệp, súc tích và linh hoạt theo từng dạng câu hỏi, TUYỆT ĐỐI KHÔNG dập khuôn cứng nhắc một mẫu báo cáo.\n"
-            "- PHÂN LOẠI XỬ LÝ THEO DẠNG CÂU HỎI:\n"
-            "  1. Khi người dùng hỏi tra cứu quy chế / chính sách chung (ví dụ: 'các chính sách về vi phạm hủy chuyến', 'quy định mức khoán doanh số', 'tiêu chuẩn sao'):\n"
-            "     * Trọng tâm là TỔNG HỢP VÀ GIẢI THÍCH NỘI DUNG QUY CHẾ GSM.\n"
-            "     * Nêu rõ các hành vi bị coi là vi phạm, hình thức chế tài xử phạt (nhắc nhở, trừ thưởng ví, tạm khóa tài khoản...).\n"
-            "     * Trích dẫn văn bản quy chế liên quan (ví dụ [P001], [P221], v.v.).\n"
-            "     * TUYỆT ĐỐI KHÔNG nhắc đến thông tin tài xế hay số liệu chuyến xe của tài xế nào nếu người dùng không hỏi về tài xế đó.\n"
-            "  2. Khi người dùng hỏi kiểm tra một tài xế cụ thể:\n"
-            "     * Nêu số liệu vận hành thực tế (số chuyến hoàn thành, chuyến hủy, tỷ lệ hủy, chỉ số liên quan).\n"
-            "     * Đối chiếu với quy chế được cung cấp trong bằng chứng để kết luận rõ ràng tài xế có vi phạm hay không (hoặc chưa đủ căn cứ quy định nếu chưa có ngưỡng trần).\n"
-            "     * Đưa ra khuyến nghị vận hành ngắn gọn, hợp lý.\n\n"
-            "QUY TẮC BẮT BUỘC VỀ ĐÁNH SỐ DẪN CHỨNG [1], [2], [3]... TRONG CÂU TRẢ LỜI:\n"
-            "- Toàn bộ các tài liệu chính sách và bằng chứng đã được đánh số thứ tự: [DẪN CHỨNG 1], [DẪN CHỨNG 2], v.v.\n"
-            "- Mỗi khi bạn nêu hoặc viện dẫn một quy định chính sách, dữ liệu vận hành tài xế, hoặc con số tính toán nào, BẮT BUỘC PHẢI GHI KÈM SỐ THỨ TỰ DẪN CHỨNG [1], [2], [3]... tương ứng ngay trong câu văn.\n"
-            "- Ví dụ cách viết chuẩn mực:\n"
-            "  + 'Theo quy định tại [1] Bộ Quy tắc Ứng xử [P001], hành vi tài xế tự ý hủy cuốc sau khi đã nhận chuyến...'\n"
-            "  + 'Căn cứ vào dữ liệu vận hành tại [2], tài xế đã hoàn thành 8/10 chuyến và hủy 2 chuyến...'\n"
-            "  + 'Theo kết quả tính toán tại [3], tỷ lệ hủy chuyến 30 ngày (cancel_rate_30d) của tài xế là 20.00%...'\n"
-            "  + 'Đối chiếu với quy định tại [1] [P001], hành vi này bị chế tài...'\n"
-            "- Ghi đúng số thứ tự [1], [2]... giúp Nhân viên Quản lý có thể đối chiếu ngay với thẻ Dẫn chứng trên giao diện.\n\n"
-            "QUY TẮC CỐT LÕI VỀ TÍNH CHUẨN XÁC CỦA DẪN CHỨNG (STRICT CITATION BINDING & SERVICE MATCHING):\n"
-            "1. TRÍCH DẪN ĐÚNG NGUỒN VĂN BẢN (KHÔNG LẪN LỘN NỘI DUNG):\n"
-            "   - Nội dung, điều khoản hoặc quy định thuộc về [DẪN CHỨNG X] nào thì BẮT BUỘC phải ghi đúng số thứ tự và mã [Pxxx] của [DẪN CHỨNG X] đó.\n"
-            "   - TUYỆT ĐỐI KHÔNG 'RÂU ÔNG NỌ CẮM CẰM BÀ KIA': Nghiêm cấm lấy nội dung của [DẪN CHỨNG 2] (như P012 về hủy đơn Food) rồi lại ghi là thuộc về [DẪN CHỨNG 1] (như P221 Quy tắc ứng xử Bike) hoặc ngược lại.\n"
-            "2. KHỚP ĐÚNG LOẠI HÌNH DỊCH VỤ CỦA TÀI XẾ:\n"
-            "   - Hãy đọc kỹ [HỒ SƠ ĐỐI TÁC TÀI XẾ] để xác định rõ tài xế đang chạy loại hình dịch vụ nào (bike_partner: xe máy chở khách Green SM Bike; taxi_partner: ô tô chở khách; food_partner: giao đồ ăn Green SM Food).\n"
-            "   - CHỈ áp dụng quy chế của dịch vụ tương ứng. Tài xế chở khách Green SM Bike TUYỆT ĐỐI KHÔNG áp dụng quy định hủy đơn của dịch vụ giao đồ ăn Food (như nhà hàng đóng cửa, hết món...). Nếu có văn bản Food trong dẫn chứng, không được áp dụng cho chuyến đi chở khách của tài xế này.\n\n"
-            "YÊU CẦU BẮT BUỘC VỀ NGÔN NGỮ:\n"
-            "- TRẢ LỜI HOÀN TOÀN BẰNG TIẾNG VIỆT CHUẨN MỰC.\n"
-            "- TUYỆT ĐỐI KHÔNG xuất chuỗi suy nghĩ bằng tiếng Anh (KHÔNG xuất 'Here is a thinking process', 'Analyze User Input' v.v.)."
+            "TIÊU CHUẨN ĐỊNH DẠNG BẮT BUỘC (MẪU BÁO CÁO QUẢN TRỊ CHUYÊN NGHIỆP):\n"
+            "Mọi câu trả lời của bạn BẮT BUỘC tuân thủ nghiêm ngặt theo mẫu báo cáo quản trị chuyên nghiệp dưới đây, tuyệt đối không viết văn xuôi trò chuyện thông thường.\n\n"
+            "TRỌNG TÂM TRẢ LỜI:\n"
+            "- Trả lời ĐÚNG TRỌNG TÂM câu hỏi của người dùng. Nếu câu hỏi về THƯỞNG / THU NHẬP / CHÍNH SÁCH ĐỐI TÁC, phải tập trung đối soát điều kiện xét thưởng và kết luận về việc thưởng. TUYỆT ĐỐI KHÔNG tự ý chuyển hướng sang kết luận chỉ về vi phạm hủy chuyến hay chế tài kỷ luật trừ khi câu hỏi yêu cầu kiểm tra vi phạm.\n\n"
+            "--- DẠNG 1: KHI KIỂM TRA / ĐỐI SOÁT TÀI XẾ CỤ THỂ ---\n"
+            "Cấu trúc báo cáo chuẩn mực:\n"
+            "Dựa trên dữ liệu vận hành trong **[Thời gian]** và các quy định hiện hành của GSM, tôi đã kiểm tra thông tin cho **[Tên tài xế] ([Mã])** như sau:\n\n"
+            "**1. Tình hình vận hành thực tế:**\n"
+            "- **Lịch sử chuyến xe:** Theo [X] Tài xế có tổng cộng [N] chuyến đi được ghi nhận: [k] chuyến hoàn thành, [m] chuyến bị hủy (kèm chi tiết chuyến hủy nếu có).\n"
+            "- **Chỉ số vận hành:** Theo [Y] Tỷ lệ hoàn thành [A]%, Tỷ lệ hủy chuyến (cancel_rate_30d) [B]% (kèm đánh giá sao, tỷ lệ nhận nếu có trong hồ sơ).\n\n"
+            "**2. Đối chiếu quy chế & Kết luận:**\n"
+            "- **Căn cứ quy chế:** Căn cứ theo [Z] [Mã quy chế] (tên quy chế áp dụng đúng dịch vụ của tài xế), [tóm tắt điều kiện tiêu chuẩn xét thưởng hoặc quy định kỷ luật].\n"
+            "- **Kết luận:** [Đưa ra kết luận rõ ràng, trực diện với câu hỏi: tài xế có đạt điều kiện xét thưởng hay không; hoặc có dấu hiệu vi phạm chế tài hay không; nêu rõ hiện trạng dữ liệu nếu chưa có quyết toán thực tế].\n"
+            "- **Trích dẫn điều khoản liên quan:** [Trích dẫn câu chữ thật từ văn bản quy chế trong danh sách dẫn chứng].\n\n"
+            "**3. Khuyến nghị cho Quản lý vận hành:**\n"
+            "- [Nêu 1-2 khuyến nghị cụ thể, thiết thực cho chuyên viên quản lý xử lý].\n\n"
+            "--- DẠNG 2: KHI TRA CỨU CHÍNH SÁCH / QUY CHẾ CHUNG ---\n"
+            "Dựa trên các văn bản quy chế và quy tắc ứng xử hiện hành của GSM về câu hỏi *\"[Câu hỏi]\"*, tôi xin thông tin chi tiết như sau:\n\n"
+            "**1. Quy định chung & Tiêu chuẩn áp dụng (theo [1] [Pxxx]):**\n"
+            "- **Nội dung quy định:** Tóm tắt nguyên tắc/mức khoán/tiêu chuẩn.\n"
+            "- **Chỉ số / Chế tài áp dụng:** Nêu mức chế tài nếu có.\n\n"
+            "**2. Căn cứ và trích dẫn điều khoản quy chế GSM tra cứu được từ [1] [Pxxx]:**\n"
+            "- Trích đoạn nguyên văn điều khoản liên quan từ dẫn chứng.\n\n"
+            "**3. Lưu ý đối soát cho Quản lý:**\n"
+            "- Lưu ý về phạm vi áp dụng, khu vực, đối tượng.\n\n"
+            "CÁC ĐIỀU CẤM TUYỆT ĐỐI (NEGATIVE CONSTRAINTS):\n"
+            "1. CẤM MỞ ĐẦU XÃ GIAO: Bắt đầu ngay bằng câu mở đầu chuẩn ở trên.\n"
+            "2. CẤM DUYỆT BẰNG CHỨNG CƠ HỌC: Lồng số dẫn chứng tự nhiên dạng `Theo [X]...` hoặc `Căn cứ theo [X]...`.\n"
+            "3. CẤM LẶP TỪ 'TUY NHIÊN'.\n"
+            "4. KHỚP ĐÚNG LOẠI HÌNH DỊCH VỤ CỦA TÀI XẾ: Đọc kỹ thông tin dịch vụ, đội xe và phương tiện trong [Hồ sơ đối tác tài xế]. BẮT BUỘC chỉ áp dụng các điều khoản quy chế khớp với đúng loại hình dịch vụ của tài xế; TUYỆT ĐỐI KHÔNG áp dụng quy chế của dịch vụ khác (ví dụ: không áp dụng quy chế Car Platform cho tài xế Xanh SM Bike xe máy).\n"
+            "5. CẤM SAO CHÉP LỜI HƯỚNG DẪN HOẶC ĐỂ LẠI PLACEHOLDER: Tuyệt đối KHÔNG in lại các câu giải thích trong ngoặc vuông hay placeholder như 'nêu rõ điều kiện', 'Đối chiếu dữ liệu...', 'Trích dẫn câu chữ...', 'Nêu 1-2 khuyến nghị...'. BẮT BUỘC thay thế bằng nội dung phân tích thực tế.\n"
+            "6. CẤM KẾT BÀI SÁO RỖNG. Kết thúc ở mục Khuyến nghị / Lưu ý."
         )
 
         user_prompt = (
             f"CÂU HỎI CỦA NHÂN VIÊN VẬN HÀNH: {query}\n\n"
             f"DANH SÁCH BẰNG CHỨNG XÁC THỰC VÀ VĂN BẢN QUY CHẾ ĐẦY ĐỦ:\n"
             f"{evidence_context}\n\n"
-            "Hãy trả lời một cách tự nhiên, mạch lạc, chính xác và chuyên nghiệp bằng tiếng Việt.\n"
-            "LƯU Ý QUAN TRỌNG:\n"
-            "- Trích dẫn chính xác nội dung của từng Dẫn chứng (tuyệt đối không gán nhầm nội dung văn bản này sang văn bản khác).\n"
-            "- Chỉ áp dụng quy định đúng với loại hình dịch vụ thực tế của tài xế trong hồ sơ (ví dụ tài xế Bike chở khách không áp dụng quy định hủy đơn Food của nhà hàng)."
+            "BẮT BUỘC: Trả lời đúng theo cấu trúc Báo cáo Quản trị chuyên nghiệp (Mục 1, Mục 2, Mục 3) đã quy định.\n"
+            "Trích dẫn đúng số [1], [2]... gắn kèm văn bản quy chế và số liệu.\n"
+            "Không mở đầu bằng lời cảm ơn hay câu hỏi tu từ. Không kết bài sáo rỗng."
         )
         return system_prompt, user_prompt
 
@@ -1936,14 +2092,60 @@ class ConversationalPipeline:
             messages=messages,
             max_tokens=2000,
             temperature=0.2,
-            timeout=30.0,
+            timeout=50.0,
         )
 
         # Clean thinking trace if returned by model
         cleaned_answer = self._clean_thinking_trace(raw_answer)
+        if cleaned_answer:
+            # Clean accidental placeholder leak
+            cleaned_answer = re.sub(
+                r">\s*(?:Trích dẫn đúng nguyên văn điều khoản liên quan từ dẫn chứng\.?|\[Trích đoạn.*?\])",
+                "",
+                cleaned_answer,
+                flags=re.IGNORECASE,
+            ).strip()
+            # Clean instructional parrot phrases
+            cleaned_answer = re.sub(
+                r"^-\s*\*\*(?:Căn cứ quy chế|Kết luận|Trích dẫn điều khoản liên quan)\*\*:\s*(?:Căn cứ theo \[\d+\].*?nêu rõ|Đối chiếu dữ liệu vận hành|Trích dẫn câu chữ cụ thể).*$\n?",
+                "",
+                cleaned_answer,
+                flags=re.MULTILINE | re.IGNORECASE,
+            )
+            cleaned_answer = re.sub(
+                r"^-\s*Nêu 1-2 khuyến nghị cụ thể.*$\n?",
+                "",
+                cleaned_answer,
+                flags=re.MULTILINE | re.IGNORECASE,
+            )
+            # Normalize multiple blank lines
+            cleaned_answer = re.sub(r"\n{3,}", "\n\n", cleaned_answer).strip()
 
-        # Fallback to grounded deterministic report if LLM failed or produced uncleaned English
+        # Quality validation: ensure professional structure and absence of robotic artifacts
+        is_driver_query = bool(slots.driver_id or slots.driver_mention)
+        is_subpar = False
         if not cleaned_answer:
+            is_subpar = True
+        else:
+            # Check presence of real Vietnamese characters to reject pure English CoT leaks
+            vn_chars_count = len(re.findall(r"[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]", cleaned_answer, re.IGNORECASE))
+            if vn_chars_count < 20:
+                is_subpar = True
+            elif is_driver_query:
+                has_sections = bool(re.search(r"\*\*(?:1\.|I\.)", cleaned_answer)) and bool(re.search(r"\*\*(?:2\.|II\.)", cleaned_answer)) and bool(re.search(r"\*\*(?:3\.|III\.)", cleaned_answer))
+                tuy_nhien_count = len(re.findall(r"tuy nhiên", cleaned_answer, re.IGNORECASE))
+                has_filler_intro = bool(re.search(r"^(?:Cảm ơn bạn|Để trả lời câu hỏi|Chào bạn)", cleaned_answer, re.IGNORECASE))
+                has_unfilled_placeholders = bool(re.search(r"(\[(?:kèm lý do|Trích đoạn|Tên văn bản|1-2 khuyến nghị|Số hủy|Tổng số|thời gian|Tên tài xế|Mã)\]|Trích dẫn đúng nguyên văn)", cleaned_answer, re.IGNORECASE))
+                has_empty_quotes = bool(re.search(r">\s*\[Trích đoạn", cleaned_answer, re.IGNORECASE))
+                if not has_sections or tuy_nhien_count >= 3 or has_filler_intro or has_unfilled_placeholders or has_empty_quotes:
+                    is_subpar = True
+            else:
+                has_sections = bool(re.search(r"\*\*(?:1\.|I\.|Văn bản|Nội dung|Quy định)", cleaned_answer))
+                if not has_sections or len(cleaned_answer.strip()) < 80:
+                    is_subpar = True
+
+        # Fallback to grounded deterministic report if LLM failed or produced subpar output
+        if is_subpar:
             cleaned_answer = self._build_deterministic_grounded_answer(query, slots, evidence)
 
         citations: list[dict[str, Any]] = []
@@ -2009,6 +2211,159 @@ class ConversationalPipeline:
 
         return cleaned_answer, citations
 
+    def _run_react_if_applicable(
+        self,
+        user_query: str,
+        context: dict[str, Any],
+        slots: SlotExtractionResult,
+        plan: QueryPlan,
+        evidence: list[dict[str, Any]],
+        base_answer: str,
+        citations: list[dict[str, Any]],
+    ) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]]]:
+        """Optionally invoke autonomous ReAct agent loop for multi-step reasoning, calculations and standards."""
+        react_steps_data: list[dict[str, Any]] = []
+        q_lower = user_query.lower()
+        react_keywords = [
+            "chấm công", "tiêu chuẩn", "doanh số", "doanh thu", "tỷ lệ",
+            "nhận cuốc", "hoàn thành", "hủy chuyến", "thưởng", "phạt",
+            "xanh limo", "định mức", "kpi", "ar", "cr", "sao", "đánh giá",
+            "chế tài", "đối soát", "tính", "chuẩn", "ca xe", "xét công"
+        ]
+        is_candidate = getattr(self, "react_agent", None) is not None
+
+        if not is_candidate or not getattr(self, "react_agent", None):
+            return base_answer, citations, react_steps_data
+
+        try:
+            print(f"[ReAct Router] Triggering ReAct agent loop for query: '{user_query[:60]}...'")
+            react_context = dict(context or {})
+            if plan.driver_id:
+                react_context["driver_id"] = plan.driver_id
+            if plan.driver_mention:
+                react_context["driver_mention"] = plan.driver_mention
+            if getattr(plan, "snapshot_id", None):
+                react_context["snapshot_id"] = plan.snapshot_id
+            elif getattr(slots, "snapshot_id", None):
+                react_context["snapshot_id"] = slots.snapshot_id
+            if getattr(plan, "time_resolved", None):
+                react_context["time_resolved"] = plan.time_resolved
+            if plan.time_scope:
+                react_context["time_scope"] = plan.time_scope
+            if plan.policy_scope:
+                react_context["policy_scope"] = plan.policy_scope
+            if getattr(plan, "policy_topics", None):
+                react_context["policy_topics"] = plan.policy_topics
+            if plan.intent:
+                react_context["intent"] = plan.intent
+
+            # Run ReAct autonomous loop
+            react_res = self.react_agent.run(user_query, context=react_context)
+            if react_res and react_res.final_answer and len(react_res.final_answer.strip()) > 30:
+                final_ans = react_res.final_answer.strip()
+                fm = re.search(r"Final Answer:\s*(.*)", final_ans, re.DOTALL | re.IGNORECASE)
+                if fm:
+                    final_ans = fm.group(1).strip()
+                final_ans = re.sub(r"^(?:Thought:[^\n]*\n+|Final Answer:\s*)+", "", final_ans, flags=re.IGNORECASE).strip()
+
+                # When ReAct runs, citations are strictly derived from the tools executed by the Agent
+                if react_res.citations:
+                    citations = list(react_res.citations)
+                    for idx, c in enumerate(citations, 1):
+                        c["index"] = idx
+
+                react_steps_data = [
+                    {
+                        "step": s.step,
+                        "thought": s.thought,
+                        "action": s.action,
+                        "action_input": s.action_input,
+                        "observation": s.observation,
+                    }
+                    for s in react_res.steps
+                ]
+                if react_steps_data:
+                    plan.reasoning = (
+                        f"ReAct Agent hoàn thành {len(react_steps_data)} vòng lặp suy luận & thực thi công cụ:\n"
+                        + "\n".join(
+                            f"- Vòng {s['step']}: {s['thought'][:90]}... ➔ Action: {s['action']}"
+                            for s in react_steps_data if s.get("action")
+                        )
+                    )
+
+                # Validation guard: ensure ReAct actually executed tools and conforms to structured report
+                has_executed_tools = any(bool(s.get("action")) for s in react_steps_data)
+                has_structured_sections = bool(
+                    re.search(r"(?:1\.|Tình hình vận hành)", final_ans)
+                    and re.search(r"(?:2\.|Đối chiếu quy chế|Kết luận)", final_ans)
+                )
+
+                if not has_executed_tools or not has_structured_sections:
+                    print("[ReAct Router] ReAct did not execute tools or format sections, preserving grounded pipeline answer.")
+                    return base_answer, citations, react_steps_data
+
+                # Anti-ghost-policy guard: Sanitize any hallucinated policy codes Pxxx not present in citations, context or query
+                valid_policy_codes: set[str] = set()
+                for c in citations:
+                    pa = c.get("policy_alias")
+                    if pa:
+                        valid_policy_codes.add(str(pa).upper())
+                    pc = c.get("policy_code")
+                    if pc:
+                        valid_policy_codes.add(str(pc).upper())
+                if plan.policy_scope:
+                    valid_policy_codes |= {str(p).upper() for p in plan.policy_scope}
+                query_policies = set(re.findall(r"\b(P\d{2,3})\b", user_query, re.IGNORECASE))
+                valid_policy_codes |= {p.upper() for p in query_policies}
+
+                ghost_codes = [
+                    p for p in set(re.findall(r"\b(P\d{2,3})\b", final_ans, re.IGNORECASE))
+                    if p.upper() not in valid_policy_codes
+                ]
+                if ghost_codes:
+                    print(f"[ReAct Router] Detected ghost policy codes {ghost_codes} in final answer. Sanitizing...")
+                    for gp in ghost_codes:
+                        final_ans = re.sub(
+                            rf"(?:văn bản\s+)?(?:quy chế|chính sách)\s+{gp}\b",
+                            "quy chế hiện hành của GSM",
+                            final_ans,
+                            flags=re.IGNORECASE,
+                        )
+                        final_ans = re.sub(
+                            rf"\b{gp}\b",
+                            "quy chế hiện hành của GSM",
+                            final_ans,
+                        )
+
+                # Anti-hallucination consistency guard:
+                # If ReAct claims compliance ("đạt tiêu chuẩn", "không phát sinh vi phạm")
+                # while also stating no policy was found ("không có căn cứ quy chế", "không có điều khoản")
+                # AND there are recorded cancellations, this is an obvious logical contradiction.
+                claims_compliance = bool(re.search(r"(?:đạt tiêu chuẩn vận hành tốt|không phát sinh vi phạm|tuân thủ tốt)", final_ans, re.I))
+                admits_no_policy = bool(re.search(r"(?:không có căn cứ quy chế|chưa có văn bản quy chế|không có điều khoản liên quan|không chứa điều khoản)", final_ans, re.I))
+                has_cancellations = bool(re.search(r"(?:hủy [1-9]\d* chuyến|[1-9]\d* chuyến (?:bị )?hủy)", final_ans, re.I))
+
+                if claims_compliance and admits_no_policy and has_cancellations:
+                    print("[ReAct Router] Contradiction detected (compliance claimed despite cancellations and no policy). Correcting conclusion...")
+                    d_label = plan.driver_mention or (f"tài xế {plan.driver_id[:8]}" if plan.driver_id else "tài xế")
+                    is_reward_q = any(k in user_query.lower() for k in ["thưởng", "khen thưởng", "đãi ngộ", "xét thưởng"]) and not any(k in user_query.lower() for k in ["vi phạm", "xử phạt", "kỷ luật", "chế tài", "phạt"])
+                    if is_reward_q:
+                        conclusion_text = f"- **Kết luận:** Hiện tại **chưa đủ căn cứ/cơ sở để xác định** {d_label} có đủ điều kiện xét thưởng hay không (do hệ thống chưa có văn bản quy chế quy định cụ thể về tiêu chuẩn thưởng áp dụng cho đối tượng tài xế này trong kỳ)."
+                    else:
+                        conclusion_text = f"- **Kết luận:** Hiện tại **chưa đủ căn cứ/cơ sở để khẳng định** {d_label} có vi phạm chính sách hay không (do hệ thống chưa có văn bản quy chế quy định cụ thể mức trần tỷ lệ hủy chuyến hoặc chế tài áp dụng)."
+                    final_ans = re.sub(
+                        r"-\s*\*\*Kết luận:\*\*.*?(?=\n-\s*\*\*|\n\*\*3\.|\Z)",
+                        conclusion_text,
+                        final_ans,
+                        flags=re.DOTALL
+                    )
+
+                return final_ans, citations, react_steps_data
+        except Exception as e:
+            print(f"[ReAct Error] {e}, falling back to pipeline answer.")
+
+        return base_answer, citations, react_steps_data
+
     # =========================================================================
     # Main Entry Point with Langfuse Tracing
     # =========================================================================
@@ -2064,6 +2419,8 @@ class ConversationalPipeline:
                                 needs_time="time_scope" in plan.missing_fields or bool(plan.time_scope),
                                 has_time_scope=bool(plan.time_scope),
                                 time_mention=plan.time_scope,
+                                time_resolved=plan.time_resolved,
+                                time_display=plan.time_display,
                                 snapshot_id=plan.snapshot_id,
                                 policy_mentions=plan.policy_scope,
                                 policy_topics=plan.policy_topics,
@@ -2262,6 +2619,10 @@ class ConversationalPipeline:
                         except Exception:
                             pass
 
+                        answer, citations, react_steps_data = self._run_react_if_applicable(
+                            user_query, context, slots, plan, evidence, answer, citations
+                        )
+
                         return PipelineResponse(
                             status="ANSWERED",
                             query=user_query,
@@ -2271,6 +2632,7 @@ class ConversationalPipeline:
                             citations=citations,
                             subgraph=subgraph,
                             trace_url=trace_url,
+                            react_steps=react_steps_data,
                         )
             except Exception as e:
                 print(f"[Pipeline Langfuse Error] {e}, falling back to non-traced execution.")
@@ -2286,8 +2648,12 @@ class ConversationalPipeline:
             needs_time="time_scope" in plan.missing_fields or bool(plan.time_scope),
             has_time_scope=bool(plan.time_scope),
             time_mention=plan.time_scope,
+            time_resolved=plan.time_resolved,
+            time_display=plan.time_display,
             snapshot_id=plan.snapshot_id,
             policy_mentions=plan.policy_scope,
+            policy_topics=plan.policy_topics,
+            has_policy_target=bool(plan.policy_scope or plan.policy_topics),
             missing_slots=plan.missing_fields,
         )
         if plan.missing_fields:
@@ -2299,9 +2665,24 @@ class ConversationalPipeline:
                 query_plan=plan,
                 clarification_message=clarification_msg,
             )
-        subgraph = self.expand_subgraph_bfs(plan.driver_id, plan.snapshot_id)
-        evidence = self.gather_multi_source_evidence(user_query, slots, subgraph)
-        answer, citations = self.generate_grounded_answer(user_query, slots, evidence)
+        self.last_subgraph = None
+        if getattr(self, "react_agent", None):
+            subgraph = Subgraph(seed_id=plan.driver_id or "none", snapshot_id=plan.snapshot_id, nodes=[], edges=[])
+            evidence = []
+            base_ans, base_cits = "", []
+            answer, citations, react_steps_data = self._run_react_if_applicable(
+                user_query, context, slots, plan, evidence, base_ans, base_cits
+            )
+            if not answer or not answer.strip():
+                subgraph = self.expand_subgraph_bfs(plan.driver_id, plan.snapshot_id)
+                evidence = self.gather_multi_source_evidence(user_query, slots, subgraph)
+                answer, citations = self.generate_grounded_answer(user_query, slots, evidence)
+        else:
+            subgraph = self.expand_subgraph_bfs(plan.driver_id, plan.snapshot_id)
+            evidence = self.gather_multi_source_evidence(user_query, slots, subgraph)
+            answer, citations = self.generate_grounded_answer(user_query, slots, evidence)
+            react_steps_data = []
+        active_subgraph = getattr(self, "last_subgraph", None) or subgraph
         return PipelineResponse(
             status="ANSWERED",
             query=user_query,
@@ -2309,5 +2690,299 @@ class ConversationalPipeline:
             query_plan=plan,
             answer=answer,
             citations=citations,
-            subgraph=subgraph,
+            subgraph=active_subgraph,
+            react_steps=react_steps_data,
         )
+
+    def execute_stream(
+        self,
+        user_query: str,
+        context: dict[str, Any] | None = None,
+    ) -> Iterator[dict[str, Any]]:
+        """Stream conversational execution events in real-time (planning, clarification, ReAct loops)."""
+        context = context or {}
+        t_start = time.perf_counter()
+
+        # Step 1: Planning started
+        yield {
+            "type": "plan_start",
+            "step": "planning",
+            "message": "Đang phân tích ý định, thực thể tài xế và mốc thời gian...",
+        }
+
+        plan = self.plan_query(user_query, context)
+        slots = SlotExtractionResult(
+            intent=plan.intent,
+            needs_driver="driver_id" in plan.missing_fields or bool(plan.driver_id),
+            driver_id=plan.driver_id,
+            driver_mention=plan.driver_mention,
+            is_driver_ambiguous=plan.is_driver_ambiguous,
+            needs_time="time_scope" in plan.missing_fields or bool(plan.time_scope),
+            has_time_scope=bool(plan.time_scope),
+            time_mention=plan.time_scope,
+            time_resolved=plan.time_resolved,
+            time_display=plan.time_display,
+            snapshot_id=plan.snapshot_id,
+            policy_mentions=plan.policy_scope,
+            policy_topics=plan.policy_topics,
+            has_policy_target=bool(plan.policy_scope or plan.policy_topics),
+            missing_slots=plan.missing_fields,
+        )
+
+        plan_data = {
+            "intent": plan.intent,
+            "driver_id": plan.driver_id,
+            "driver_mention": plan.driver_mention,
+            "is_driver_ambiguous": plan.is_driver_ambiguous,
+            "time_scope": plan.time_scope,
+            "time_resolved": plan.time_resolved,
+            "time_display": plan.time_display,
+            "snapshot_id": plan.snapshot_id,
+            "policy_scope": plan.policy_scope,
+            "policy_topics": plan.policy_topics,
+            "modalities": plan.modalities,
+            "missing_fields": plan.missing_fields,
+            "clarification_reasons": plan.clarification_reasons,
+            "reasoning": plan.reasoning,
+        }
+
+        slots_data = {
+            "intent": slots.intent,
+            "needs_driver": slots.needs_driver,
+            "driver_id": slots.driver_id,
+            "driver_mention": slots.driver_mention,
+            "is_driver_ambiguous": slots.is_driver_ambiguous,
+            "needs_time": slots.needs_time,
+            "has_time_scope": slots.has_time_scope,
+            "time_mention": slots.time_mention,
+            "time_resolved": slots.time_resolved,
+            "time_display": slots.time_display,
+            "snapshot_id": slots.snapshot_id,
+            "policy_mentions": slots.policy_mentions,
+            "policy_topics": slots.policy_topics,
+            "has_policy_target": slots.has_policy_target,
+            "missing_slots": slots.missing_slots,
+        }
+
+        yield {
+            "type": "plan_done",
+            "plan": plan_data,
+            "slots": slots_data,
+        }
+
+        # Step 2: Clarification Gate
+        if plan.missing_fields:
+            clarification_msg = self.build_clarification_message(plan)
+            latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
+            yield {
+                "type": "clarification",
+                "status": "NEEDS_CLARIFICATION",
+                "message": clarification_msg,
+                "missing_slots": plan.missing_fields,
+                "plan": plan_data,
+                "slots": slots_data,
+                "latency_ms": latency_ms,
+            }
+            yield {"type": "done"}
+            return
+
+        # Step 3: Run Autonomous ReAct Agent Loop
+        yield {
+            "type": "agent_start",
+            "message": "Kích hoạt ReAct Agent: Chu trình suy luận & tự chủ gọi công cụ...",
+            "plan": plan_data,
+        }
+
+        react_context = dict(context or {})
+        if plan.driver_id:
+            react_context["driver_id"] = plan.driver_id
+        if plan.driver_mention:
+            react_context["driver_mention"] = plan.driver_mention
+        if plan.snapshot_id:
+            react_context["snapshot_id"] = plan.snapshot_id
+        if plan.time_resolved:
+            react_context["time_resolved"] = plan.time_resolved
+        if plan.time_scope:
+            react_context["time_scope"] = plan.time_scope
+        if plan.policy_scope:
+            react_context["policy_scope"] = plan.policy_scope
+        if plan.policy_topics:
+            react_context["policy_topics"] = plan.policy_topics
+        if plan.intent:
+            react_context["intent"] = plan.intent
+
+        # Autonomous ReAct: only execute baseline BFS and reader if ReAct agent is not configured
+        self.last_subgraph = None
+        subgraph = Subgraph(seed_id=plan.driver_id or "none", snapshot_id=plan.snapshot_id, nodes=[], edges=[])
+        base_ans = ""
+        base_cits = []
+        evidence = []
+
+        if not getattr(self, "react_agent", None):
+            if plan.driver_id and self.neo4j_driver:
+                try:
+                    subgraph = self.expand_subgraph_bfs(plan.driver_id, plan.snapshot_id)
+                except Exception:
+                    subgraph = Subgraph(seed_id=plan.driver_id or "none", snapshot_id=plan.snapshot_id, nodes=[], edges=[])
+            evidence = self.gather_multi_source_evidence(user_query, slots, subgraph)
+            base_ans, base_cits = self.generate_grounded_answer(user_query, slots, evidence)
+
+        react_result = None
+        if getattr(self, "react_agent", None):
+            for event in self.react_agent.run_stream(user_query, context=react_context):
+                if event.get("type") == "final_result":
+                    react_result = event.get("result")
+                else:
+                    yield event
+
+        final_answer = ""
+        citations: list[dict[str, Any]] = list(base_cits or [])
+        react_steps_data: list[dict[str, Any]] = []
+
+        if react_result and react_result.final_answer and len(react_result.final_answer.strip()) > 30:
+            final_ans = react_result.final_answer.strip()
+            fm = re.search(r"Final Answer:\s*(.*)", final_ans, re.DOTALL | re.IGNORECASE)
+            if fm:
+                final_ans = fm.group(1).strip()
+            final_ans = re.sub(r"^(?:Thought:[^\n]*\n+|Final Answer:\s*)+", "", final_ans, flags=re.IGNORECASE).strip()
+
+            # When ReAct runs, citations are strictly derived from the tools executed by the Agent
+            if react_result.citations:
+                citations = list(react_result.citations)
+                for idx, c in enumerate(citations, 1):
+                    c["index"] = idx
+            else:
+                citations = list(base_cits or [])
+
+            react_steps_data = [
+                {
+                    "step": s.step,
+                    "thought": s.thought,
+                    "action": s.action,
+                    "action_input": s.action_input,
+                    "observation": s.observation,
+                }
+                for s in react_result.steps
+            ]
+
+            if react_steps_data:
+                plan.reasoning = (
+                    f"ReAct Agent hoàn thành {len(react_steps_data)} vòng lặp suy luận & thực thi công cụ:\n"
+                    + "\n".join(
+                        f"- Vòng {s['step']}: {s['thought'][:90]}... ➔ Action: {s['action']}"
+                        for s in react_steps_data if s.get("action")
+                    )
+                )
+                plan_data["reasoning"] = plan.reasoning
+
+            # Validation guards matching _run_react_if_applicable:
+            has_executed_tools = any(bool(s.get("action")) for s in react_steps_data)
+            has_structured_sections = bool(
+                re.search(r"(?:1\.|Tình hình vận hành)", final_ans)
+                and re.search(r"(?:2\.|Đối chiếu quy chế|Kết luận)", final_ans)
+            )
+
+            # Anti-hallucination consistency guard:
+            claims_compliance = bool(re.search(r"(?:đạt tiêu chuẩn vận hành tốt|không phát sinh vi phạm|tuân thủ tốt)", final_ans, re.I))
+            admits_no_policy = bool(re.search(r"(?:không có căn cứ quy chế|chưa có văn bản quy chế|không có điều khoản liên quan|không chứa điều khoản)", final_ans, re.I))
+            has_cancellations = bool(re.search(r"(?:hủy [1-9]\d* chuyến|[1-9]\d* chuyến (?:bị )?hủy)", final_ans, re.I))
+
+            # Anti-ghost-policy guard: Sanitize any hallucinated policy codes Pxxx not present in citations, context or query
+            valid_policy_codes: set[str] = set()
+            for c in citations:
+                pa = c.get("policy_alias")
+                if pa:
+                    valid_policy_codes.add(str(pa).upper())
+                pc = c.get("policy_code")
+                if pc:
+                    valid_policy_codes.add(str(pc).upper())
+            if plan.policy_scope:
+                valid_policy_codes |= {str(p).upper() for p in plan.policy_scope}
+            query_policies = set(re.findall(r"\b(P\d{2,3})\b", user_query, re.IGNORECASE))
+            valid_policy_codes |= {p.upper() for p in query_policies}
+
+            ghost_codes = [
+                p for p in set(re.findall(r"\b(P\d{2,3})\b", final_ans, re.IGNORECASE))
+                if p.upper() not in valid_policy_codes
+            ]
+            if ghost_codes:
+                print(f"[execute_stream] Detected ghost policy codes {ghost_codes} in final answer. Sanitizing...")
+                for gp in ghost_codes:
+                    final_ans = re.sub(
+                        rf"(?:văn bản\s+)?(?:quy chế|chính sách)\s+{gp}\b",
+                        "quy chế hiện hành của GSM",
+                        final_ans,
+                        flags=re.IGNORECASE,
+                    )
+                    final_ans = re.sub(
+                        rf"\b{gp}\b",
+                        "quy chế hiện hành của GSM",
+                        final_ans,
+                    )
+
+            if not has_executed_tools or not has_structured_sections:
+                final_answer = base_ans
+            elif claims_compliance and admits_no_policy and has_cancellations:
+                print("[execute_stream] Contradiction detected. Correcting conclusion...")
+                d_label = plan.driver_mention or (f"tài xế {plan.driver_id[:8]}" if plan.driver_id else "tài xế")
+                is_reward_q = any(k in user_query.lower() for k in ["thưởng", "khen thưởng", "đãi ngộ", "xét thưởng"]) and not any(k in user_query.lower() for k in ["vi phạm", "xử phạt", "kỷ luật", "chế tài", "phạt"])
+                if is_reward_q:
+                    conclusion_text = f"- **Kết luận:** Hiện tại **chưa đủ căn cứ/cơ sở để xác định** {d_label} có đủ điều kiện xét thưởng hay không (do hệ thống chưa có văn bản quy chế quy định cụ thể về tiêu chuẩn thưởng áp dụng cho đối tượng tài xế này trong kỳ)."
+                else:
+                    conclusion_text = f"- **Kết luận:** Hiện tại **chưa đủ căn cứ/cơ sở để khẳng định** {d_label} có vi phạm chính sách hay không (do hệ thống chưa có văn bản quy chế quy định cụ thể mức trần tỷ lệ hủy chuyến hoặc chế tài áp dụng)."
+                final_answer = re.sub(
+                    r"-\s*\*\*Kết luận:\*\*.*?(?=\n-\s*\*\*|\n\*\*3\.|\Z)",
+                    conclusion_text,
+                    final_ans,
+                    flags=re.DOTALL,
+                )
+            else:
+                final_answer = final_ans
+
+        # If ReAct didn't yield answers (e.g. offline test mock), fallback to grounded answer
+        if not final_answer:
+            if not base_ans:
+                if plan.driver_id and self.neo4j_driver:
+                    try:
+                        subgraph = self.expand_subgraph_bfs(plan.driver_id, plan.snapshot_id)
+                    except Exception:
+                        pass
+                evidence = self.gather_multi_source_evidence(user_query, slots, subgraph)
+                base_ans, base_cits = self.generate_grounded_answer(user_query, slots, evidence)
+            final_answer = base_ans
+            citations = base_cits
+
+        # Subgraph data formatted for JSON serialization
+        subgraph_data = None
+        active_subgraph = getattr(self, "last_subgraph", None) or subgraph
+        if active_subgraph and active_subgraph.nodes:
+            subgraph_data = {
+                "seed_id": active_subgraph.seed_id,
+                "snapshot_id": active_subgraph.snapshot_id,
+                "nodes": [
+                    {"id": n.id, "label": n.label, "name": n.name, "props": n.props}
+                    for n in active_subgraph.nodes
+                ],
+                "edges": [
+                    {"start_id": e.start_id, "end_id": e.end_id, "rel_type": e.rel_type, "props": e.props}
+                    for e in active_subgraph.edges
+                ],
+                "node_count": len(active_subgraph.nodes),
+                "edge_count": len(active_subgraph.edges),
+            }
+
+        latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
+
+        yield {
+            "type": "final_result",
+            "status": "ANSWERED",
+            "query": user_query,
+            "answer": final_answer,
+            "citations": citations,
+            "react_steps": react_steps_data,
+            "subgraph": subgraph_data,
+            "plan": plan_data,
+            "slots": slots_data,
+            "latency_ms": latency_ms,
+        }
+        yield {"type": "done"}

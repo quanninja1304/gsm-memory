@@ -2678,4 +2678,570 @@ body.dark-theme {
   color: var(--primary-emerald);
 }
 
+/* =========================================================================
+   ReAct Agent Timeline & Execution Steps
+   ========================================================================= */
+.react-timeline-card {
+  margin-top: 1rem;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(0, 208, 156, 0.25);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.react-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.react-badge-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: var(--text-main);
+}
+
+.react-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary-emerald);
+  box-shadow: 0 0 10px var(--primary-emerald);
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 208, 156, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(0, 208, 156, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 208, 156, 0); }
+}
+
+.react-badge {
+  background: rgba(0, 208, 156, 0.15);
+  color: var(--primary-emerald);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 208, 156, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.react-steps-count {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.react-steps-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.react-step-item {
+  position: relative;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.react-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.react-step-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+.react-step-thought {
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid #38bdf8;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.react-step-action {
+  font-size: 0.8rem;
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: rgba(0, 208, 156, 0.05);
+  border: 1px solid rgba(0, 208, 156, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.65rem;
+}
+
+.react-action-tag {
+  color: var(--primary-emerald);
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.react-step-observation {
+  font-size: 0.79rem;
+  color: #94a3b8;
+  line-height: 1.45;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.65rem;
+  font-family: var(--font-mono);
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.react-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--primary-emerald);
+  background: rgba(0, 208, 156, 0.12);
+  border: 1px solid rgba(0, 208, 156, 0.3);
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 0.4rem;
+}
+
+.react-pill-badge:hover {
+  background: rgba(0, 208, 156, 0.22);
+  transform: translateY(-1px);
+}
+
+/* =========================================================================
+   Inline ReAct Card inside Chat Message Bubble
+   ========================================================================= */
+.chat-react-card {
+  margin: 0.6rem 0;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(0, 208, 156, 0.35);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.chat-react-toggle-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  background: rgba(0, 208, 156, 0.08);
+  border: none;
+  color: var(--text-main);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chat-react-toggle-btn:hover {
+  background: rgba(0, 208, 156, 0.15);
+}
+
+.chat-react-toggle-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--primary-emerald);
+}
+
+.chat-react-toggle-arrow {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.chat-react-steps-drawer {
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.chat-react-step-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  padding: 0.5rem 0.65rem;
+}
+
+.chat-react-step-badge {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.chat-react-step-thought {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  line-height: 1.45;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid #38bdf8;
+  padding: 0.25rem 0.45rem;
+}
+
+.chat-react-step-action {
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: rgba(0, 208, 156, 0.05);
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+}
+
+.chat-react-action-tag {
+  color: var(--primary-emerald);
+}
+
+.chat-react-action-code {
+  font-size: 0.72rem;
+  color: #a5f3fc;
+  word-break: break-all;
+}
+
+.chat-react-step-obs {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  font-family: var(--font-mono);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+/* =========================================================================
+   LIVE AGENT REASONING & ACTING INDICATOR (DYNAMIC REACT LOOPS)
+   ========================================================================= */
+
+.agent-live-bubble {
+  background: linear-gradient(145deg, rgba(11, 19, 32, 0.98), rgba(15, 26, 44, 0.95)) !important;
+  border: 1px solid rgba(0, 208, 156, 0.4) !important;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55), 0 0 24px rgba(0, 208, 156, 0.18) !important;
+  padding: 1.15rem 1.35rem !important;
+  max-width: 620px !important;
+  width: 100% !important;
+}
+
+.agent-live-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.agent-live-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.95rem;
+}
+
+.agent-live-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-live-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.agent-live-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-full);
+  background: rgba(0, 208, 156, 0.18);
+  color: var(--primary-emerald);
+  border: 1px solid rgba(0, 208, 156, 0.45);
+  box-shadow: 0 0 10px rgba(0, 208, 156, 0.25);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.agent-live-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--primary-cyan);
+  background: rgba(6, 182, 212, 0.14);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  padding: 0.12rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.agent-live-timer {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.12rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.agent-live-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  margin-bottom: 0.2rem;
+}
+
+.agent-live-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* LIVE FEED & ITERATION BLOCKS */
+.agent-live-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.agent-live-iter-block {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.65rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  animation: iterBlockSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.25s ease;
+}
+
+.agent-live-iter-block.active {
+  border-color: rgba(6, 182, 212, 0.45);
+  background: rgba(6, 182, 212, 0.04);
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.12);
+}
+
+.agent-live-iter-block.completed {
+  border-color: rgba(0, 208, 156, 0.25);
+  background: rgba(0, 208, 156, 0.02);
+  opacity: 0.9;
+}
+
+@keyframes iterBlockSlideIn {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.agent-live-iter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.iter-badge-num {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  font-family: var(--font-mono);
+}
+
+.iter-badge-state {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.iter-badge-state code {
+  color: #38bdf8;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+}
+
+.iter-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(56, 189, 248, 0.2);
+  border-top-color: #38bdf8;
+  border-radius: 50%;
+  animation: processingSpinnerSpin 0.7s linear infinite;
+}
+
+.iter-check {
+  color: var(--primary-emerald);
+  font-weight: 700;
+}
+
+.agent-live-iter-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* THOUGHT ROW */
+.live-thought-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: #e2e8f0;
+  line-height: 1.45;
+  background: rgba(234, 179, 8, 0.06);
+  border-left: 2px solid #eab308;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.live-thought-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.live-thought-text {
+  flex: 1;
+}
+
+.live-thought-text strong {
+  color: #facc15;
+}
+
+/* ACTION ROW */
+.live-action-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.76rem;
+  background: rgba(6, 182, 212, 0.08);
+  border-left: 2px solid var(--primary-cyan);
+  padding: 0.35rem 0.55rem;
+  border-radius: 0 4px 4px 0;
+  transition: all 0.2s ease;
+}
+
+.live-action-row.running {
+  animation: actionGlow 1.5s infinite alternate;
+}
+
+@keyframes actionGlow {
+  0% { background: rgba(6, 182, 212, 0.06); }
+  100% { background: rgba(6, 182, 212, 0.14); }
+}
+
+.live-action-row.done {
+  border-left-color: var(--primary-emerald);
+}
+
+.live-action-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.live-action-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.live-action-name {
+  color: var(--primary-cyan);
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.live-action-args {
+  font-size: 0.72rem;
+  color: #a5f3fc;
+  font-family: var(--font-mono);
+  word-break: break-all;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  display: block;
+}
+
+/* OBSERVATION ROW */
+.live-obs-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.74rem;
+  color: #94a3b8;
+  line-height: 1.4;
+  background: rgba(0, 208, 156, 0.05);
+  border-left: 2px solid var(--primary-emerald);
+  padding: 0.35rem 0.55rem;
+  border-radius: 0 4px 4px 0;
+  font-family: var(--font-mono);
+}
+
+.live-obs-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.live-obs-text {
+  flex: 1;
+  word-break: break-word;
+}
+
+.live-obs-text strong {
+  color: var(--primary-emerald);
+}
+
 

@@ -203,7 +203,7 @@ class HybridPolicySearcher:
         bm25_top_k: int = 12,
         dense_top_k: int = 12,
         rerank_top_n: int = 15,
-        final_top_k: int = 4,
+        final_top_k: int = 5,
         policy_scope: list[str] | None = None,
         policy_topics: list[str] | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:

@@ -545,10 +545,13 @@ document.addEventListener("DOMContentLoaded", () => {
       planStatusBadge.className = "plan-status-badge status-analyzing";
       planStatusBadge.innerHTML = `<span class="badge-mini-spinner"></span> Đang phân tích...`;
     }
-    const typingRow = appendTypingIndicator();
+
+    // Launch Live Autonomous ReAct Agent Loop Indicator
+    const indicator = appendAgentLoopIndicator();
 
     try {
-      const response = await fetch("/api/chat", {
+      // 1. Attempt Server-Sent Events (SSE) streaming for real-time Thought -> Action -> Observation loop
+      const response = await fetch("/api/chat/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -557,31 +560,137 @@ document.addEventListener("DOMContentLoaded", () => {
         }),
       });
 
-      typingRow.remove();
-
       if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
+        throw new Error(`Server returned status ${response.status}`);
       }
 
-      const data = await response.json();
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let finalData = null;
 
-      // Update current session id if new
-      if (data.session_id && data.session_id !== currentSessionId) {
-        currentSessionId = data.session_id;
-        await loadSessions();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const blocks = buffer.split("\n\n");
+        buffer = blocks.pop(); // keep tail chunk
+
+        for (const block of blocks) {
+          const trimmed = block.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const jsonText = trimmed.replace(/^data:\s*/, "").trim();
+          if (!jsonText) continue;
+
+          try {
+            const event = JSON.parse(jsonText);
+            const evtType = event.type;
+
+            if (evtType === "plan_start") {
+              indicator.setInfo(
+                "Kế hoạch truy vấn",
+                "Phân tích Ý định & Lập Kế hoạch Truy vấn",
+                event.message || "Đọc bộ nhớ ngữ cảnh hội thoại, trích xuất mã tài xế và mốc thời gian...",
+                1
+              );
+            } else if (evtType === "plan_done") {
+              indicator.setInfo(
+                "Xác thực thông tin",
+                "Xác Thực Thông Tin & Tham Số",
+                "Đã phân tích cú pháp ý định, kiểm tra tính đầy đủ của tham số...",
+                2
+              );
+              if (event.plan) {
+                updateInspector({ query_plan: event.plan });
+              }
+            } else if (evtType === "clarification") {
+              indicator.setInfo(
+                "Yêu cầu bổ sung",
+                "Yêu Cầu Bổ Sung Dữ Liệu",
+                event.message || "Cần bổ sung thông tin để tiếp tục xử lý.",
+                2
+              );
+              finalData = event;
+            } else if (evtType === "agent_start") {
+              indicator.setInfo(
+                "ReAct Agent Active",
+                "Vòng Lặp ReAct: Suy Luận & Tự Chủ Gọi Công Cụ",
+                event.message || "Agent đang tự động thực thi các chu trình Thought ➔ Action ➔ Observation...",
+                3
+              );
+            } else if (evtType === "loop_start") {
+              indicator.onLoopStart(event);
+            } else if (evtType === "iteration_start") {
+              indicator.onIterationStart(event);
+            } else if (evtType === "thought") {
+              indicator.onThought(event);
+            } else if (evtType === "action_start") {
+              indicator.onActionStart(event);
+            } else if (evtType === "observation") {
+              indicator.onObservation(event);
+            } else if (evtType === "synthesis_start") {
+              indicator.onSynthesisStart(event);
+            } else if (evtType === "final_result") {
+              finalData = event;
+            }
+          } catch (pe) {
+            console.warn("Failed to parse SSE event:", pe, jsonText);
+          }
+        }
       }
 
-      appendBotResponse(data);
-      updateInspector(data);
-      updateContextMemoryUI(data.active_context || {});
-      await refreshDbBadgeAndSummary();
+      indicator.remove();
+
+      if (finalData) {
+        if (finalData.session_id && finalData.session_id !== currentSessionId) {
+          currentSessionId = finalData.session_id;
+          await loadSessions();
+        }
+
+        appendBotResponse(finalData);
+        updateInspector(finalData);
+        updateContextMemoryUI(finalData.active_context || {});
+        await refreshDbBadgeAndSummary();
+      } else {
+        throw new Error("Không nhận được dữ liệu hoàn tất từ luồng xử lý.");
+      }
     } catch (err) {
-      typingRow.remove();
-      if (planStatusBadge) {
-        planStatusBadge.className = "plan-status-badge";
-        planStatusBadge.textContent = "Lỗi xử lý";
+      console.warn("Stream failed, attempting fallback to POST /api/chat:", err);
+      // Fallback to standard chat endpoint if streaming fails
+      try {
+        const fbResponse = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: text,
+            session_id: currentSessionId,
+          }),
+        });
+        indicator.remove();
+
+        if (!fbResponse.ok) {
+          throw new Error(`Server returned ${fbResponse.status}`);
+        }
+
+        const data = await fbResponse.json();
+        if (data.session_id && data.session_id !== currentSessionId) {
+          currentSessionId = data.session_id;
+          await loadSessions();
+        }
+
+        appendBotResponse(data);
+        updateInspector(data);
+        updateContextMemoryUI(data.active_context || {});
+        await refreshDbBadgeAndSummary();
+      } catch (fbErr) {
+        indicator.remove();
+        if (planStatusBadge) {
+          planStatusBadge.className = "plan-status-badge";
+          planStatusBadge.textContent = "Lỗi xử lý";
+        }
+        appendMessage("bot", `⚠️ Đã xảy ra lỗi khi kết nối với máy chủ: ${fbErr.message}. Vui lòng thử lại.`);
       }
-      appendMessage("bot", `⚠️ Đã xảy ra lỗi khi kết nối với máy chủ: ${err.message}. Vui lòng thử lại.`);
     } finally {
       setSubmitting(false);
     }
@@ -623,52 +732,46 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // =========================================================================
-  // Pipeline Step Definitions for Dynamic Processing Indicator
+  // Live Autonomous ReAct Agent Loop Indicator (Streaming Thought -> Action -> Observation)
   // =========================================================================
-  const PIPELINE_STEPS = [
-    {
-      step: 1,
-      badge: "Bước 1/5",
-      tag: "Kế hoạch truy vấn",
-      title: "Phân tích Ý định & Lập Kế hoạch Truy vấn",
-      desc: "Đọc bộ nhớ ngữ cảnh hội thoại, trích xuất mã tài xế và mốc thời gian...",
-      thresholdMs: 0,
-    },
-    {
-      step: 2,
-      badge: "Bước 2/5",
-      tag: "Xác thực thông tin",
-      title: "Xác Thực Thông Tin & Tham Số",
-      desc: "Đối soát dữ liệu vận hành, kiểm tra tính đầy đủ của tham số...",
-      thresholdMs: 1200,
-    },
-    {
-      step: 3,
-      badge: "Bước 3/5",
-      tag: "Đồ thị tri thức",
-      title: "Truy Vấn Đồ Thị Tri Thức Vận Hành",
-      desc: "Duyệt liên kết quan hệ các chuyến đi, tài xế và hồ sơ theo mốc lịch sử...",
-      thresholdMs: 2500,
-    },
-    {
-      step: 4,
-      badge: "Bước 4/5",
-      tag: "Truy xuất đa nguồn",
-      title: "Truy Xuất Đa Nguồn & Tái Xếp Hạng",
-      desc: "Khớp từ khóa văn bản, tìm kiếm ngữ nghĩa và xếp hạng mức độ liên quan...",
-      thresholdMs: 4000,
-    },
-    {
-      step: 5,
-      badge: "Bước 5/5",
-      tag: "Tổng hợp phản hồi",
-      title: "Tổng Hợp Bằng Chứng & Soạn Thảo Phản Hồi",
-      desc: "Đối chiếu căn cứ pháp lý, lập luận theo quy chế GSM và tạo câu trả lời...",
-      thresholdMs: 5800,
-    },
-  ];
+  function formatObservationSummary(obs) {
+    if (obs === null || obs === undefined) return "Không có kết quả.";
+    if (typeof obs === "string") {
+      return obs.length > 280 ? obs.slice(0, 277) + "..." : obs;
+    }
+    if (typeof obs === "object") {
+      if (obs.warning) {
+        return obs.warning;
+      }
+      if (obs.error) {
+        return obs.error;
+      }
+      if (obs.summary) {
+        return obs.summary.length > 280 ? obs.summary.slice(0, 277) + "..." : obs.summary;
+      }
+      if (obs.verdict) {
+        return obs.verdict;
+      }
+      if (obs.full_name) {
+        return `Tài xế: ${obs.full_name} (${obs.driver_code || obs.id}) | Đội xe: ${obs.depot_name || obs.team_id || "N/A"} | Trạng thái: ${obs.status || "Hoạt động"}`;
+      }
+      if (obs.trips_count !== undefined) {
+        return `Tìm thấy ${obs.trips_count} chuyến đi | Tỷ lệ hoàn thành: ${obs.completion_rate !== undefined ? (obs.completion_rate * 100).toFixed(1) + '%' : 'N/A'}`;
+      }
+      if (obs.count !== undefined) {
+        return `Tìm thấy ${obs.count} bản ghi liên quan.`;
+      }
+      try {
+        const str = JSON.stringify(obs);
+        return str.length > 280 ? str.slice(0, 277) + "..." : str;
+      } catch (e) {
+        return String(obs);
+      }
+    }
+    return String(obs);
+  }
 
-  function appendTypingIndicator() {
+  function appendAgentLoopIndicator() {
     const row = document.createElement("div");
     row.className = "message-row bot-row typing-row";
 
@@ -680,24 +783,26 @@ document.addEventListener("DOMContentLoaded", () => {
     bubbleContainer.className = "bubble-container";
 
     const bubble = document.createElement("div");
-    bubble.className = "message-bubble bot-bubble processing-bubble";
+    bubble.className = "message-bubble bot-bubble processing-bubble agent-live-bubble";
     bubble.innerHTML = `
-      <div class="processing-card">
-        <div class="processing-top">
+      <div class="processing-card agent-live-card">
+        <div class="agent-live-header">
           <div class="processing-spinner-wrapper" aria-hidden="true">
             <div class="processing-spinner-ring"></div>
             <div class="processing-spinner-core"></div>
           </div>
-          <div class="processing-info">
-            <div class="processing-meta-line">
-              <span class="processing-badge" id="proc-badge">Bước 1/5</span>
-              <span class="processing-tag" id="proc-tag">Query Planning</span>
-              <span class="processing-timer" id="proc-timer">0.0s</span>
+          <div class="agent-live-info">
+            <div class="agent-live-meta">
+              <span class="agent-live-badge" id="agent-badge">
+                <span class="badge-mini-spinner"></span> AUTONOMOUS REACT AGENT
+              </span>
+              <span class="agent-live-tag" id="agent-tag">Khởi tạo</span>
+              <span class="agent-live-timer" id="agent-timer">0.0s</span>
             </div>
-            <div class="processing-step-title step-text-fade" id="proc-title">
-              Phân tích Ý định & Lập Kế hoạch Truy vấn
+            <div class="agent-live-title" id="agent-title">
+              Đang Phân Tích & Lập Kế Hoạch
             </div>
-            <div class="processing-step-desc step-text-fade" id="proc-desc">
+            <div class="agent-live-desc" id="agent-desc">
               Đọc bộ nhớ ngữ cảnh hội thoại, trích xuất mã tài xế và mốc thời gian...
             </div>
           </div>
@@ -718,21 +823,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
           <div class="proc-step-node" data-step="3">
             <div class="node-bullet"><span class="node-num">3</span><span class="node-check">✓</span></div>
-            <div class="node-name">Đồ thị KG</div>
+            <div class="node-name">ReAct Loop</div>
           </div>
           <div class="proc-step-line" data-line="3"></div>
 
           <div class="proc-step-node" data-step="4">
             <div class="node-bullet"><span class="node-num">4</span><span class="node-check">✓</span></div>
-            <div class="node-name">Truy xuất</div>
-          </div>
-          <div class="proc-step-line" data-line="4"></div>
-
-          <div class="proc-step-node" data-step="5">
-            <div class="node-bullet"><span class="node-num">5</span><span class="node-check">✓</span></div>
             <div class="node-name">Tổng hợp</div>
           </div>
         </div>
+
+        <div class="agent-live-feed" id="agent-live-feed" style="display: none;"></div>
       </div>
     `;
 
@@ -743,51 +844,37 @@ document.addEventListener("DOMContentLoaded", () => {
     chatMessages.appendChild(row);
     scrollToBottom();
 
-    // Elements
-    const badgeEl = row.querySelector("#proc-badge");
-    const tagEl = row.querySelector("#proc-tag");
-    const timerEl = row.querySelector("#proc-timer");
-    const titleEl = row.querySelector("#proc-title");
-    const descEl = row.querySelector("#proc-desc");
+    // DOM Elements
+    const tagEl = row.querySelector("#agent-tag");
+    const timerEl = row.querySelector("#agent-timer");
+    const titleEl = row.querySelector("#agent-title");
+    const descEl = row.querySelector("#agent-desc");
     const nodes = row.querySelectorAll(".proc-step-node");
     const lines = row.querySelectorAll(".proc-step-line");
+    const feedEl = row.querySelector("#agent-live-feed");
 
     const startTime = performance.now();
     let currentStepIdx = 0;
 
-    function applyStep(idx) {
-      currentStepIdx = idx;
-      const step = PIPELINE_STEPS[idx];
-
-      if (badgeEl) badgeEl.textContent = step.badge;
-      if (tagEl) tagEl.textContent = step.tag;
-
-      if (titleEl) {
-        titleEl.textContent = step.title;
-        titleEl.classList.remove("step-text-fade");
-        void titleEl.offsetWidth; // re-trigger animation
-        titleEl.classList.add("step-text-fade");
+    const timerInterval = setInterval(() => {
+      const elapsed = performance.now() - startTime;
+      if (timerEl) {
+        timerEl.textContent = `${(elapsed / 1000).toFixed(1)}s`;
       }
-      if (descEl) {
-        descEl.textContent = step.desc;
-        descEl.classList.remove("step-text-fade");
-        void descEl.offsetWidth;
-        descEl.classList.add("step-text-fade");
-      }
+    }, 100);
 
-      // Update timeline step nodes
-      nodes.forEach((node, nodeIdx) => {
+    function applyTimelineStep(stepNum) {
+      currentStepIdx = stepNum - 1;
+      nodes.forEach((node, idx) => {
         node.classList.remove("active", "completed");
-        if (nodeIdx < idx) {
+        if (idx < currentStepIdx) {
           node.classList.add("completed");
-        } else if (nodeIdx === idx) {
+        } else if (idx === currentStepIdx) {
           node.classList.add("active");
         }
       });
-
-      // Update timeline connecting lines
-      lines.forEach((line, lineIdx) => {
-        if (lineIdx < idx) {
+      lines.forEach((line, idx) => {
+        if (idx < currentStepIdx) {
           line.classList.add("completed");
         } else {
           line.classList.remove("completed");
@@ -795,25 +882,152 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    const timerInterval = setInterval(() => {
-      const elapsed = performance.now() - startTime;
-      if (timerEl) {
-        timerEl.textContent = `${(elapsed / 1000).toFixed(1)}s`;
-      }
+    function setInfo(tag, title, desc, stepNum) {
+      if (tag && tagEl) tagEl.textContent = tag;
+      if (title && titleEl) titleEl.textContent = title;
+      if (desc && descEl) descEl.textContent = desc;
+      if (stepNum) applyTimelineStep(stepNum);
+      scrollToBottom();
+    }
 
-      let nextIdx = 0;
-      for (let i = PIPELINE_STEPS.length - 1; i >= 0; i--) {
-        if (elapsed >= PIPELINE_STEPS[i].thresholdMs) {
-          nextIdx = i;
-          break;
+    function onLoopStart(event) {
+      feedEl.style.display = "flex";
+      setInfo(
+        "ReAct Loop Active",
+        "Vòng Lặp ReAct: Suy Luận & Gọi Công Cụ",
+        `Agent thiết lập tối đa ${event.max_iterations || 5} vòng lặp tự chủ để đối soát và giải quyết câu hỏi.`,
+        3
+      );
+    }
+
+    function onIterationStart(event) {
+      feedEl.style.display = "flex";
+      const iter = event.iteration || 1;
+      setInfo(
+        `Vòng lặp ${iter}`,
+        `Vòng Lặp ReAct #${iter}: Suy Luận & Quyết Định`,
+        "Agent đang phân tích thông tin hiện tại và xác định hành động tiếp theo...",
+        3
+      );
+
+      // Deactivate and complete any previous iter blocks
+      feedEl.querySelectorAll(".agent-live-iter-block.active").forEach((b) => {
+        b.classList.remove("active");
+        b.classList.add("completed");
+      });
+      for (let prev = 1; prev < iter; prev++) {
+        const prevState = feedEl.querySelector(`#iter-state-${prev}`);
+        if (prevState && prevState.innerHTML.includes("iter-spinner")) {
+          prevState.innerHTML = `<span class="iter-check">✓</span> Hoàn thành vòng ${prev}`;
         }
       }
 
-      if (nextIdx !== currentStepIdx) {
-        applyStep(nextIdx);
-        scrollToBottom();
+      // Create new iter block
+      const iterBlock = document.createElement("div");
+      iterBlock.className = "agent-live-iter-block active";
+      iterBlock.id = `agent-iter-${iter}`;
+      iterBlock.innerHTML = `
+        <div class="agent-live-iter-header">
+          <span class="iter-badge-num">VÒNG LẶP ${iter}</span>
+          <span class="iter-badge-state" id="iter-state-${iter}">
+            <span class="iter-spinner"></span> Đang suy luận...
+          </span>
+        </div>
+        <div class="agent-live-iter-content" id="iter-content-${iter}"></div>
+      `;
+      feedEl.appendChild(iterBlock);
+      feedEl.scrollTop = feedEl.scrollHeight;
+      scrollToBottom();
+    }
+
+    function onThought(event) {
+      const iter = event.iteration || 1;
+      const content = feedEl.querySelector(`#iter-content-${iter}`);
+      if (!content) return;
+      const row = document.createElement("div");
+      row.className = "live-thought-row";
+      row.innerHTML = `
+        <span class="live-thought-icon">💡</span>
+        <div class="live-thought-text"><strong>Thought:</strong> ${escapeHtml(event.thought || "")}</div>
+      `;
+      content.appendChild(row);
+      feedEl.scrollTop = feedEl.scrollHeight;
+      scrollToBottom();
+    }
+
+    function onActionStart(event) {
+      const iter = event.iteration || 1;
+      const actIdx = event.action_index || 1;
+      const toolName = event.tool || event.action || "";
+      const toolInput = event.tool_input !== undefined ? event.tool_input : (event.action_input || {});
+      const stateEl = feedEl.querySelector(`#iter-state-${iter}`);
+      if (stateEl) {
+        stateEl.innerHTML = `<span class="iter-spinner"></span> Đang gọi: <code>${escapeHtml(toolName)}</code>...`;
       }
-    }, 100);
+      const content = feedEl.querySelector(`#iter-content-${iter}`);
+      if (!content) return;
+
+      const actRow = document.createElement("div");
+      actRow.className = "live-action-row running";
+      actRow.id = `iter-action-${iter}-${actIdx}`;
+      const argsStr = typeof toolInput === "object" ? JSON.stringify(toolInput) : String(toolInput || "{}");
+      actRow.innerHTML = `
+        <span class="live-action-icon">⚙️</span>
+        <div class="live-action-text">
+          <span class="live-action-name">Action: ${escapeHtml(toolName)}</span>
+          <span class="live-action-args">${escapeHtml(argsStr)}</span>
+        </div>
+      `;
+      content.appendChild(actRow);
+      feedEl.scrollTop = feedEl.scrollHeight;
+      scrollToBottom();
+    }
+
+    function onObservation(event) {
+      const iter = event.iteration || 1;
+      const actIdx = event.action_index || 1;
+      let actRow = feedEl.querySelector(`#iter-action-${iter}-${actIdx}`) || feedEl.querySelector(`#iter-action-${iter}`);
+      if (!actRow) {
+        actRow = feedEl.querySelector(`#iter-content-${iter} .live-action-row.running`);
+      }
+      if (actRow) {
+        actRow.classList.remove("running");
+        actRow.classList.add("done");
+      }
+      const stateEl = feedEl.querySelector(`#iter-state-${iter}`);
+      if (stateEl) {
+        stateEl.innerHTML = `<span class="iter-check">✓</span> Hoàn thành vòng ${iter}`;
+      }
+
+      const content = feedEl.querySelector(`#iter-content-${iter}`);
+      if (!content) return;
+
+      const obsRow = document.createElement("div");
+      obsRow.className = "live-obs-row";
+      const obsSummary = formatObservationSummary(event.observation);
+      obsRow.innerHTML = `
+        <span class="live-obs-icon">📋</span>
+        <div class="live-obs-text"><strong>Observation:</strong> ${escapeHtml(obsSummary)}</div>
+      `;
+      content.appendChild(obsRow);
+
+      const block = feedEl.querySelector(`#agent-iter-${iter}`);
+      if (block) {
+        block.classList.remove("active");
+        block.classList.add("completed");
+      }
+      feedEl.scrollTop = feedEl.scrollHeight;
+      scrollToBottom();
+    }
+
+    function onSynthesisStart(event) {
+      setInfo(
+        "Tổng hợp phản hồi",
+        "Tổng Hợp Bằng Chứng & Soạn Thảo Phản Hồi",
+        event.desc || "Đã thu thập đủ căn cứ từ các công cụ, đang tổng hợp câu trả lời theo quy chế GSM...",
+        4
+      );
+    }
 
     const origRemove = row.remove.bind(row);
     row.remove = function () {
@@ -821,7 +1035,18 @@ document.addEventListener("DOMContentLoaded", () => {
       origRemove();
     };
 
-    return row;
+    return {
+      row,
+      setInfo,
+      applyTimelineStep,
+      onLoopStart,
+      onIterationStart,
+      onThought,
+      onActionStart,
+      onObservation,
+      onSynthesisStart,
+      remove: () => row.remove(),
+    };
   }
 
   function appendBotResponse(data) {
@@ -903,7 +1128,89 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
       `;
+
+      if (data.react_steps && data.react_steps.length > 0) {
+        const reactBadge = document.createElement("button");
+        reactBadge.type = "button";
+        reactBadge.className = "react-pill-badge";
+        reactBadge.innerHTML = `🔄 ReAct Loop: ${data.react_steps.length} bước suy luận & công cụ`;
+        reactBadge.title = "Xem tiến trình các vòng lặp Thought -> Action -> Observation";
+        reactBadge.addEventListener("click", () => {
+          switchTab("tab-trace");
+        });
+        planCard.appendChild(reactBadge);
+      }
+
       bubble.appendChild(planCard);
+    }
+
+    // 2.5 Inline ReAct Steps Card (Directly visible in Chat)
+    if (data.react_steps && data.react_steps.length > 0) {
+      const reactCard = document.createElement("div");
+      reactCard.className = "chat-react-card";
+
+      let stepsHtml = "";
+      data.react_steps.forEach((s) => {
+        let actHtml = "";
+        if (s.action) {
+          const inStr = s.action_input ? JSON.stringify(s.action_input) : "{}";
+          actHtml = `
+            <div class="chat-react-step-action">
+              <span class="chat-react-action-tag">⚙️ Action: <strong>${escapeHtml(s.action)}</strong></span>
+              <code class="chat-react-action-code">${escapeHtml(inStr)}</code>
+            </div>
+          `;
+        }
+        let obsHtml = "";
+        if (s.observation) {
+          const oStr = typeof s.observation === "object" ? JSON.stringify(s.observation, null, 2) : String(s.observation);
+          obsHtml = `
+            <div class="chat-react-step-obs">
+              👁️ <strong>Observation:</strong>\n${escapeHtml(oStr)}
+            </div>
+          `;
+        }
+        stepsHtml += `
+          <div class="chat-react-step-row">
+            <div class="chat-react-step-badge">Vòng ${s.step} ${s.action ? `➔ Gọi ${escapeHtml(s.action)}` : '➔ Đã có kết luận'}</div>
+            ${s.thought ? `<div class="chat-react-step-thought">💡 <strong>Thought:</strong> ${escapeHtml(s.thought)}</div>` : ''}
+            ${actHtml}
+            ${obsHtml}
+          </div>
+        `;
+      });
+
+      reactCard.innerHTML = `
+        <button type="button" class="chat-react-toggle-btn expanded">
+          <span class="chat-react-toggle-title">
+            <span class="react-pulse-dot"></span>
+            <strong>🔄 Vòng lặp ReAct Agent (${data.react_steps.length} vòng Thought ➔ Action ➔ Observation)</strong>
+          </span>
+          <span class="chat-react-toggle-arrow">▲</span>
+        </button>
+        <div class="chat-react-steps-drawer" style="display: block;">
+          ${stepsHtml}
+        </div>
+      `;
+
+      const toggleBtn = reactCard.querySelector(".chat-react-toggle-btn");
+      const drawer = reactCard.querySelector(".chat-react-steps-drawer");
+      const arrow = reactCard.querySelector(".chat-react-toggle-arrow");
+      if (toggleBtn && drawer && arrow) {
+        toggleBtn.addEventListener("click", () => {
+          if (drawer.style.display === "none") {
+            drawer.style.display = "block";
+            arrow.textContent = "▲";
+            toggleBtn.classList.add("expanded");
+          } else {
+            drawer.style.display = "none";
+            arrow.textContent = "▼";
+            toggleBtn.classList.remove("expanded");
+          }
+        });
+      }
+
+      bubble.appendChild(reactCard);
     }
 
     // 3. Body Content
@@ -1159,7 +1466,59 @@ document.addEventListener("DOMContentLoaded", () => {
       resetSvgGraph();
     }
 
-    // 4. Tab 4: Trace
+    // 4. Tab 4: Trace & ReAct timeline
+    const reactTimelineCard = document.getElementById("react-timeline-card");
+    const reactStepsContainer = document.getElementById("react-steps-container");
+    const reactStepsCount = document.getElementById("react-steps-count");
+
+    if (data.react_steps && data.react_steps.length > 0) {
+      if (reactTimelineCard && reactStepsContainer) {
+        reactTimelineCard.style.display = "block";
+        if (reactStepsCount) reactStepsCount.textContent = `${data.react_steps.length} vòng`;
+        reactStepsContainer.innerHTML = "";
+
+        data.react_steps.forEach((s) => {
+          const item = document.createElement("div");
+          item.className = "react-step-item";
+
+          let actionHtml = "";
+          if (s.action) {
+            const inputStr = s.action_input ? JSON.stringify(s.action_input) : "{}";
+            actionHtml = `
+              <div class="react-step-action">
+                <div>⚙️ <span class="react-action-tag">${escapeHtml(s.action)}</span></div>
+                <code style="font-size:0.75rem;color:#a5f3fc;word-break:break-all;">${escapeHtml(inputStr)}</code>
+              </div>
+            `;
+          }
+
+          let obsHtml = "";
+          if (s.observation) {
+            const obsStr = typeof s.observation === "object" ? JSON.stringify(s.observation, null, 2) : String(s.observation);
+            obsHtml = `
+              <div class="react-step-observation">
+                👁️ <strong>Observation:</strong><br>
+                ${escapeHtml(obsStr)}
+              </div>
+            `;
+          }
+
+          item.innerHTML = `
+            <div class="react-step-header">
+              <span class="react-step-badge">Vòng ${s.step}</span>
+              ${s.action ? `<span style="font-size:0.72rem;color:#38bdf8;font-family:var(--font-mono);">${escapeHtml(s.action)}</span>` : '<span style="font-size:0.72rem;color:#34d399;">Kết luận</span>'}
+            </div>
+            ${s.thought ? `<div class="react-step-thought">💡 <strong>Thought:</strong> ${escapeHtml(s.thought)}</div>` : ''}
+            ${actionHtml}
+            ${obsHtml}
+          `;
+          reactStepsContainer.appendChild(item);
+        });
+      }
+    } else {
+      if (reactTimelineCard) reactTimelineCard.style.display = "none";
+    }
+
     if (data.trace_url) {
       traceExternalLink.href = data.trace_url;
       traceExternalLink.classList.remove("disabled");
@@ -1187,6 +1546,8 @@ document.addEventListener("DOMContentLoaded", () => {
     metricStatus.textContent = "READY";
     traceExternalLink.href = "#";
     traceExternalLink.classList.add("disabled");
+    const rCard = document.getElementById("react-timeline-card");
+    if (rCard) rCard.style.display = "none";
   }
 
   function switchTab(tabId) {

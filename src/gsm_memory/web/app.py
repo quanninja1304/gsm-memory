@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import time
@@ -11,7 +12,7 @@ from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -106,6 +107,14 @@ DEFAULT_SCENARIOS = [
         "tag_color": "primary",
         "query": "Theo quy chế P154 của GSM, quy định về mức khoán doanh số tối thiểu tại Hà Nội và tỷ lệ truy thu được áp dụng thế nào?",
         "desc": "Truy xuất BM25 + Qdrant Dense từ kho văn bản quy chế GSM.",
+    },
+    {
+        "id": "scenario_5",
+        "title": "Thẩm định Chấm công Xanh Limo (ReAct)",
+        "tag": "ReAct Agent",
+        "tag_color": "success",
+        "query": "Kiểm tra tài xế Bình (DRV-002) vào ngày 15/09/2026 có đạt tiêu chuẩn chấm công Xanh Limo không? Thẩm định đồng thời tỷ lệ nhận cuốc, tỷ lệ hoàn thành và doanh số theo quy định.",
+        "desc": "Kích hoạt mô hình ReAct Agent: Tự động chạy vòng lặp Thought -> Action -> Observation gọi các công cụ tính toán AR, CR, doanh số và đối soát tiêu chuẩn chấm công.",
     },
 ]
 
@@ -350,7 +359,9 @@ def api_scenarios() -> list[dict[str, Any]]:
 
 
 def serialize_val(val: Any) -> Any:
-    if isinstance(val, dict):
+    if hasattr(val, "_mock_name") or "MagicMock" in type(val).__name__:
+        return str(val)
+    elif isinstance(val, dict):
         return {str(k): serialize_val(v) for k, v in val.items()}
     elif isinstance(val, (list, tuple, set)):
         return [serialize_val(v) for v in val]
@@ -366,6 +377,123 @@ def serialize_val(val: Any) -> Any:
 # =============================================================================
 # CHAT EXECUTION WITH CONVERSATIONAL MEMORY & PERSISTENCE
 # =============================================================================
+
+
+@app.post("/api/chat/stream")
+def api_chat_stream(req: ChatRequest):
+    user_query = req.query.strip() if req.query else ""
+    if not user_query:
+        raise HTTPException(status_code=400, detail="Nội dung câu hỏi không được để trống.")
+
+    pipe = get_pipeline()
+
+    # 1. Resolve or create chat session
+    session_id = req.session_id
+    if not session_id or not db_repo.get_session(session_id):
+        title_snippet = (user_query[:40] + "...") if len(user_query) > 40 else user_query
+        session_id = db_repo.create_session(title=title_snippet, driver_id=req.driver_id)
+    else:
+        s = db_repo.get_session(session_id)
+        if s and s.title in ("Cuộc trò chuyện mới", "New Chat") and s.messages_count == 0:
+            title_snippet = (user_query[:40] + "...") if len(user_query) > 40 else user_query
+            db_repo.update_session_title(session_id, title_snippet)
+
+    # 2. Pull active context memory from SQLite
+    stored_context = db_repo.get_context(session_id)
+
+    # 3. Assemble execution context
+    context: dict[str, Any] = {"session_id": session_id}
+    if stored_context.get("driver_id"):
+        context["driver_id"] = stored_context["driver_id"]
+    if stored_context.get("driver_mention"):
+        context["driver_mention"] = stored_context["driver_mention"]
+    if stored_context.get("time_scope"):
+        context["time_mention"] = stored_context["time_scope"]
+        context["has_time_scope"] = True
+    if stored_context.get("time_resolved"):
+        context["time_resolved"] = stored_context["time_resolved"]
+    if stored_context.get("time_display"):
+        context["time_display"] = stored_context["time_display"]
+    if stored_context.get("snapshot_id"):
+        context["snapshot_id"] = stored_context["snapshot_id"]
+    if stored_context.get("policy_scope"):
+        context["policy_scope"] = stored_context["policy_scope"]
+    if stored_context.get("policy_topics"):
+        context["policy_topics"] = stored_context["policy_topics"]
+
+    if req.driver_id:
+        context["driver_id"] = req.driver_id
+    if req.driver_mention:
+        context["driver_mention"] = req.driver_mention
+    if req.time_mention:
+        context["time_mention"] = req.time_mention
+        context["has_time_scope"] = True
+    if req.snapshot_id:
+        context["snapshot_id"] = req.snapshot_id
+    if req.policy_topics:
+        context["policy_topics"] = req.policy_topics
+
+    # 4. Save User message to Database
+    user_msg_id = db_repo.add_message(
+        session_id=session_id,
+        role="user",
+        content=user_query,
+    )
+
+    def event_stream():
+        try:
+            for event in pipe.execute_stream(user_query, context=context):
+                event_type = event.get("type")
+                if event_type in ("clarification", "final_result"):
+                    bot_content = event.get("message") if event_type == "clarification" else event.get("answer")
+                    status = event.get("status") or ("NEEDS_CLARIFICATION" if event_type == "clarification" else "ANSWERED")
+                    latency_ms = event.get("latency_ms", 0.0)
+                    bot_msg_id = db_repo.add_message(
+                        session_id=session_id,
+                        role="assistant",
+                        content=bot_content or "Không có nội dung phản hồi.",
+                        status=status,
+                        query_plan=serialize_val(event.get("plan")),
+                        citations=serialize_val(event.get("citations", [])),
+                        subgraph=serialize_val(event.get("subgraph")),
+                        latency_ms=latency_ms,
+                    )
+                    event["session_id"] = session_id
+                    event["user_message_id"] = user_msg_id
+                    event["bot_message_id"] = bot_msg_id
+                    event["query_plan"] = event.get("plan")
+                    if event_type == "clarification":
+                        event["clarification_message"] = event.get("message")
+
+                    if event.get("slots") or event.get("plan"):
+                        db_repo.merge_slots_and_plan(
+                            session_id=session_id,
+                            slots=serialize_val(event.get("slots", {})),
+                            plan=serialize_val(event.get("plan", {})),
+                        )
+                    event["active_context"] = db_repo.get_context(session_id)
+
+                safe_event = serialize_val(event)
+                yield f"data: {json.dumps(safe_event, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            err_msg = f"Đã xảy ra lỗi trong quá trình thực thi: {str(e)}"
+            db_repo.add_message(
+                session_id=session_id,
+                role="assistant",
+                content=err_msg,
+                status="ERROR",
+            )
+            yield f"data: {json.dumps({'type': 'error', 'error': err_msg}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/api/chat")
@@ -402,6 +530,10 @@ def api_chat(req: ChatRequest) -> dict[str, Any]:
     if stored_context.get("time_scope"):
         context["time_mention"] = stored_context["time_scope"]
         context["has_time_scope"] = True
+    if stored_context.get("time_resolved"):
+        context["time_resolved"] = stored_context["time_resolved"]
+    if stored_context.get("time_display"):
+        context["time_display"] = stored_context["time_display"]
     if stored_context.get("snapshot_id"):
         context["snapshot_id"] = stored_context["snapshot_id"]
     if stored_context.get("policy_scope"):
@@ -471,6 +603,8 @@ def api_chat(req: ChatRequest) -> dict[str, Any]:
             "needs_time": res.slots.needs_time,
             "has_time_scope": res.slots.has_time_scope,
             "time_mention": res.slots.time_mention,
+            "time_resolved": getattr(res.slots, "time_resolved", None),
+            "time_display": getattr(res.slots, "time_display", None),
             "snapshot_id": res.slots.snapshot_id,
             "policy_mentions": res.slots.policy_mentions,
             "policy_topics": getattr(res.slots, "policy_topics", []),
@@ -487,6 +621,8 @@ def api_chat(req: ChatRequest) -> dict[str, Any]:
                 "driver_mention": qp.driver_mention,
                 "is_driver_ambiguous": qp.is_driver_ambiguous,
                 "time_scope": qp.time_scope,
+                "time_resolved": getattr(qp, "time_resolved", None),
+                "time_display": getattr(qp, "time_display", None),
                 "snapshot_id": qp.snapshot_id,
                 "policy_scope": qp.policy_scope,
                 "policy_topics": getattr(qp, "policy_topics", []),
@@ -495,6 +631,10 @@ def api_chat(req: ChatRequest) -> dict[str, Any]:
                 "clarification_reasons": qp.clarification_reasons,
                 "reasoning": qp.reasoning,
             }
+
+        slots_data = serialize_val(slots_data)
+        if query_plan_data:
+            query_plan_data = serialize_val(query_plan_data)
 
         # 7. Save Assistant message to Database
         bot_content = res.clarification_message if res.status == "NEEDS_CLARIFICATION" else res.answer
@@ -532,6 +672,7 @@ def api_chat(req: ChatRequest) -> dict[str, Any]:
             "trace_url": res.trace_url,
             "latency_ms": latency_ms,
             "active_context": db_repo.get_context(session_id),
+            "react_steps": getattr(res, "react_steps", []) or [],
         }
     except Exception as e:
         latency_ms = round((time.perf_counter() - t_start) * 1000, 2)

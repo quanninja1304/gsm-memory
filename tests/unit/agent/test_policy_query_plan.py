@@ -143,6 +143,61 @@ def test_api_chat_policy_clarification_and_context(
     assert "P154" in ctx2.get("policy_scope", "")
 
 
+def test_api_chat_stream_sse_events(
+    monkeypatch: pytest.MonkeyPatch, dummy_pipeline: ConversationalPipeline
+) -> None:
+    """Test POST /api/chat/stream yields real-time SSE events for plan, agent, and final results."""
+    from fastapi.testclient import TestClient
+    from gsm_memory.web.app import app
+    import gsm_memory.web.app as web_app
+    import json
+
+    monkeypatch.setattr(web_app, "get_pipeline", lambda: dummy_pipeline)
+    client = TestClient(app)
+
+    # 1. Test clarification streaming
+    resp = client.post("/api/chat/stream", json={"query": "Cho tôi xem chính sách công ty"})
+    assert resp.status_code == 200
+    assert "text/event-stream" in resp.headers["content-type"]
+
+    events = []
+    for line in resp.text.split("\n\n"):
+        line = line.strip()
+        if line.startswith("data:"):
+            events.append(json.loads(line[5:].strip()))
+
+    event_types = [e["type"] for e in events]
+    assert "plan_start" in event_types
+    assert "plan_done" in event_types
+    assert "clarification" in event_types
+    assert "done" in event_types
+
+    # 2. Test query proceeding through pipeline
+    resp2 = client.post(
+        "/api/chat/stream",
+        json={"query": "Kiểm tra tài xế Bình (DRV-002) trong tháng 9/2026 có vi phạm chính sách hủy chuyến không"},
+    )
+    assert resp2.status_code == 200
+    events2 = []
+    for line in resp2.text.split("\n\n"):
+        line = line.strip()
+        if line.startswith("data:"):
+            events2.append(json.loads(line[5:].strip()))
+
+    types2 = [e["type"] for e in events2]
+    assert "plan_start" in types2
+    assert "plan_done" in types2
+    assert "agent_start" in types2
+    assert "final_result" in types2
+    assert "done" in types2
+
+    final = [e for e in events2 if e["type"] == "final_result"][0]
+    assert final["status"] == "ANSWERED"
+    assert "answer" in final
+    assert "plan" in final
+    assert "query_plan" in final
+
+
 def test_hybrid_compliance_without_policy_topic_triggers_clarification(dummy_pipeline: ConversationalPipeline) -> None:
     """When user asks to check driver compliance but does not specify a policy code or topic, clarification is required."""
     query = "Kiểm tra tài xế Bình (mã DRV-002), trong tháng 9/2026 có vi phạm chính sách không"
@@ -242,6 +297,48 @@ def test_policy_lookup_isolates_driver_context_and_gives_policy_breakdown(dummy_
     assert "Lịch sử chuyến xe:" not in ans
     # Must contain policy breakdown
     assert "Quy định chung về hành vi hủy chuyến" in ans or "P001" in ans
+
+
+def test_gather_multi_source_evidence_returns_up_to_5_chunks_preserving_code_and_title(dummy_pipeline: ConversationalPipeline) -> None:
+    """Verify gather_multi_source_evidence retrieves up to 5 chunks and sends only chunk text with preserved policy code & title."""
+    from gsm_memory.agent.conversational_pipeline import Subgraph
+
+    mock_chunks = [
+        {
+            "evidence_id": f"doc-chunk_{i}",
+            "chunk_id": f"chunk_{i}",
+            "policy_alias": f"P{150 + i}",
+            "policy_title": f"Quy chế số {i}",
+            "chunk_text": f"Nội dung điều khoản số {i} về quy định vận hành GSM.",
+            "score": 0.9 - (i * 0.1),
+        }
+        for i in range(1, 8)  # 7 chunks returned by searcher
+    ]
+    dummy_pipeline.hybrid_searcher.search_and_rerank = MagicMock(return_value=(mock_chunks, {}))
+
+    slots = SlotExtractionResult(
+        intent="POLICY_LOOKUP",
+        needs_driver=False,
+        needs_time=False,
+        policy_topics=["quy tắc vận hành"],
+    )
+    subgraph = Subgraph(seed_id="test", snapshot_id=DEFAULT_SNAPSHOT_ID, nodes=[], edges=[])
+
+    evidence = dummy_pipeline.gather_multi_source_evidence("chính sách vận hành", slots, subgraph)
+    doc_evidence = [e for e in evidence if e.get("source_kind") == "document"]
+
+    # Must contain exactly 5 chunks (top 5 out of 7)
+    assert len(doc_evidence) == 5
+
+    # Each chunk must preserve policy code, policy title, and only send chunk text
+    for i, e in enumerate(doc_evidence, 1):
+        assert e["policy_alias"] == f"P{150 + i}"
+        assert e["policy_title"] == f"Quy chế số {i}"
+        assert e["citation_locator"] == f"[P{150 + i}] Quy chế số {i}"
+        assert e["full_content"] == f"Nội dung điều khoản số {i} về quy định vận hành GSM."
+        assert f"P{150 + i}" in e["content"]
+        assert f"Quy chế số {i}" in e["content"]
+
 
 
 

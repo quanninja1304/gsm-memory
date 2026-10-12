@@ -130,6 +130,18 @@ SNAPSHOTS_SEED_DATA = [
         "aliases": ["l_no_coverage", "no_coverage", "thiếu độ phủ", "nhánh thiếu độ phủ", "snapshot no coverage"],
         "is_baseline": False,
     },
+    # Dedicated Snapshot Tháng 07/2025 - Knowledge Graph Ontology V2
+    {
+        "snapshot_id": "snapshot-2025-07",
+        "label": "Snapshot V2 Tháng 07/2025 (Driver Operations Ontology)",
+        "known_as_of": "2025-07-31T23:59:59.000000Z",
+        "scope": "Đồ thị tri thức vận hành tài xế V2 (Ontology GraphRAG phân tầng Tháng 07/2025)",
+        "aliases": [
+            "tháng 7", "tháng 07", "tháng 7/2025", "tháng 07/2025", "07/2025", "2025-07",
+            "snapshot v2", "đồ thị mới", "v2", "ontology v2", "tháng 7 năm 2025", "snapshot-2025-07"
+        ],
+        "is_baseline": False,
+    },
 ]
 
 # Pinned benchmark drivers catalog
@@ -268,6 +280,92 @@ DRIVERS_SEED_DATA = [
         "license_plate": "51K-445.67",
         "rating_avg": 4.89,
         "acceptance_rate": 0.93,
+        "cancellation_rate_30d": 0.0,
+    },
+    # Driver Operations Ontology V2 (Tháng 07/2025)
+    {
+        "driver_id": "v2_drv_001",
+        "driver_code": "DRV-V2-001",
+        "full_name": "Trần Quốc Toản",
+        "phone": "0901 888 001",
+        "email": "toan.tq@gsm.vn",
+        "depot_name": "Hub Cầu Giấy (Đội Xanh 1)",
+        "region": "Hà Nội",
+        "service_type": "Taxi Xanh SM Luxury",
+        "program": "full_time",
+        "status": "active",
+        "vehicle_model": "VinFast VF 8",
+        "license_plate": "29E-888.12",
+        "rating_avg": 4.95,
+        "acceptance_rate": 0.98,
+        "cancellation_rate_30d": 0.0,
+    },
+    {
+        "driver_id": "v2_drv_002",
+        "driver_code": "DRV-V2-002",
+        "full_name": "Lê Văn Hùng",
+        "phone": "0901 888 002",
+        "email": "hung.lv@gsm.vn",
+        "depot_name": "Hub Long Biên (Đội Xanh 2)",
+        "region": "Hà Nội",
+        "service_type": "Taxi Xanh SM Standard",
+        "program": "full_time",
+        "status": "active",
+        "vehicle_model": "VinFast VF e34",
+        "license_plate": "29E-666.89",
+        "rating_avg": 4.42,
+        "acceptance_rate": 0.81,
+        "cancellation_rate_30d": 0.18,
+    },
+    {
+        "driver_id": "v2_drv_003",
+        "driver_code": "DRV-V2-003",
+        "full_name": "Nguyễn Hoàng Nam",
+        "phone": "0901 888 003",
+        "email": "nam.nh@gsm.vn",
+        "depot_name": "Hub Quận 7 (Đội Xanh Nam Sài Gòn)",
+        "region": "TP.HCM",
+        "service_type": "Taxi Xanh SM Standard",
+        "program": "full_time",
+        "status": "active",
+        "vehicle_model": "VinFast VF 5 Plus",
+        "license_plate": "51K-777.33",
+        "rating_avg": 4.82,
+        "acceptance_rate": 0.94,
+        "cancellation_rate_30d": 0.02,
+    },
+    {
+        "driver_id": "v2_drv_004",
+        "driver_code": "DRV-V2-004",
+        "full_name": "Phạm Thị Mai",
+        "phone": "0901 888 004",
+        "email": "mai.pt@gsm.vn",
+        "depot_name": "Hub Tân Bình (Đội Xanh Tân Sơn Nhất)",
+        "region": "TP.HCM",
+        "service_type": "Taxi Xanh SM Standard",
+        "program": "full_time",
+        "status": "suspended",
+        "vehicle_model": "VinFast VF e34",
+        "license_plate": "51K-444.11",
+        "rating_avg": 4.15,
+        "acceptance_rate": 0.88,
+        "cancellation_rate_30d": 0.08,
+    },
+    {
+        "driver_id": "v2_drv_005",
+        "driver_code": "DRV-V2-005",
+        "full_name": "Đặng Văn Phúc",
+        "phone": "0901 888 005",
+        "email": "phuc.dv@gsm.vn",
+        "depot_name": "Hub Cầu Giấy (Đội Xanh 1)",
+        "region": "Hà Nội",
+        "service_type": "Xanh SM Bike",
+        "program": "bike_partner",
+        "status": "active",
+        "vehicle_model": "VinFast Feliz S",
+        "license_plate": "29MD-123.45",
+        "rating_avg": 4.88,
+        "acceptance_rate": 0.97,
         "cancellation_rate_30d": 0.0,
     },
 ]
@@ -502,6 +600,39 @@ def seed_database(force_recreate: bool = True) -> DatabaseStats:
             supp_count += 1
 
     print(f"  ✅ Added {supp_count} supplementary trips.")
+
+    # 3b. SEED V2 TRIPS FOR SNAPSHOT THÁNG 07/2025
+    v2_trips_data = [
+        ("v2_trip_001_1", "v2_drv_001", "2025-07-15T08:15:00.000000Z", "Sân bay Nội Bài, Ga T1", "Hồ Hoàn Kiếm, Tràng Tiền", "Hà Nội", "Taxi Xanh SM Luxury", 28.0, 295000, "completed", "unspecified", "none", 5, "Xe VF 8 rất êm, tài xế lịch sự"),
+        ("v2_trip_002_1", "v2_drv_002", "2025-07-20T08:30:00.000000Z", "Chợ Đồng Xuân, Hoàn Kiếm", "Tràng Tiền Plaza, Hoàn Kiếm", "Hà Nội", "Taxi Xanh SM Standard", 5.2, 0, "cancelled", "driver_cancelled_rush_hour", "driver", None, "Tài xế tự ý hủy chuyến giờ cao điểm"),
+        ("v2_trip_003_1", "v2_drv_003", "2025-07-12T10:00:00.000000Z", "Bitexco Financial Tower, Quận 1", "Vinhomes Grand Park, Thủ Đức", "TP.HCM", "Taxi Xanh SM Standard", 14.5, 165000, "completed", "unspecified", "none", 5, "Tài xế nhiệt tình, xe VF 5 sạch sẽ"),
+        ("v2_trip_004_1", "v2_drv_004", "2025-07-18T10:10:00.000000Z", "Sân bay Tân Sơn Nhất, Ga T2", "Chợ Bến Thành, Quận 1", "TP.HCM", "Taxi Xanh SM Standard", 11.2, 190000, "completed", "reckless_speed_warning", "none", 1, "Tài xế chạy quá tốc độ, phanh gấp nguy hiểm"),
+        ("v2_trip_005_1", "v2_drv_005", "2025-07-22T08:45:00.000000Z", "Keangnam Landmark 72, Cầu Giấy", "Vincom Center Trần Duy Hưng, Cầu Giấy", "Hà Nội", "Xanh SM Bike", 4.8, 35000, "completed", "unspecified", "none", 5, "Giao hàng nhanh, lái xe an toàn"),
+    ]
+    for tid, did, st, pu, do_, reg, srv, dist, fare, outc, rcode, cparty, prate, feed in v2_trips_data:
+        st_dt = datetime.fromisoformat(st.replace("Z", "+00:00"))
+        end_dt = st_dt + timedelta(minutes=int(dist * 2.5) + 10)
+        repo.upsert_trip(TripRecord(
+            trip_id=tid,
+            driver_id=did,
+            snapshot_id="snapshot-2025-07",
+            start_time=st_dt.isoformat(),
+            end_time=end_dt.isoformat(),
+            pickup_address=pu,
+            dropoff_address=do_,
+            region=reg,
+            service_type=srv,
+            distance_km=dist,
+            fare_amount=fare,
+            outcome=outc,
+            reason_code=rcode,
+            cancel_party=cparty,
+            passenger_rating=prate,
+            passenger_feedback=feed,
+            notes="Chuyến đi thuộc đồ thị tri thức vận hành V2 (Snapshot 07/2025)",
+            created_at=st_dt.isoformat(),
+        ))
+    print(f"  ✅ Added {len(v2_trips_data)} V2 trips for Snapshot 07/2025.")
 
     # 4. RECALCULATE METRICS FOR ALL DRIVERS
     print("  📊 Recomputing driver metrics & cancellation rates...")

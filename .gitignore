@@ -32,10 +32,9 @@ reports/kuzu_probe.json
 scratch/
 
 # Local database and journals
-*.db
 *.db-wal
 *.db-shm
-data/*.db
+
 data/*.db-wal
 data/*.db-shm
 
