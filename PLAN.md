@@ -140,7 +140,7 @@ Một câu hỏi như: *"Tuần vừa rồi tôi có 2 chuyến khách hủy do 
 - **Thư mục triển khai:** [`src/gsm_memory/agent/`](src/gsm_memory/agent/) (hiện mới chỉ có file khung `__init__.py`).
 - **Hành động:**
   - Tạo module `src/gsm_memory/agent/reader.py`:
-    - Định dạng prompt đưa gói bằng chứng (`SelectedEvidence`) kèm câu hỏi của tài xế vào LLM (hỗ trợ OpenAI, Gemini hoặc Anthropic thông qua cấu hình linh hoạt).
+    - Định dạng prompt đưa gói bằng chứng (`SelectedEvidence`) kèm câu hỏi của nhân viên vận hành vào LLM (hỗ trợ OpenAI, Gemini hoặc Anthropic thông qua cấu hình linh hoạt).
     - Thiết lập ràng buộc đầu ra nghiêm ngặt (Strict Grounding):
       - Trả lời đúng trọng tâm câu hỏi nghiệp vụ.
       - Trích dẫn chính xác mã điều khoản / tên văn bản GSM (ví dụ: `P154#Điều 5`).

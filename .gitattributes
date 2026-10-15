@@ -15,3 +15,6 @@ data/raw/archives/*.zip binary
 data/gsm-dev-core-0.2/**/*.parquet binary
 data/gsm-dev-core-0.2.1/**/*.parquet binary
 data/gsm-dev-core-0.2.2/**/*.parquet binary
+
+# Data freeze reports and certificates are byte-addressed verification records.
+reports/data_freeze/** -text

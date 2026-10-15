@@ -281,6 +281,41 @@ class OpenAIResponsesProvider:
         return output
 
 
+class OllamaReaderProvider:
+    """Ollama local provider for public evidence reader."""
+
+    def __init__(self, config: ReaderConfig, *, base_url: str | None = None) -> None:
+        if config.provider != "ollama":
+            raise ValueError("OllamaReaderProvider requires provider='ollama'")
+        self._config = config
+        self._model = config.model or os.getenv("OLLAMA_MODEL") or "qwen2.5:7b"
+        self._base_url = base_url if base_url is not None else (os.getenv("OLLAMA_BASE_URL") or "http://127.0.0.1:11434/v1")
+
+    def complete(self, *, system_prompt: str, user_prompt: str,
+                 response_schema: Mapping[str, Any]) -> str:
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            raise ReaderError("install openai package to use the Ollama reader") from exc
+
+        client = OpenAI(base_url=self._base_url, api_key="ollama")
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        completion = client.chat.completions.create(
+            model=self._model,
+            messages=messages,
+            max_tokens=self._config.max_output_tokens,
+            temperature=0.0,
+            response_format={"type": "json_object"},
+        )
+        content = completion.choices[0].message.content
+        if not isinstance(content, str) or not content:
+            raise ReaderError("Ollama returned no text output")
+        return content
+
+
 def answer_query(query: Mapping[str, Any], selected_evidence: Sequence[Mapping[str, Any]], *,
                  provider: ReaderProvider, config: ReaderConfig) -> ReaderAnswer:
     """Call a configured provider and accept only citation-verifiable public output."""

@@ -1,0 +1,9 @@
+{
+  "name": "gsm-memory-ui",
+  "version": "1.0.0",
+  "description": "GSM Memory AI Assistant Web Interface",
+  "scripts": {
+    "dev": ".venv\\Scripts\\python scripts/run_web_app.py",
+    "start": ".venv\\Scripts\\python scripts/run_web_app.py"
+  }
+}
