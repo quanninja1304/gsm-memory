@@ -1,0 +1,49 @@
+{
+  "extends": "gsm-operational-mock-v0.1.json",
+  "dataset_version": "gsm-operational-mock-v0.2",
+  "spec_version": "0.2.0",
+  "generation": {
+    "materialize_shifts": false,
+    "materialize_summaries": false,
+    "maintenance_types": [
+      "scheduled_inspection",
+      "battery_check",
+      "brake_check",
+      "tire_check"
+    ],
+    "incident_scenarios": [
+      {
+        "scenario_id": "vehicle-operability-01",
+        "trip_id": "b4657acc-b974-5289-9e7e-1fa551a8c0a7",
+        "incident_type": "vehicle_operability",
+        "state": "open",
+        "event_offset_minutes": 20,
+        "description": "Trong chuyến b4657acc, phương tiện được ghi nhận không thể tiếp tục phục vụ và sự kiện được chuyển cho vận hành rà soát. Bản ghi mock không xác định bộ phận hỏng hoặc nguyên nhân kỹ thuật."
+      },
+      {
+        "scenario_id": "pickup-not-completed-01",
+        "trip_id": "e20925d8-27ae-56aa-83ab-87ed42012342",
+        "incident_type": "pickup_not_completed",
+        "state": "resolved",
+        "event_offset_minutes": 20,
+        "description": "Quá trình đón khách của chuyến e20925d8 không hoàn tất và được ghi nhận thành sự cố cần kiểm tra. Bản ghi mock không kết luận lỗi thuộc tài xế hay khách hàng."
+      },
+      {
+        "scenario_id": "service-interruption-01",
+        "trip_id": "9e9d055e-478a-5456-921f-b0764ee6f91a",
+        "incident_type": "service_interruption",
+        "state": "reopened",
+        "event_offset_minutes": 20,
+        "description": "Chuyến 9e9d055e bị gián đoạn sau khi bắt đầu. Bản ghi mock chỉ xác nhận việc gián đoạn, không gán thời tiết, GPS hoặc nguyên nhân bên ngoài."
+      },
+      {
+        "scenario_id": "fare-review-escalation-01",
+        "trip_id": "3337754d-aeec-5b1f-b941-792a7195f0d3",
+        "incident_type": "fare_review_escalation",
+        "state": "open",
+        "event_offset_minutes": 20,
+        "description": "Vấn đề về số tiền của chuyến 3337754d được chuyển thành sự cố cần rà soát. Bản ghi mock không tạo số tiền, quyết định hoàn tiền hoặc kết luận thu sai."
+      }
+    ]
+  }
+}

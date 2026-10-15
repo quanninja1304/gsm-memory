@@ -18,6 +18,9 @@ graphiti = [
   "openai==3.13.0",
   "posthog==7.53.0",
 ]
+qdrant = [
+    "qdrant-client>=1.15.1,<2",
+]
 
 [build-system]
 requires = ["hatchling"]

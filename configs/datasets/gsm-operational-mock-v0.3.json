@@ -1,0 +1,176 @@
+{
+  "extends": "gsm-operational-mock-v0.2.json",
+  "dataset_version": "gsm-operational-mock-v0.3",
+  "spec_version": "0.3.0",
+  "snapshot_timeline_id": "L0",
+  "operational_snapshots": [
+    {
+      "sequence": 1,
+      "known_as_of": "2026-08-17T23:59:59.000000Z",
+      "name": "Trước đợt chuyến thử nghiệm"
+    },
+    {
+      "sequence": 2,
+      "known_as_of": "2026-08-18T23:59:59.000000Z",
+      "name": "Hoạt động đến hết 18/08"
+    },
+    {
+      "sequence": 3,
+      "known_as_of": "2026-08-20T23:59:59.000000Z",
+      "name": "Hoạt động đến hết 20/08"
+    },
+    {
+      "sequence": 4,
+      "known_as_of": "2026-08-22T23:59:59.000000Z",
+      "name": "Hoạt động đến hết 22/08"
+    },
+    {
+      "sequence": 5,
+      "known_as_of": "2026-08-24T23:59:59.000000Z",
+      "name": "Hoạt động đến hết 24/08"
+    },
+    {
+      "sequence": 6,
+      "known_as_of": "2026-08-26T23:59:59.000000Z",
+      "name": "Hoạt động đến hết 26/08"
+    },
+    {
+      "sequence": 7,
+      "known_as_of": "2026-08-28T23:59:59.000000Z",
+      "name": "Hoạt động đến hết 28/08"
+    },
+    {
+      "sequence": 8,
+      "known_as_of": "2026-08-31T23:59:59.000000Z",
+      "name": "Hoạt động đến hết 31/08"
+    },
+    {
+      "sequence": 9,
+      "known_as_of": "2026-09-01T23:59:59.000000Z",
+      "name": "Đã nhận đủ chuyến trong pilot"
+    },
+    {
+      "sequence": 10,
+      "known_as_of": "2026-09-16T12:00:00.000000Z",
+      "name": "Đã nhận báo cáo và tài liệu công khai"
+    },
+    {
+      "sequence": 11,
+      "known_as_of": "2026-09-17T12:00:00.000000Z",
+      "name": "Đã nhận các bản sửa trên L0"
+    },
+    {
+      "sequence": 12,
+      "known_as_of": "2026-09-18T03:00:00.000000Z",
+      "name": "Trạng thái Operational KG v3 hiện tại"
+    }
+  ],
+  "generation": {
+    "complaint_scenarios": [
+      {
+        "scenario_id": "attitude-pickup-confirmation-01",
+        "trip_id": "34c788db-acc7-5a79-b0d3-b51623341490",
+        "category": "service_attitude",
+        "description": "Tại điểm đón của chuyến 34c788db, khách phản ánh tài xế trả lời cộc lốc khi được đề nghị xác nhận tên khách và điểm đến. Hai bên sau đó vẫn tiếp tục và chuyến được ghi nhận hoàn tất. Đây là lời phản ánh chưa được xác minh, không phải kết luận tài xế vi phạm."
+      },
+      {
+        "scenario_id": "attitude-pickup-change-01",
+        "trip_id": "551d5511-ce95-512f-aea6-9248b89d8ef9",
+        "category": "service_attitude",
+        "description": "Trước khi bắt đầu chuyến 551d5511, khách phản ánh tài xế tỏ ra thiếu kiên nhẫn và ngắt lời khi hai bên trao đổi để nhận diện đúng điểm đón. Chuyến vẫn được thực hiện đến trạng thái hoàn tất; phản ánh chỉ là đầu vào để vận hành rà soát cách giao tiếp."
+      },
+      {
+        "scenario_id": "attitude-luggage-support-01",
+        "trip_id": "cc2ad5d3-ff6b-54f7-bea0-8dff1d88b464",
+        "category": "service_attitude",
+        "description": "Trong chuyến cc2ad5d3, khách phản ánh tài xế nói lớn tiếng khi khách hỏi cách sắp xếp hành lý trước khi khởi hành. Chuyến có kết quả hoàn tất và dữ liệu không có ghi âm hay xác nhận của bên thứ ba, vì vậy chưa thể kết luận lỗi."
+      },
+      {
+        "scenario_id": "attitude-route-explanation-01",
+        "trip_id": "f62df948-e8db-5e99-8f38-bcc9acd89897",
+        "category": "service_attitude",
+        "description": "Khách của chuyến f62df948 phản ánh tài xế phản hồi thiếu thân thiện khi được hỏi về lộ trình dự kiến và không giải thích rõ trước khi tiếp tục phục vụ. Chuyến vẫn hoàn tất; mô tả này ghi nhận nội dung phản ánh chứ không chứng minh hành vi vi phạm."
+      },
+      {
+        "scenario_id": "cancel-request-hard-pickup-01",
+        "trip_id": "1262eb63-d547-5dd7-8616-e522f727c86d",
+        "category": "trip_cancellation",
+        "description": "Sau khi nhận chuyến 1262eb63, khách phản ánh tài xế gọi điện đề nghị khách huỷ vì điểm đón khó tiếp cận. Khách không huỷ, hai bên thống nhất lại vị trí gặp và chuyến cuối cùng vẫn hoàn tất. Phản ánh chưa xác minh ai là bên đề nghị huỷ."
+      },
+      {
+        "scenario_id": "cancel-request-destination-01",
+        "trip_id": "23c2a107-0586-5d6f-983e-85691bce4fd4",
+        "category": "trip_cancellation",
+        "description": "Khách của chuyến 23c2a107 phản ánh tài xế từng đề nghị huỷ và đặt lại chuyến sau khi nghe điểm đến. Khách không đồng ý, tài xế vẫn đón và hoàn thành chuyến. Dữ liệu chỉ ghi lời phản ánh, không có bản ghi cuộc gọi để xác nhận động cơ."
+      },
+      {
+        "scenario_id": "cancel-request-pickup-coordination-01",
+        "trip_id": "658ade24-57b7-5203-89a8-5c2cf022be84",
+        "category": "trip_cancellation",
+        "description": "Trước chuyến 658ade24, khách phản ánh tài xế đề nghị huỷ khi hai bên chưa thống nhất được vị trí gặp chính xác. Sau khi trao đổi lại, khách được đón và chuyến hoàn tất. Dữ liệu không có nội dung cuộc gọi nên chưa xác định trách nhiệm."
+      },
+      {
+        "scenario_id": "cancel-request-temporary-unavailable-01",
+        "trip_id": "bb74d5e4-ddfe-5a46-b66d-fea4109b51db",
+        "category": "trip_cancellation",
+        "description": "Ứng dụng đã ghi nhận tài xế nhận chuyến bb74d5e4 nhưng khách phản ánh tài xế gọi báo chưa thể đến ngay và gợi ý khách huỷ. Sau khi khách yêu cầu tiếp tục phục vụ, chuyến vẫn được hoàn tất. Phản ánh chưa phải bằng chứng về một lần huỷ thực tế."
+      },
+      {
+        "scenario_id": "fare-estimate-difference-01",
+        "trip_id": "48d379af-fccd-520c-b837-7534b15645d7",
+        "category": "fare_question",
+        "description": "Sau khi hoàn tất chuyến 48d379af, khách yêu cầu giải thích vì số tiền cuối chuyến được cho là khác mức ước tính hiển thị trước khi đặt. Dữ liệu không chứa hoá đơn hay giao dịch thanh toán nên chỉ ghi nhận yêu cầu rà soát, chưa kết luận có thu sai."
+      },
+      {
+        "scenario_id": "fare-waiting-component-01",
+        "trip_id": "6965e564-8187-53fc-8d8a-11a3e187b90d",
+        "category": "fare_question",
+        "description": "Khách của chuyến 6965e564 hỏi liệu số tiền cuối chuyến có bao gồm thời gian chờ hoặc một khoản phụ thu hay không. Không có bảng chi tiết cước trong dữ liệu, vì vậy vận hành chỉ có thể chuyển yêu cầu sang bước đối soát thay vì xác nhận đúng sai."
+      },
+      {
+        "scenario_id": "fare-extra-toll-question-01",
+        "trip_id": "d5019b98-6002-5957-96af-a299762f4b0c",
+        "category": "fare_question",
+        "description": "Sau chuyến d5019b98, khách phản ánh tài xế có nhắc đến một khoản phí đường bộ ngoài số tiền hiển thị và đề nghị tổng đài kiểm tra khoản này. Dữ liệu không có biên lai, lịch sử thanh toán hoặc xác nhận từ tài xế nên sự việc vẫn ở trạng thái cần rà soát."
+      }
+    ],
+    "incident_scenarios": [
+      {
+        "scenario_id": "vehicle-operability-01",
+        "name": "Cảnh báo khả năng vận hành xe sau chuyến b4657acc",
+        "trip_id": "b4657acc-b974-5289-9e7e-1fa551a8c0a7",
+        "incident_type": "vehicle_operability",
+        "state": "open",
+        "event_offset_minutes": 20,
+        "description": "Khoảng 20 phút sau khi hoàn tất chuyến b4657acc, tài xế báo đèn cảnh báo hệ thống điện xuất hiện và phương tiện không sẵn sàng nhận chuyến kế tiếp. Điều hành tạm giữ xe khỏi lượt phân công mới và chuyển sang kiểm tra kỹ thuật. Sự cố đang mở; dữ liệu không xác định linh kiện hỏng hay nguyên nhân gốc."
+      },
+      {
+        "scenario_id": "pickup-not-completed-01",
+        "name": "Không hoàn tất đón khách của chuyến e20925d8",
+        "trip_id": "e20925d8-27ae-56aa-83ab-87ed42012342",
+        "incident_type": "pickup_not_completed",
+        "state": "resolved",
+        "event_offset_minutes": 20,
+        "description": "Tài xế đã nhận chuyến e20925d8 nhưng việc đón khách không hoàn tất; chuyến kết thúc với kết quả cancelled và lý do driver_request. Vận hành mở sự cố để đối chiếu diễn biến liên hệ, sau đó đánh dấu resolved. Mô tả không kết luận khách hay tài xế có lỗi."
+      },
+      {
+        "scenario_id": "service-interruption-01",
+        "name": "Phản ánh gián đoạn dịch vụ trong chuyến 9e9d055e",
+        "trip_id": "9e9d055e-478a-5456-921f-b0764ee6f91a",
+        "incident_type": "service_interruption",
+        "state": "reopened",
+        "event_offset_minutes": 20,
+        "description": "Sau khi chuyến 9e9d055e đã hoàn tất, khách phản ánh xe từng phải dừng phục vụ trong thời gian ngắn rồi mới tiếp tục hành trình. Phiếu sự cố được mở lại vì khách yêu cầu làm rõ nguyên nhân. Dữ liệu không có GPS, dữ liệu chẩn đoán xe hay bằng chứng thời tiết nên không suy đoán nguyên nhân."
+      },
+      {
+        "scenario_id": "fare-review-escalation-01",
+        "name": "Rà soát số tiền của chuyến 3337754d",
+        "trip_id": "3337754d-aeec-5b1f-b941-792a7195f0d3",
+        "incident_type": "fare_review_escalation",
+        "state": "open",
+        "event_offset_minutes": 20,
+        "description": "Sau chuyến 3337754d, khách cho rằng phần giải thích về số tiền cuối chuyến chưa rõ và yêu cầu tổng đài rà soát. Yêu cầu được chuyển thành sự cố vận hành trạng thái open để đối chiếu chính sách và chứng từ. Dữ liệu không có giao dịch thanh toán, không tạo quyết định hoàn tiền và không kết luận thu sai."
+      }
+    ]
+  }
+}

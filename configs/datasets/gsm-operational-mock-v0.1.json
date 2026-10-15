@@ -1,0 +1,122 @@
+{
+  "dataset_version": "gsm-operational-mock-v0.1",
+  "spec_version": "0.1.0",
+  "source_release": "gsm-dev-core-0.2.2",
+  "source_snapshot_id": "d4cc0438-d831-541a-8123-ddda94ccdac8",
+  "seed": 42,
+  "timezone": "Asia/Ho_Chi_Minh",
+  "logical_ingestion_time": "2026-09-18T00:00:00.000000Z",
+  "generation": {
+    "zones_per_region": 2,
+    "complaint_every_nth_trip": 7,
+    "complaint_categories": [
+      "service_attitude",
+      "trip_cancellation",
+      "fare_question"
+    ],
+    "maintenance_offset_days": 7
+  },
+  "policy_rules": [
+    {
+      "id": "policy-rule:min-daily-revenue:v1",
+      "name": "Doanh số tối thiểu theo ngày vận doanh",
+      "description": "Tài xế Green SM Bike tại Hà Nội có ngày vận doanh và doanh số dưới 280.000 VND chịu truy thu 20% phần thiếu.",
+      "document_snapshot_id": "snap-154-d4af28195271",
+      "clause_ids": ["s154.scope", "s154.region", "s154.date", "s154.charge", "s154.day", "s154.revenue"],
+      "metric": "RM_REVENUE",
+      "operator": "lt",
+      "threshold": "280000",
+      "threshold_type": "integer",
+      "unit": "VND",
+      "required_program": "bike_partner",
+      "required_region_id": "67469644-6dad-58dd-89be-bc415951e696",
+      "requires_operating_day": true,
+      "effective_from": "2025-06-23T00:00:00+07:00",
+      "action": {
+        "id": "policy-action:deduct-revenue-shortfall:v1",
+        "name": "Truy thu phần doanh số thiếu",
+        "description": "Trừ ví hằng ngày bằng 20% phần doanh số khoán chưa đạt.",
+        "action_type": "wallet_deduction",
+        "formula": "max(280000-reported_revenue,0)/5"
+      },
+      "evaluation_enabled": true
+    },
+    {
+      "id": "policy-rule:auto-accept-low-rate:v1",
+      "name": "Bật nhận chuyến tự động khi tỷ lệ chấp nhận thấp",
+      "description": "Tài xế Green SM Bike có tỷ lệ chấp nhận chuyến dưới 50% bị bật nhận chuyến tự động tới 23h59 của ngày vận doanh.",
+      "document_snapshot_id": "snap-151-063bee730825",
+      "clause_ids": ["s151.scope", "s151.auto"],
+      "metric": "RM_ACCEPTANCE",
+      "operator": "lt",
+      "threshold": "1/2",
+      "threshold_type": "rational",
+      "unit": "ratio",
+      "required_program": "bike_partner",
+      "required_region_id": null,
+      "requires_operating_day": false,
+      "effective_from": null,
+      "action": {
+        "id": "policy-action:enable-auto-accept:v1",
+        "name": "Bật nhận chuyến tự động",
+        "description": "Bật tính năng nhận chuyến tự động tới 23h59 của ngày vận doanh.",
+        "action_type": "enable_auto_acceptance",
+        "formula": null
+      },
+      "evaluation_enabled": true
+    },
+    {
+      "id": "policy-rule:weekly-rating:v1",
+      "name": "Điều kiện điểm sao thưởng tuần",
+      "description": "Điểm sao đánh giá trung bình tuần phải lớn hơn 4,85 và chỉ tính các chuyến có phát sinh đánh giá.",
+      "document_snapshot_id": "snap-005-a4bc920aa65c",
+      "clause_ids": ["s05.rating", "s05.week", "s05.unrated"],
+      "metric": "RM_RATING",
+      "operator": "gt",
+      "threshold": "97/20",
+      "threshold_type": "rational",
+      "unit": "stars",
+      "required_program": null,
+      "required_region_id": null,
+      "requires_operating_day": false,
+      "effective_from": null,
+      "action": {
+        "id": "policy-action:weekly-reward-rating-condition:v1",
+        "name": "Xét điều kiện điểm sao thưởng tuần",
+        "description": "Đánh dấu điều kiện điểm sao trong quy trình xét thưởng tuần; chưa đại diện cho toàn bộ điều kiện thưởng.",
+        "action_type": "reward_condition_check",
+        "formula": null
+      },
+      "evaluation_enabled": false
+    },
+    {
+      "id": "policy-rule:depot-scope-june-2026:v1",
+      "name": "Phạm vi Depot từ kỳ lương tháng 6/2026",
+      "description": "Thông báo áp dụng cho tài xế taxi thuộc Depot 1, 6 và 7 tại TP.HCM theo địa giới cũ từ kỳ lương tháng 6/2026.",
+      "document_snapshot_id": "snap-023-b62fd1ddee0c",
+      "clause_ids": ["s23.scope", "s23.date"],
+      "metric": null,
+      "operator": null,
+      "threshold": null,
+      "threshold_type": null,
+      "unit": null,
+      "required_program": "taxi_driver",
+      "required_region_id": "03d4cda7-cd9e-5d2d-a0b2-e5d023a08a52",
+      "requires_operating_day": false,
+      "effective_from": "2026-06-01T00:00:00+07:00",
+      "scope_fleet_ids": [
+        "0567bb58-80e9-5702-bd49-9aacac44702c",
+        "06e51cb2-86bf-5f51-aeac-b7d38bfd0c1c",
+        "6e89ac79-062c-5b0a-9a2f-f41c939aa0f4"
+      ],
+      "action": {
+        "id": "policy-action:apply-depot-scope:v1",
+        "name": "Áp dụng phạm vi Depot được liệt kê",
+        "description": "Giới hạn phạm vi thông báo ở nhóm tài xế và Depot được văn bản nêu.",
+        "action_type": "scope_application",
+        "formula": null
+      },
+      "evaluation_enabled": false
+    }
+  ]
+}

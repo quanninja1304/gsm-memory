@@ -1,0 +1,406 @@
+{
+  "contract_version": "gsm-operational-kg-v2-draft-1",
+  "status": "experimental_extension",
+  "source_release": "gsm-dev-core-0.2.2",
+  "source_schema_version": "1.1",
+  "mutates_frozen_release": false,
+  "purpose": "evidence_retrieval_and_construction",
+  "causal_inference": false,
+  "temporal_dimensions": [
+    "event_time",
+    "valid_time",
+    "known_time",
+    "ingestion_time"
+  ],
+  "runtime_stores": {
+    "neo4j": {
+      "env_prefix": "NEO4J_OPERATIONAL_V2",
+      "marker_label": "GSMOperationalV2",
+      "identity_strategy": "id_equals_canonical_id"
+    },
+    "qdrant": {
+      "collection": "gsm_policy_chunks_v2",
+      "query_mode": "native_hybrid",
+      "fusion": "rrf",
+      "vectors": [
+        {
+          "name": "dense",
+          "purpose": "semantic_similarity",
+          "model": "intfloat/multilingual-e5-small",
+          "status": "provisional_baseline_requires_vietnamese_evaluation",
+          "dimensions": 384,
+          "document_prefix": "passage: ",
+          "query_prefix": "query: "
+        },
+        {
+          "name": "sparse",
+          "purpose": "lexical_precision",
+          "model": "qdrant/bm25",
+          "status": "provisional_baseline_requires_vietnamese_evaluation",
+          "dimensions": null,
+          "document_prefix": "",
+          "query_prefix": ""
+        }
+      ],
+      "payload_join_keys": [
+        "chunk_id",
+        "clause_ids",
+        "content_sha256",
+        "dataset_version",
+        "document_id",
+        "document_revision_id"
+      ],
+      "external_bm25_store": false
+    }
+  },
+  "nodes": [
+    {
+      "name": "Complaint",
+      "origin": "synthetic_extension",
+      "required_properties": ["description", "event_time", "id", "name"],
+      "semantic_text_fields": ["description"]
+    },
+    {
+      "name": "Driver",
+      "origin": "frozen_projection",
+      "required_properties": ["description", "id", "name"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "DriverSummary",
+      "origin": "derived",
+      "required_properties": ["derivation_version", "description", "id", "name", "window_end", "window_start"],
+      "semantic_text_fields": ["description"]
+    },
+    {
+      "name": "EnforcementDecision",
+      "origin": "derived",
+      "required_properties": ["description", "effective_at", "id", "name", "status"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "Fleet",
+      "origin": "frozen_projection",
+      "required_properties": ["description", "id", "name"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "FleetSummary",
+      "origin": "derived",
+      "required_properties": ["derivation_version", "description", "id", "name", "window_end", "window_start"],
+      "semantic_text_fields": ["description"]
+    },
+    {
+      "name": "Incident",
+      "origin": "frozen_projection",
+      "required_properties": ["description", "id", "name"],
+      "semantic_text_fields": ["description"]
+    },
+    {
+      "name": "MaintenanceEvent",
+      "origin": "synthetic_extension",
+      "required_properties": ["description", "event_time", "id", "name", "status"],
+      "semantic_text_fields": ["description"]
+    },
+    {
+      "name": "Measurement",
+      "origin": "frozen_projection",
+      "required_properties": ["description", "id", "name", "value", "window_end", "window_start"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "PolicyAction",
+      "origin": "reviewed_policy",
+      "required_properties": ["action_type", "description", "id", "name", "review_status"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "PolicyClause",
+      "origin": "reviewed_policy",
+      "required_properties": ["content_sha256", "description", "document_id", "id", "name", "source_locator", "text"],
+      "semantic_text_fields": ["text"]
+    },
+    {
+      "name": "PolicyDocument",
+      "origin": "reviewed_policy",
+      "required_properties": ["content_sha256", "description", "id", "name", "source_locator"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "PolicyRule",
+      "origin": "reviewed_policy",
+      "required_properties": ["description", "id", "name", "review_status", "rule_version"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "Region",
+      "origin": "frozen_projection",
+      "required_properties": ["description", "id", "name"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "Service",
+      "origin": "frozen_projection",
+      "required_properties": ["description", "id", "name"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "Shift",
+      "origin": "synthetic_extension",
+      "required_properties": ["description", "end_time", "id", "name", "start_time"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "ShiftSummary",
+      "origin": "derived",
+      "required_properties": ["derivation_version", "description", "id", "name", "window_end", "window_start"],
+      "semantic_text_fields": ["description"]
+    },
+    {
+      "name": "StateObservation",
+      "origin": "frozen_projection",
+      "required_properties": ["description", "id", "name", "state_kind", "value"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "Trip",
+      "origin": "frozen_projection",
+      "required_properties": ["description", "event_time", "id", "name", "outcome"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "Vehicle",
+      "origin": "synthetic_extension",
+      "required_properties": ["description", "id", "name"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "VehicleType",
+      "origin": "synthetic_extension",
+      "required_properties": ["description", "id", "name"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "ViolationFinding",
+      "origin": "derived",
+      "required_properties": ["description", "evaluation_version", "id", "name", "status"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "Zone",
+      "origin": "synthetic_extension",
+      "required_properties": ["description", "id", "name"],
+      "semantic_text_fields": []
+    },
+    {
+      "name": "ZoneSummary",
+      "origin": "derived",
+      "required_properties": ["derivation_version", "description", "id", "name", "window_end", "window_start"],
+      "semantic_text_fields": ["description"]
+    }
+  ],
+  "relationships": [
+    {
+      "name": "ABOUT_TRIP",
+      "start_types": ["Complaint"],
+      "end_types": ["Trip"],
+      "meaning": "Phản ánh liên quan đến chuyến"
+    },
+    {
+      "name": "APPLIES_ACTION",
+      "start_types": ["EnforcementDecision"],
+      "end_types": ["PolicyAction"],
+      "meaning": "Quyết định áp dụng một hành động được ghi nhận"
+    },
+    {
+      "name": "APPLIES_TO",
+      "start_types": ["PolicyRule"],
+      "end_types": ["Fleet", "Region", "Service", "VehicleType", "Zone"],
+      "meaning": "Phạm vi áp dụng được điều khoản nguồn hỗ trợ"
+    },
+    {
+      "name": "BASED_IN",
+      "start_types": ["Fleet"],
+      "end_types": ["Region"],
+      "meaning": "Đội xe hoặc depot đặt tại khu vực"
+    },
+    {
+      "name": "BASED_ON",
+      "start_types": ["EnforcementDecision"],
+      "end_types": ["ViolationFinding"],
+      "meaning": "Quyết định dựa trên kết quả đánh giá"
+    },
+    {
+      "name": "CONTAINS",
+      "start_types": ["PolicyDocument"],
+      "end_types": ["PolicyClause"],
+      "meaning": "Tài liệu chứa điều khoản đã định danh"
+    },
+    {
+      "name": "CONTAINS_TRIP",
+      "start_types": ["Shift"],
+      "end_types": ["Trip"],
+      "meaning": "Ca hoạt động chứa chuyến"
+    },
+    {
+      "name": "CONTAINS_ZONE",
+      "start_types": ["Region"],
+      "end_types": ["Zone"],
+      "meaning": "Khu vực lớn chứa vùng vận hành"
+    },
+    {
+      "name": "DEFINED_IN",
+      "start_types": ["PolicyRule"],
+      "end_types": ["PolicyClause"],
+      "meaning": "Quy tắc được cấu trúc từ điều khoản"
+    },
+    {
+      "name": "DROPOFF_IN",
+      "start_types": ["Trip"],
+      "end_types": ["Zone"],
+      "meaning": "Chuyến trả tại vùng"
+    },
+    {
+      "name": "EVALUATED_AGAINST",
+      "start_types": ["ViolationFinding"],
+      "end_types": ["PolicyRule"],
+      "meaning": "Kết quả được đối chiếu với quy tắc"
+    },
+    {
+      "name": "FOR_SERVICE",
+      "start_types": ["Trip"],
+      "end_types": ["Service"],
+      "meaning": "Chuyến thuộc dịch vụ"
+    },
+    {
+      "name": "HAS_ACTION",
+      "start_types": ["PolicyRule"],
+      "end_types": ["PolicyAction"],
+      "meaning": "Quy tắc quy định hành động"
+    },
+    {
+      "name": "HAS_FINDING",
+      "start_types": ["Driver"],
+      "end_types": ["ViolationFinding"],
+      "meaning": "Tài xế có một kết quả đánh giá"
+    },
+    {
+      "name": "HAS_INCIDENT",
+      "start_types": ["Driver"],
+      "end_types": ["Incident"],
+      "meaning": "Sự cố thuộc tài xế"
+    },
+    {
+      "name": "HAS_MEASUREMENT",
+      "start_types": ["Driver", "Vehicle"],
+      "end_types": ["Measurement"],
+      "meaning": "Đối tượng có một chỉ số được quan sát hoặc báo cáo"
+    },
+    {
+      "name": "HAS_STATE",
+      "start_types": ["Driver", "Incident", "Vehicle"],
+      "end_types": ["StateObservation"],
+      "meaning": "Đối tượng có quan sát trạng thái theo thời gian"
+    },
+    {
+      "name": "HAS_SUMMARY",
+      "start_types": ["Driver", "Fleet", "Shift", "Zone"],
+      "end_types": ["DriverSummary", "FleetSummary", "ShiftSummary", "ZoneSummary"],
+      "meaning": "Đối tượng có bản tóm tắt dẫn xuất theo kỳ"
+    },
+    {
+      "name": "HAS_TYPE",
+      "start_types": ["Vehicle"],
+      "end_types": ["VehicleType"],
+      "meaning": "Phương tiện có loại phương tiện"
+    },
+    {
+      "name": "IN_REGION",
+      "start_types": ["Trip"],
+      "end_types": ["Region"],
+      "meaning": "Chuyến diễn ra tại khu vực"
+    },
+    {
+      "name": "MEMBER_OF",
+      "start_types": ["Driver"],
+      "end_types": ["Fleet"],
+      "meaning": "Tài xế thuộc đội xe hoặc depot"
+    },
+    {
+      "name": "OPERATED",
+      "start_types": ["Driver"],
+      "end_types": ["Vehicle"],
+      "meaning": "Tài xế sử dụng phương tiện"
+    },
+    {
+      "name": "OPERATED_IN",
+      "start_types": ["Shift"],
+      "end_types": ["Zone"],
+      "meaning": "Ca hoạt động trong vùng"
+    },
+    {
+      "name": "OPERATES_IN",
+      "start_types": ["Driver"],
+      "end_types": ["Region"],
+      "meaning": "Tài xế hoạt động chính tại khu vực"
+    },
+    {
+      "name": "PERFORMED",
+      "start_types": ["Driver"],
+      "end_types": ["Trip"],
+      "meaning": "Tài xế thực hiện chuyến"
+    },
+    {
+      "name": "PICKUP_IN",
+      "start_types": ["Trip"],
+      "end_types": ["Zone"],
+      "meaning": "Chuyến đón tại vùng"
+    },
+    {
+      "name": "RECEIVED_COMPLAINT",
+      "start_types": ["Driver"],
+      "end_types": ["Complaint"],
+      "meaning": "Tài xế nhận phản ánh"
+    },
+    {
+      "name": "RECEIVED_DECISION",
+      "start_types": ["Driver"],
+      "end_types": ["EnforcementDecision"],
+      "meaning": "Tài xế nhận quyết định xử lý"
+    },
+    {
+      "name": "SUPPORTED_BY",
+      "start_types": ["ViolationFinding"],
+      "end_types": ["Complaint", "Incident", "Measurement", "Shift", "Trip"],
+      "meaning": "Kết quả đánh giá được hỗ trợ bởi bằng chứng vận hành"
+    },
+    {
+      "name": "UNDERWENT",
+      "start_types": ["Vehicle"],
+      "end_types": ["MaintenanceEvent"],
+      "meaning": "Phương tiện trải qua bảo dưỡng hoặc sửa chữa"
+    },
+    {
+      "name": "USES_SERVICE",
+      "start_types": ["Driver"],
+      "end_types": ["Service"],
+      "meaning": "Tài xế sử dụng dịch vụ khi có fact nguồn trực tiếp"
+    },
+    {
+      "name": "WORKED_SHIFT",
+      "start_types": ["Driver"],
+      "end_types": ["Shift"],
+      "meaning": "Tài xế làm một ca hoạt động"
+    }
+  ],
+  "excluded_node_types": [
+    "GPSPoint",
+    "InvestigationFinding",
+    "WeatherObservation"
+  ],
+  "excluded_relationship_types": [
+    "CAUSES",
+    "ELIGIBLE_FOR",
+    "VIOLATES"
+  ]
+}

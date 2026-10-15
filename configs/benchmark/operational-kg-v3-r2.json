@@ -1,0 +1,9 @@
+{
+  "extends": "operational-kg-v3.json",
+  "contract_version": "gsm-operational-kg-v3-draft-2",
+  "runtime_stores": {
+    "neo4j": {
+      "marker_label": "GSMOperationalV3Timeline"
+    }
+  }
+}

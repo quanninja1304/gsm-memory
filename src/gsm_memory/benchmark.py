@@ -202,6 +202,93 @@ def main() -> int:
     operational_verify_all_parser.add_argument("--release", type=Path, required=True)
     operational_verify_all_parser.add_argument("--output", type=Path, required=True)
     operational_verify_all_parser.add_argument("--env-prefix", default="NEO4J_OPERATIONAL")
+
+    operational_v2_build_parser = sub.add_parser("operational-v2-build")
+    operational_v2_build_parser.add_argument("--release", type=Path, required=True)
+    operational_v2_build_parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path("configs/datasets/gsm-operational-mock-v0.3.json"),
+    )
+    operational_v2_build_parser.add_argument(
+        "--contract",
+        type=Path,
+        default=Path("configs/benchmark/operational-kg-v3-r2.json"),
+    )
+    operational_v2_build_parser.add_argument("--output", type=Path, required=True)
+
+    operational_v2_candidate_parser = sub.add_parser("operational-v2-verify-candidate")
+    operational_v2_candidate_parser.add_argument("--candidate", type=Path, required=True)
+    operational_v2_candidate_parser.add_argument(
+        "--contract",
+        type=Path,
+        default=Path("configs/benchmark/operational-kg-v3-r2.json"),
+    )
+    operational_v2_candidate_parser.add_argument("--output", type=Path, required=True)
+
+    operational_v2_compare_parser = sub.add_parser("operational-v2-compare")
+    operational_v2_compare_parser.add_argument("--candidate-a", type=Path, required=True)
+    operational_v2_compare_parser.add_argument("--candidate-b", type=Path, required=True)
+    operational_v2_compare_parser.add_argument("--output", type=Path, required=True)
+
+    for command in (
+        "operational-v2-ingest",
+        "operational-v2-verify",
+        "operational-v2-query-smoke",
+    ):
+        operation_parser = sub.add_parser(command)
+        operation_parser.add_argument("--candidate", type=Path, required=True)
+        operation_parser.add_argument(
+            "--contract",
+            type=Path,
+            default=Path("configs/benchmark/operational-kg-v3-r2.json"),
+        )
+        operation_parser.add_argument(
+            "--env-prefix",
+            help="Override the versioned Neo4j environment prefix from --contract",
+        )
+        operation_parser.add_argument("--output", type=Path, required=True)
+
+    qdrant_plan_parser = sub.add_parser("qdrant-plan")
+    qdrant_plan_parser.add_argument("--release", type=Path, required=True)
+    qdrant_plan_parser.add_argument("--profile", default="retrieval_full")
+    qdrant_plan_parser.add_argument(
+        "--contract",
+        type=Path,
+        default=Path("configs/benchmark/operational-kg-v3-r2.json"),
+    )
+    qdrant_plan_parser.add_argument("--output", type=Path, required=True)
+
+    qdrant_ingest_parser = sub.add_parser("qdrant-ingest")
+    qdrant_ingest_parser.add_argument("--release", type=Path, required=True)
+    qdrant_ingest_parser.add_argument(
+        "--contract",
+        type=Path,
+        default=Path("configs/benchmark/operational-kg-v3-r2.json"),
+    )
+    qdrant_ingest_parser.add_argument("--batch-size", type=int, default=16)
+    qdrant_ingest_parser.add_argument("--output", type=Path, required=True)
+
+    qdrant_verify_parser = sub.add_parser("qdrant-verify")
+    qdrant_verify_parser.add_argument("--release", type=Path, required=True)
+    qdrant_verify_parser.add_argument(
+        "--contract",
+        type=Path,
+        default=Path("configs/benchmark/operational-kg-v3-r2.json"),
+    )
+    qdrant_verify_parser.add_argument("--output", type=Path, required=True)
+
+    qdrant_search_parser = sub.add_parser("qdrant-search")
+    qdrant_search_parser.add_argument("--release", type=Path, required=True)
+    qdrant_search_parser.add_argument(
+        "--contract",
+        type=Path,
+        default=Path("configs/benchmark/operational-kg-v3-r2.json"),
+    )
+    qdrant_search_parser.add_argument("--query", required=True)
+    qdrant_search_parser.add_argument("--limit", type=int, default=10)
+    qdrant_search_parser.add_argument("--prefetch-limit", type=int, default=50)
+    qdrant_search_parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     exit_code = 0
     if args.command == "preflight": report = preflight(args.output)
@@ -308,6 +395,128 @@ def main() -> int:
         report = operation(args.release, env_prefix=args.env_prefix)
         _write_json(args.output, report)
         exit_code = 0 if report.get("status") == "pass" else 1
+    elif args.command == "operational-v2-build":
+        from gsm_memory.data.operational_mock import (
+            generate_operational_mock,
+            materialize_operational_mock,
+        )
+
+        dataset = generate_operational_mock(args.release, args.config, args.contract)
+        manifest = materialize_operational_mock(
+            dataset, args.output, contract_path=args.contract
+        )
+        report = {
+            "status": "pass",
+            "candidate": str(args.output),
+            "logical_digest": dataset.logical_digest,
+            "counts": dataset.counts,
+            "manifest": manifest,
+        }
+    elif args.command == "operational-v2-verify-candidate":
+        from gsm_memory.data.operational_mock import verify_operational_mock_candidate
+
+        report = verify_operational_mock_candidate(
+            args.candidate, contract_path=args.contract
+        )
+        _write_json(args.output, report)
+        exit_code = 0 if report.get("status") == "pass" else 1
+    elif args.command == "operational-v2-compare":
+        from gsm_memory.data.operational_mock import compare_operational_mock_candidates
+
+        report = compare_operational_mock_candidates(
+            args.candidate_a, args.candidate_b
+        )
+        _write_json(args.output, report)
+        exit_code = 0 if report.get("status") == "pass" else 1
+    elif args.command in {
+        "operational-v2-ingest",
+        "operational-v2-verify",
+        "operational-v2-query-smoke",
+    }:
+        from gsm_memory.adapters.neo4j_operational_v2 import (
+            ingest_operational_v2,
+            query_operational_v2_smoke,
+            verify_operational_v2,
+        )
+
+        if args.command == "operational-v2-ingest":
+            report = ingest_operational_v2(
+                args.candidate,
+                contract_path=args.contract,
+                env_prefix=args.env_prefix,
+            )
+        elif args.command == "operational-v2-verify":
+            report = verify_operational_v2(
+                args.candidate,
+                contract_path=args.contract,
+                env_prefix=args.env_prefix,
+            )
+        else:
+            report = query_operational_v2_smoke(
+                args.candidate,
+                contract_path=args.contract,
+                env_prefix=args.env_prefix,
+            )
+        _write_json(args.output, report)
+        exit_code = 0 if report.get("status") == "pass" else 1
+    elif args.command == "qdrant-plan":
+        from gsm_memory.retrieval.qdrant_hybrid import (
+            build_hybrid_point_plan,
+            write_hybrid_point_plan,
+        )
+
+        plan, points = build_hybrid_point_plan(
+            args.release,
+            profile_id=args.profile,
+            contract_path=args.contract,
+        )
+        write_hybrid_point_plan(args.output, plan, points)
+        report = {"status": "pass", "plan": asdict(plan), "output": str(args.output)}
+    elif args.command in {"qdrant-ingest", "qdrant-verify", "qdrant-search"}:
+        from gsm_memory.adapters.qdrant_policy import (
+            QdrantConnectionSettings,
+            build_client,
+            hybrid_search,
+            ingest_collection,
+            verify_collection,
+        )
+        from gsm_memory.retrieval.qdrant_hybrid import build_hybrid_point_plan
+
+        plan, points = build_hybrid_point_plan(
+            args.release,
+            profile_id="retrieval_full",
+            contract_path=args.contract,
+        )
+        settings = QdrantConnectionSettings.from_env()
+        if settings.collection != plan.collection:
+            raise ValueError(
+                f"QDRANT_COLLECTION={settings.collection!r} does not match contract "
+                f"collection {plan.collection!r}"
+            )
+        client = build_client(settings)
+        try:
+            if args.command == "qdrant-ingest":
+                report = ingest_collection(
+                    client,
+                    plan,
+                    points,
+                    batch_size=args.batch_size,
+                )
+            elif args.command == "qdrant-verify":
+                report = verify_collection(client, plan, points)
+            else:
+                report = hybrid_search(
+                    client,
+                    plan,
+                    args.query,
+                    limit=args.limit,
+                    prefetch_limit=args.prefetch_limit,
+                )
+        finally:
+            client.close()
+        _write_json(args.output, report)
+        if args.command != "qdrant-search":
+            exit_code = 0 if report.get("status") == "pass" else 1
     else:
         import asyncio
         from gsm_memory.adapters.graphiti import construct_mode_a

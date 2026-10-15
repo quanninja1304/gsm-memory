@@ -1,0 +1,50 @@
+{
+  "extends": "operational-kg-v2.json",
+  "contract_version": "gsm-operational-kg-v3-draft-1",
+  "runtime_stores": {
+    "neo4j": {
+      "env_prefix": "NEO4J_OPERATIONAL_V3",
+      "marker_label": "GSMOperationalV3"
+    }
+  },
+  "remove_nodes": [
+    "DriverSummary",
+    "FleetSummary",
+    "Shift",
+    "ShiftSummary",
+    "ZoneSummary"
+  ],
+  "remove_relationships": [
+    "CONTAINS_TRIP",
+    "HAS_SUMMARY",
+    "OPERATED_IN",
+    "WORKED_SHIFT"
+  ],
+  "node_overrides": {
+    "Incident": {
+      "additional_origins": ["synthetic_extension"]
+    },
+    "PolicyClause": {
+      "required_properties": [
+        "content_sha256",
+        "description",
+        "document_id",
+        "id",
+        "name",
+        "source_locator"
+      ],
+      "semantic_text_fields": []
+    },
+    "StateObservation": {
+      "additional_origins": ["synthetic_extension"]
+    }
+  },
+  "relationship_overrides": {
+    "ABOUT_TRIP": {
+      "start_types": ["Complaint", "Incident"]
+    },
+    "SUPPORTED_BY": {
+      "end_types": ["Complaint", "Incident", "Measurement", "Trip"]
+    }
+  }
+}
