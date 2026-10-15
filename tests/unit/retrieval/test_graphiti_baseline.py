@@ -4,8 +4,13 @@ from types import SimpleNamespace
 import pytest
 
 from gsm_memory.adapters.graphiti_baseline import (
+    EMBEDDING_MODEL,
     INPUT_FORMAT_VERSION,
+    LLM_MODEL,
+    RERANKER_MODEL,
+    GraphitiRuntimeConfig,
     _candidate,
+    _group_id,
     _resume_position,
     load_baseline_inputs,
     render_graphiti_episode,
@@ -15,18 +20,27 @@ from gsm_memory.adapters.graphiti_baseline import (
 
 RELEASE = Path("data/gsm-dev-core-0.2.2")
 SNAPSHOT = "25b69c05-6a60-51e3-9209-74e5d49816fa"
+MINI_CONFIG = GraphitiRuntimeConfig(
+    llm_model="gpt-4o-mini-2024-07-18",
+    small_model="gpt-4o-mini-2024-07-18",
+)
 
 
 def test_load_baseline_inputs_uses_routed_public_mode_b_data():
     inputs = load_baseline_inputs(
-        RELEASE, snapshot_id=SNAPSHOT, max_episodes=2, max_queries=1
+        RELEASE,
+        runtime_config=MINI_CONFIG,
+        snapshot_id=SNAPSHOT,
+        max_episodes=2,
+        max_queries=1,
     )
     assert len(inputs) == 1
     assert inputs[0]["snapshot_id"] == SNAPSHOT
     assert inputs[0]["group_id"].endswith(SNAPSHOT)
     assert len(inputs[0]["observations"]) == 2
     assert len(inputs[0]["queries"]) == 1
-    assert inputs[0]["group_id"].endswith(f"{INPUT_FORMAT_VERSION}_{SNAPSHOT}")
+    assert f"{INPUT_FORMAT_VERSION}_gpt_4o_mini_2024_07_18_" in inputs[0]["group_id"]
+    assert inputs[0]["group_id"].endswith(SNAPSHOT)
     assert "private" not in inputs[0]["observations_path"].parts
     assert [row["commit_seq"] for row in inputs[0]["observations"]] == [1, 2]
     assert inputs[0]["entities"]["99e70ebe-18cd-57a3-a036-cf0ff1989861"]["name"]["text"] == "An"
@@ -34,9 +48,44 @@ def test_load_baseline_inputs_uses_routed_public_mode_b_data():
 
 def test_load_baseline_inputs_rejects_non_positive_limits():
     with pytest.raises(ValueError, match="max_episodes"):
-        load_baseline_inputs(RELEASE, max_episodes=0)
+        load_baseline_inputs(RELEASE, runtime_config=MINI_CONFIG, max_episodes=0)
     with pytest.raises(ValueError, match="max_queries"):
-        load_baseline_inputs(RELEASE, max_queries=0)
+        load_baseline_inputs(RELEASE, runtime_config=MINI_CONFIG, max_queries=0)
+
+
+def test_group_identity_pins_models_prompt_and_input_format():
+    group_id = _group_id(RELEASE.name, SNAPSHOT, MINI_CONFIG)
+    assert "gpt_4o_mini_2024_07_18" in group_id
+    assert group_id.endswith(SNAPSHOT)
+    assert len(MINI_CONFIG.identity_sha256) == 64
+    assert MINI_CONFIG.identity["input_format_version"] == INPUT_FORMAT_VERSION
+    assert MINI_CONFIG.models["embedding"] == EMBEDDING_MODEL
+
+    changed = GraphitiRuntimeConfig(
+        llm_model="gpt-4o-mini-2024-07-18",
+        small_model="gpt-4o-mini-2024-07-18",
+        embedding_model="text-embedding-3-large",
+    )
+    assert _group_id(RELEASE.name, SNAPSHOT, changed) != group_id
+
+
+def test_legacy_group_id_is_restricted_to_original_reference_configuration():
+    legacy = GraphitiRuntimeConfig(
+        llm_model=LLM_MODEL,
+        small_model=RERANKER_MODEL,
+        embedding_model=EMBEDDING_MODEL,
+        reranker_model=RERANKER_MODEL,
+        legacy_group_id=True,
+    )
+    assert _group_id(RELEASE.name, SNAPSHOT, legacy).endswith(
+        f"{INPUT_FORMAT_VERSION}_{SNAPSHOT}"
+    )
+    with pytest.raises(ValueError, match="legacy group IDs"):
+        GraphitiRuntimeConfig(
+            llm_model="gpt-4o-mini-2024-07-18",
+            small_model="gpt-4o-mini-2024-07-18",
+            legacy_group_id=True,
+        )
 
 
 def test_graphiti_edge_keeps_public_episode_to_assertion_lineage():

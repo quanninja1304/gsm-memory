@@ -10,9 +10,6 @@
 
 ## Supporting material
 
-- `research/` — literature review, paper matrix, and reference papers.
-- `project/` — mentor questions and dated working notes.
-- `assets/` — diagrams used by reports or design discussions.
-- `drafts/` — non-normative working drafts retained for provenance.
+- `research/` — literature synthesis and paper matrix; source papers are linked externally.
 
 Only the numbered normative documents define the current experimental contract.

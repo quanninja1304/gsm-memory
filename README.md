@@ -9,19 +9,18 @@ initial graph reference baseline, not an assumed source of temporal truth.
 
 | Path | Purpose |
 | --- | --- |
-| `docs/` | Contracts, schema, dataset specifications, research, and project notes |
+| `docs/` | Contracts, schema, dataset specifications, and research synthesis |
 | `external/` | Source checkouts kept intact; not project implementation code |
-| `src/gsm_memory/` | Implementation packages for data, adapters, retrieval, evaluation, and agent integration |
-| `configs/` | Versioned dataset, Graphiti, retrieval, and experiment configurations |
+| `src/gsm_memory/` | Implementation packages for data, adapters, retrieval, and evaluation |
+| `configs/` | Versioned dataset and benchmark configurations |
 | `data/raw/` | Immutable source archives owned by this workspace |
 | `data/gsm-dev-core-0.2.2/` | Current corrective release with closed provenance and independent assurance |
 | `data/gsm-dev-core-0.2.1/` | Immutable superseded release; retained for audit/reproducibility |
 | `data/gsm-dev-core-0.2/` | Immutable deprecated release; do not use for new experiments |
-| `tests/` | Unit, integration, fixture, and external conformance tests |
+| `tests/` | Unit, integration, and external conformance tests |
 | `runs/` | Machine-readable outputs from ingestion, retrieval, and evaluation runs |
 | `artifacts/` | Rebuildable indexes and graph snapshots |
-| `reports/` | Human-facing tables, figures, and final analyses |
-| `scripts/` | Thin entry points for data and experiment workflows |
+| `reports/` | Freeze assurance, benchmark, and Oracle KG reports |
 
 ## Source-of-truth order
 
@@ -88,11 +87,20 @@ only 15/42 remain selected-complete. Mode B, the live reader/C0 and reasoning
 attribution remain `BLOCKED_PROVIDER`; dense/reranker is
 `BLOCKED_MODEL_ARTIFACT`. Full BRG and production readiness are not claimed.
 
-The native Mode B Graphiti runner is implemented but has not been executed. It
-uses the public snapshot narratives, Graphiti `add_episode()` and Graphiti
-`search()` with OpenAI and persistent Neo4j. One Neo4j database contains an
-isolated group for each public snapshot. Ingestion and search are separate so a
-search never silently rebuilds or changes the graph.
+The native Mode B Graphiti runner uses the public snapshot narratives,
+Graphiti `add_episode()` and Graphiti `search()` with OpenAI and persistent
+Neo4j. The original `gpt-5.5` reference group has been materialized for one
+snapshot; full 12-snapshot Mode B evaluation is still incomplete. One Neo4j
+database contains an isolated group for each public snapshot. Ingestion and
+search are separate so a search never silently rebuilds or changes the graph.
+
+New groups pin the LLM name plus a digest of the LLM, small-model, embedding,
+reranker, input-format and extraction-prompt configuration in the group ID.
+The old group layout is available only through `--legacy-group-id`, which
+rejects any configuration other than the original `gpt-5.5` reference.
+The `gpt-4o-mini-2024-07-18` and `gpt-4.1-mini-2025-04-14` pilots both failed
+the required-relationship gate (27/30 and 29/30 respectively), so neither is
+approved for full 12-snapshot ingestion.
 
 Configure a local Neo4j server or Neo4j Aura connection, then start with one
 bounded ingestion:
@@ -108,12 +116,16 @@ uv run --extra graphiti python -m gsm_memory.benchmark graphiti-ingest `
   --release data/gsm-dev-core-0.2.2 `
   --snapshot-id 25b69c05-6a60-51e3-9209-74e5d49816fa `
   --max-episodes 10 `
+  --llm-model gpt-5.5 `
+  --small-model gpt-4.1-nano `
   --output runs/experiments/graphiti-smoke-ingestion.json
 
 uv run --extra graphiti python -m gsm_memory.benchmark graphiti-search `
   --release data/gsm-dev-core-0.2.2 `
   --snapshot-id 25b69c05-6a60-51e3-9209-74e5d49816fa `
   --max-queries 1 `
+  --llm-model gpt-5.5 `
+  --small-model gpt-4.1-nano `
   --allow-partial `
   --output runs/experiments/graphiti-smoke.json
 
@@ -139,10 +151,14 @@ retrieval has finished.
 ```powershell
 uv run --extra graphiti python -m gsm_memory.benchmark graphiti-ingest `
   --release data/gsm-dev-core-0.2.2 `
+  --llm-model gpt-5.5 `
+  --small-model gpt-4.1-nano `
   --output runs/experiments/graphiti-full-ingestion.json
 
 uv run --extra graphiti python -m gsm_memory.benchmark graphiti-search `
   --release data/gsm-dev-core-0.2.2 `
+  --llm-model gpt-5.5 `
+  --small-model gpt-4.1-nano `
   --search-limit 10 `
   --output runs/experiments/graphiti-dev-42.json
 ```

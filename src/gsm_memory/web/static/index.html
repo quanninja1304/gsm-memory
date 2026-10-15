@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSM Memory AI - Hệ Thống Trợ Lý Điều Hành & Quản Lý Vận Hành Taxi Xanh SM</title>
+  <meta name="description" content="Hệ thống hỗ trợ Nhân viên Quản lý Vận hành Taxi Xanh SM tra cứu hồ sơ tài xế, đối soát quy chế thưởng phạt, truy vấn đồ thị tri thức và cơ sở dữ liệu vận hành.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=2.8">
+</head>
+<body class="dark-theme">
+  <div class="app-container">
+    <!-- TOP NAVIGATION BAR -->
+    <header class="app-header">
+      <div class="header-left">
+        <button id="btn-toggle-sidebar" class="btn-icon" title="Ẩn/Hiện Lịch sử hội thoại" aria-label="Toggle Sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <div class="header-brand">
+          <div class="brand-logo-badge">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <div class="brand-title">
+              <span class="brand-highlight">GSM</span> Memory Assistant
+            </div>
+            <div class="brand-subtitle">Trợ Lý AI Dành Cho Nhân Viên Quản Lý Vận Hành GSM</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Model Selector Dropdown & Indicator -->
+        <div class="model-selector-container" id="model-selector-container">
+          <div class="model-selector-label">
+            <svg class="model-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="4" width="16" height="16" rx="2"/>
+              <rect x="9" y="9" width="6" height="6"/>
+              <line x1="9" y1="1" x2="9" y2="4"/>
+              <line x1="15" y1="1" x2="15" y2="4"/>
+              <line x1="9" y1="20" x2="9" y2="23"/>
+              <line x1="15" y1="20" x2="15" y2="23"/>
+              <line x1="20" y1="9" x2="23" y2="9"/>
+              <line x1="20" y1="14" x2="23" y2="14"/>
+              <line x1="1" y1="9" x2="4" y2="9"/>
+              <line x1="1" y1="14" x2="4" y2="14"/>
+            </svg>
+            <span class="model-select-caption">Model:</span>
+          </div>
+          <select id="select-model" class="model-select" title="Chọn mô hình AI (Cloud API, OpenAI hoặc Local Ollama)">
+            <option value="api" selected>Cloud API (Mặc định)</option>
+            <option value="openai:gpt-4o-mini">OpenAI (gpt-4o-mini)</option>
+            <option value="ollama:qwen2.5:7b">Local Ollama (Qwen 2.5 7B)</option>
+          </select>
+          <span class="model-status-indicator indicator-api" id="model-status-indicator" title="Trạng thái kết nối mô hình">API</span>
+        </div>
+
+        <!-- Database Explorer Button (compact icon button matching inspector button) -->
+        <button id="btn-open-db" class="btn-icon" title="Cơ sở dữ liệu vận hành" aria-label="Cơ sở dữ liệu vận hành">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+        </button>
+
+        <button id="btn-toggle-inspector" class="btn-icon" title="Ẩn/Hiện Bảng Kế Hoạch & Dẫn Chứng" aria-label="Toggle Inspector">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="9" y1="3" x2="9" y2="21"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN THREE-COLUMN WORKSPACE -->
+    <main class="main-workspace">
+      <!-- 1. LEFT SIDEBAR: SESSIONS & CONVERSATION HISTORY -->
+      <aside class="sessions-sidebar" id="sessions-sidebar">
+        <div class="sidebar-top">
+          <button type="button" id="btn-new-chat" class="btn-new-chat" title="Tạo cuộc trò chuyện mới">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span>Cuộc trò chuyện mới</span>
+          </button>
+        </div>
+
+        <div class="sidebar-section-title">
+          <span>Lịch sử hội thoại</span>
+          <span class="sessions-count-badge" id="sidebar-sessions-count">0</span>
+        </div>
+
+        <div class="sessions-list" id="sessions-list">
+          <!-- Rendered dynamically by app.js -->
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="footer-db-status">
+            <span class="status-indicator-dot"></span>
+            <div class="footer-db-info">
+              <div class="db-name">Dữ liệu vận hành</div>
+              <div class="db-sub" id="sidebar-db-summary">8 tài xế • 168 chuyến đi</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 2. CENTER: CHAT INTERFACE & CONTEXT MEMORY -->
+      <section class="chat-section" id="chat-section">
+        <!-- CONTEXT MEMORY LIVE BAR -->
+        <div class="context-memory-bar" id="context-memory-bar">
+          <div class="memory-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mem-icon">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 8v4l3 3"/>
+            </svg>
+            <span>Bộ nhớ phiên:</span>
+          </div>
+          <div class="memory-pills" id="memory-pills">
+            <div class="mem-pill" id="pill-driver">
+              <span class="pill-tag">Tài xế:</span>
+              <span class="pill-val empty" id="mem-val-driver">Chưa nhận diện</span>
+            </div>
+            <div class="mem-pill" id="pill-time">
+              <span class="pill-tag">Thời gian:</span>
+              <span class="pill-val empty" id="mem-val-time">Chưa có</span>
+            </div>
+            <div class="mem-pill" id="pill-policy">
+              <span class="pill-tag">Quy chế:</span>
+              <span class="pill-val empty" id="mem-val-policy">--</span>
+            </div>
+            <div class="mem-pill" id="pill-topics">
+              <span class="pill-tag">Chủ đề:</span>
+              <span class="pill-val empty" id="mem-val-topics">--</span>
+            </div>
+            <div class="mem-pill pill-warning" id="pill-clarify" style="display: none;">
+              <span class="pill-tag">⚠️ Cần làm rõ:</span>
+              <span class="pill-val" id="mem-val-clarify">--</span>
+            </div>
+          </div>
+          <button type="button" id="btn-clear-memory" class="btn-mem-action" title="Xóa bộ nhớ ngữ cảnh của phiên này">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <polyline points="1 4 1 10 7 10"/>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+            Làm mới bộ nhớ
+          </button>
+        </div>
+
+        <!-- CHAT MESSAGES STREAM -->
+        <div class="chat-messages" id="chat-messages">
+          <!-- WELCOME GREETING MESSAGE -->
+          <div class="welcome-card" id="welcome-card">
+            <div class="welcome-icon-glow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4"/>
+                <path d="M12 8h.01"/>
+              </svg>
+            </div>
+            <h2>Chào Bạn! Trợ Lý AI Quản Lý Vận Hành GSM 👋</h2>
+            <p>
+              Hệ thống hỗ trợ <strong>Chuyên viên & Nhân viên Quản lý Vận hành GSM</strong> tra cứu hồ sơ tài xế, đối soát quy chế P154 và phân tích dữ liệu chuyến đi:
+            </p>
+            <div class="welcome-features">
+              <div class="feat-item">
+                <span class="feat-bullet">💾</span>
+                <span><strong>Lưu trữ dữ liệu:</strong> Tự động lưu toàn bộ lịch sử tra cứu của nhân viên, hồ sơ 8 tài xế, 168 chuyến đi và số liệu vận hành.</span>
+              </div>
+              <div class="feat-item">
+                <span class="feat-bullet">🧠</span>
+                <span><strong>Bộ nhớ ngữ cảnh:</strong> Ghi nhớ tài xế đang tra cứu và mốc thời gian qua từng lượt hỏi đáp mà nhân viên không cần nhập lại.</span>
+              </div>
+              <div class="feat-item">
+                <span class="feat-bullet">⚠️</span>
+                <span><strong>Xác thực thông tin:</strong> Tự động cảnh báo và yêu cầu nhân viên bổ sung khi thông tin tài xế hoặc mốc thời gian chưa rõ ràng.</span>
+              </div>
+              <div class="feat-item">
+                <span class="feat-bullet">🕸️</span>
+                <span><strong>Đối soát quy chế GSM:</strong> Tra cứu đồ thị tri thức vận hành, trích dẫn P154 chuẩn xác và tính tỷ lệ hủy chuyến 30 ngày.</span>
+              </div>
+            </div>
+            <p class="welcome-hint">💬 Chọn một phiên tra cứu ở cột trái hoặc nhập yêu cầu kiểm tra tài xế để bắt đầu!</p>
+          </div>
+        </div>
+
+        <!-- INPUT BOX FORM -->
+        <form class="chat-input-form" id="chat-input-form">
+          <div class="input-wrapper">
+            <textarea
+              id="query-input"
+              class="query-textarea"
+              placeholder="Nhập yêu cầu tra cứu (Ví dụ: Kiểm tra tài xế Bình DRV-002 trong tháng 9/2026 có phát sinh hủy chuyến không?)..."
+              rows="1"
+              required
+            ></textarea>
+            <button type="submit" id="btn-send" class="btn-send" title="Gửi câu hỏi" aria-label="Gửi câu hỏi">
+              <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              <div class="spinner" id="send-spinner"></div>
+            </button>
+          </div>
+          <div class="input-hint">
+            <span>Nhấn <strong>Enter</strong> để gửi, <strong>Shift + Enter</strong> để xuống dòng.</span>
+            <div class="input-controls-right">
+              <button type="button" id="btn-clear-chat" class="btn-text-ghost" title="Làm mới khung chat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                Làm mới
+              </button>
+              <span id="char-counter">0 ký tự</span>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <!-- 3. RIGHT COLUMN: EVIDENCE & KNOWLEDGE GRAPH INSPECTOR -->
+      <aside class="inspector-section" id="inspector-section">
+        <div class="inspector-header">
+          <div class="inspector-tabs">
+            <button class="tab-btn active" data-tab="tab-plan" id="tab-btn-plan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                <path d="M9 14l2 2 4-4"/>
+              </svg>
+              <span>Kế Hoạch Tra Cứu</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-citations" id="tab-btn-citations">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+              <span>Dẫn Chứng</span>
+              <span class="badge-count" id="citations-count">0</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-graph" id="tab-btn-graph">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="6" cy="6" r="3"/>
+                <circle cx="18" cy="18" r="3"/>
+                <line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/>
+                <circle cx="18" cy="6" r="3"/>
+                <line x1="8.5" y1="6" x2="15" y2="6"/>
+              </svg>
+              <span>Đồ Thị Tri Thức</span>
+              <span class="badge-count" id="graph-count">0</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-trace" id="tab-btn-trace">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+              <span>Tiến Trình</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="inspector-content">
+          <!-- TAB 1: AI QUERY PLAN -->
+          <div class="tab-pane active" id="tab-plan">
+            <div class="plan-inspector-container" id="plan-inspector-container">
+              <div class="pane-empty-notice" id="plan-empty-notice">
+                Chưa có kế hoạch tra cứu. Hãy gửi câu hỏi để hệ thống phân tích và lập kế hoạch xử lý.
+              </div>
+              <div class="plan-card-details" id="plan-card-details" style="display: none;">
+                <div class="plan-status-row">
+                  <span class="plan-status-badge" id="plan-status-badge">Đang phân tích</span>
+                  <span class="plan-intent-badge" id="plan-intent-badge">HYBRID_REASONING</span>
+                </div>
+
+                <div class="plan-fields-table">
+                  <div class="plan-field-row">
+                    <span class="plan-field-name">Mã Tài Xế (ID):</span>
+                    <span class="plan-field-value" id="plan-field-driver">
+                      <span class="val-missing">Chưa có (Thiếu ID)</span>
+                    </span>
+                  </div>
+                  <div class="plan-field-row">
+                    <span class="plan-field-name">Mốc Thời Gian:</span>
+                    <span class="plan-field-value" id="plan-field-time">
+                      <span class="val-missing">Chưa có (Thiếu thời gian cụ thể)</span>
+                    </span>
+                  </div>
+                  <div class="plan-field-row">
+                    <span class="plan-field-name">Quy Chế Áp Dụng:</span>
+                    <span class="plan-field-value" id="plan-field-policy">Không đề cập</span>
+                  </div>
+                  <div class="plan-field-row">
+                    <span class="plan-field-name">Chủ Đề Chính Sách:</span>
+                    <span class="plan-field-value" id="plan-field-topics">Không đề cập</span>
+                  </div>
+                  <div class="plan-field-row">
+                    <span class="plan-field-name">Kênh Truy Xuất:</span>
+                    <span class="plan-field-value" id="plan-field-modalities">--</span>
+                  </div>
+                </div>
+
+                <div class="plan-reasoning-box">
+                  <div class="plan-reasoning-title">Phân tích & Lập luận của AI:</div>
+                  <div class="plan-reasoning-text" id="plan-reasoning-text">--</div>
+                </div>
+
+                <div class="plan-json-toggle">
+                  <button type="button" class="btn-toggle-json" id="btn-toggle-json">Xem chi tiết kế hoạch (JSON)</button>
+                  <pre class="plan-json-view" id="plan-json-view" style="display: none;"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: CITATIONS & EVIDENCE -->
+          <div class="tab-pane" id="tab-citations">
+            <div class="pane-summary" id="citations-summary">
+              Chưa có dữ liệu trích dẫn. Hãy gửi một câu hỏi để hệ thống thu thập bằng chứng đa nguồn.
+            </div>
+            <div class="citations-list" id="citations-list"></div>
+          </div>
+
+          <!-- TAB 3: KNOWLEDGE GRAPH SUBGRAPH -->
+          <div class="tab-pane" id="tab-graph">
+            <div class="graph-toolbar">
+              <div class="graph-stat" id="graph-stat-nodes">
+                <strong>0</strong> nút
+              </div>
+              <div class="graph-stat" id="graph-stat-edges">
+                <strong>0</strong> cạnh
+              </div>
+              <div class="graph-legend">
+                <span class="legend-dot dot-driver"></span> Tài xế
+                <span class="legend-dot dot-vehicle"></span> Phương tiện
+                <span class="legend-dot dot-trip"></span> Chuyến xe
+                <span class="legend-dot dot-incident"></span> Sự cố
+                <span class="legend-dot dot-complaint"></span> Khiếu nại
+                <span class="legend-dot dot-policy"></span> Quy chế
+              </div>
+            </div>
+            <div class="graph-canvas-container" id="graph-canvas-container">
+              <svg id="subgraph-svg" class="subgraph-svg" width="100%" height="450">
+                <g id="svg-edges-group"></g>
+                <g id="svg-nodes-group"></g>
+              </svg>
+              <div class="graph-empty-state" id="graph-empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M4.93 4.93l14.14 14.14"/>
+                </svg>
+                <p>Chưa có dữ liệu mở rộng đồ thị.</p>
+                <span>Hệ thống sẽ duyệt các liên kết quan hệ khi có thông tin tài xế cần tra cứu.</span>
+              </div>
+            </div>
+            <div class="node-details-card" id="node-details-card" style="display: none;">
+              <div class="node-details-header">
+                <span class="node-details-badge" id="node-detail-label">Node</span>
+                <span class="node-details-name" id="node-detail-name">Tên Nút</span>
+                <button type="button" class="btn-close-node" id="btn-close-node">&times;</button>
+              </div>
+              <div class="node-details-props" id="node-detail-props"></div>
+            </div>
+          </div>
+
+          <!-- TAB 4: TRACE (LANGFUSE) -->
+          <div class="tab-pane" id="tab-trace">
+            <div class="trace-container">
+              <div class="trace-header">
+                <h3>Tiến Trình Xử Lý & Độ Trễ</h3>
+                <p>Theo dõi các bước thực thi pipeline và thời gian đáp ứng hệ thống.</p>
+              </div>
+              <div class="trace-meta-grid">
+                <div class="meta-box">
+                  <div class="meta-label">Độ Trễ Phản Hồi</div>
+                  <div class="meta-val" id="metric-latency">-- ms</div>
+                </div>
+                <div class="meta-box">
+                  <div class="meta-label">Trạng Thái Xử Lý</div>
+                  <div class="meta-val" id="metric-status">READY</div>
+                </div>
+                <div class="meta-box">
+                  <div class="meta-label">Mô Hình Độc Lập</div>
+                  <div class="meta-val" id="metric-model">nvidia/nemotron-3.5-lightning:free</div>
+                </div>
+              </div>
+              <!-- ReAct Agent Steps Container -->
+              <div class="react-timeline-card" id="react-timeline-card" style="display: none;">
+                <div class="react-timeline-header">
+                  <div class="react-badge-title">
+                    <span class="react-pulse-dot"></span>
+                    <span class="react-badge">ReAct Loop</span>
+                    <strong>Vòng lặp Suy Luận & Gọi Công Cụ (Reasoning + Acting)</strong>
+                  </div>
+                  <span class="react-steps-count" id="react-steps-count">0 vòng</span>
+                </div>
+                <div class="react-steps-container" id="react-steps-container">
+                  <!-- Dynamically rendered ReAct steps -->
+                </div>
+              </div>
+
+              <div class="trace-action-box">
+                <a href="#" target="_blank" id="trace-external-link" class="btn-trace-link disabled">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                  <span>Xem Chi Tiết Tiến Trình</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- =========================================================================
+       LOCAL DATABASE EXPLORER MODAL (DRIVERS, TRIPS, STATS)
+       ========================================================================= -->
+  <div class="modal-overlay" id="db-modal-overlay" style="display: none;">
+    <div class="modal-container db-modal-container">
+      <div class="modal-header">
+        <div class="modal-title-area">
+          <div class="modal-icon-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <ellipse cx="12" cy="5" rx="9" ry="3"/>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+            </svg>
+          </div>
+          <div>
+            <h2>Cơ Sở Dữ Liệu Vận Hành</h2>
+            <p>Dữ liệu tài xế, chuyến đi và hồ sơ vận hành sẵn sàng phục vụ tra cứu thông tin.</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close-modal" id="btn-close-db-modal">&times;</button>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" data-modaltab="modaltab-drivers">
+          <span>👤 Tài Xế (Drivers)</span>
+          <span class="badge-count" id="modal-drivers-count">8</span>
+        </button>
+        <button class="modal-tab-btn" data-modaltab="modaltab-trips">
+          <span>🚕 Chuyến Đi (Trips)</span>
+          <span class="badge-count" id="modal-trips-count">168</span>
+        </button>
+        <button class="modal-tab-btn" data-modaltab="modaltab-stats">
+          <span>📊 Tổng Quan & Thống Kê</span>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body">
+        <!-- 1. DRIVERS TAB -->
+        <div class="modal-tab-pane active" id="modaltab-drivers">
+          <div class="tab-toolbar">
+            <input type="text" id="db-search-drivers" class="search-input" placeholder="Tìm theo tên tài xế, mã (DRV-001...), đội xe hoặc khu vực..." />
+            <div class="tab-toolbar-stats" id="drivers-status-summary">8 tài xế hoạt động</div>
+          </div>
+          <div class="drivers-cards-grid" id="drivers-cards-grid">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- 2. TRIPS TAB -->
+        <div class="modal-tab-pane" id="modaltab-trips">
+          <div class="tab-toolbar">
+            <select id="trips-filter-driver" class="filter-select">
+              <option value="">-- Tất cả tài xế --</option>
+            </select>
+            <select id="trips-filter-outcome" class="filter-select">
+              <option value="">-- Tất cả kết quả --</option>
+              <option value="completed">Hoàn thành (Completed)</option>
+              <option value="cancelled">Đã hủy (Cancelled)</option>
+            </select>
+            <div class="tab-toolbar-stats" id="trips-status-summary">Đang tải...</div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Mã Chuyến</th>
+                  <th>Tài Xế</th>
+                  <th>Thời Gian</th>
+                  <th>Lộ Trình (Điểm Đón ➔ Điểm Trả)</th>
+                  <th>Cự Ly</th>
+                  <th>Cước Phí</th>
+                  <th>Kết Quả</th>
+                  <th>Đánh Giá</th>
+                </tr>
+              </thead>
+              <tbody id="trips-table-body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3. STATS TAB -->
+        <div class="modal-tab-pane" id="modaltab-stats">
+          <div class="stats-overview-grid" id="stats-overview-grid">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=2.8"></script>
+</body>
+</html>

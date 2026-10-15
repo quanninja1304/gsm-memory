@@ -22,9 +22,16 @@
     "mode_b_backend": "neo4j==6.3.0",
     "persistence": "one Neo4j database with one group per public snapshot",
     "provider": "openai",
-    "llm_model": "gpt-5.5",
+    "reference_llm_model": "gpt-5.5",
+    "pilot_llm_model": null,
+    "pilot_small_model": null,
+    "model_trials": {
+      "gpt-4o-mini-2024-07-18": "fail_missing_3_of_30_required_relationships",
+      "gpt-4.1-mini-2025-04-14": "fail_missing_1_of_30_required_relationships"
+    },
     "embedding_model": "text-embedding-3-small",
     "reranker_model": "gpt-4.1-nano",
+    "group_identity": "dataset+input-format+llm-model+configuration-digest+snapshot",
     "capability_probe_embedding": "offline-hash-1024-v1"
   },
   "reader": {"status": "blocked_provider", "provider": null, "model": null},

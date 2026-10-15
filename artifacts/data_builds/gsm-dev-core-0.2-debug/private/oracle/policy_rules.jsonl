@@ -1,3 +1,0 @@
-{"exceptions":[{"incident_open":true}],"policy_id":"S_BRIDGE","requires":{"fleet_region":"HCM_OLD"},"rule_id":"364c4753-64c9-5042-b169-1f9d1bbab60c","version":"v1"}
-{"policy_id":"S_VERSION","requires":{"operating_region":"HN"},"rule_id":"a987dc59-4c03-5934-96d2-8ac8fe60101a","version":"v1"}
-{"policy_id":"S_VERSION","requires":{"operating_region":"HCM_OLD"},"rule_id":"8bf4e10b-54d6-5589-ada3-a406a66c123d","version":"v2"}

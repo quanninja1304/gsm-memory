@@ -15,6 +15,7 @@ __pycache__/
 external/policy_green_sm_corpus/
 
 # Rebuildable or high-volume runtime outputs
+artifacts/data_builds/
 artifacts/indexes/*
 artifacts/graphs/*
 runs/experiments/*
@@ -23,3 +24,19 @@ runs/experiments/*
 !artifacts/indexes/README.md
 !artifacts/graphs/README.md
 !runs/experiments/README.md
+
+src/gsm_memory/retrieval/mock_data.py
+tests/unit/retrieval/test_mock_data.py
+data/kuzu_storage
+reports/kuzu_probe.json
+scratch/
+
+# Local database and journals
+*.db-wal
+*.db-shm
+
+data/*.db-wal
+data/*.db-shm
+
+# Local notes/scratch
+run.txt

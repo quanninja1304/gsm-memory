@@ -12,7 +12,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from gsm_memory.retrieval import BM25Index, ChunkConfig, construct_chunks
+from gsm_memory.retrieval import BM25Index, ChunkConfig, RetrievalConfig, construct_chunks
 from gsm_memory.retrieval.documents import read_jsonl
 
 
@@ -28,6 +28,24 @@ def construct_documents(release: Path, profile: str, output: Path) -> dict[str, 
               "chunks": [asdict(c) for c in chunks], "projection_links": [asdict(link) for link in links]}
     _write_json(output, report)
     return report
+
+
+def build_dense_index(release: Path, profile: str, config_path: Path, output: Path) -> dict[str, Any]:
+    """Explicitly build a provider-backed dense artifact; never invoked by normal retrieval."""
+    from gsm_memory.retrieval.dense import DenseChunkIndex
+    from gsm_memory.retrieval.nvidia_embed import NvidiaNemotronEmbedder
+
+    config = RetrievalConfig.load(config_path)
+    chunks, _, inventory = construct_chunks(
+        release, profile, ChunkConfig(max_tokens=config.max_tokens, overlap=config.overlap)
+    )
+    index = DenseChunkIndex.build(
+        chunks, embedder=NvidiaNemotronEmbedder(model=config.embedding_model),
+        chunk_config_hash=config.dense_index_config_hash(), profile_version=inventory["profile_version"],
+    )
+    index.save(output)
+    return {"status": "completed", "artifact": str(output), "identity": asdict(index.identity),
+            "chunk_count": inventory["chunk_count"]}
 
 
 def run_queries(release: Path, profile: str, output: Path, top_k: int) -> dict[str, Any]:
@@ -115,12 +133,26 @@ def main() -> int:
     closure_parser.add_argument("--document-top-k", type=int, default=10)
     closure_parser.add_argument("--graph-top-k", type=int, default=40)
     closure_parser.add_argument("--token-budget", type=int, default=1800)
+    closure_parser.add_argument("--retrieval-config", type=Path)
+
+    dense_parser = sub.add_parser("build-dense-index")
+    dense_parser.add_argument("--release", type=Path, required=True)
+    dense_parser.add_argument("--profile", required=True)
+    dense_parser.add_argument("--config", type=Path, required=True)
+    dense_parser.add_argument("--output", type=Path, required=True)
 
     graphiti_ingest_parser = sub.add_parser("graphiti-ingest")
     graphiti_ingest_parser.add_argument("--release", type=Path, required=True)
     graphiti_ingest_parser.add_argument("--output", type=Path, required=True)
     graphiti_ingest_parser.add_argument("--snapshot-id")
     graphiti_ingest_parser.add_argument("--max-episodes", type=int)
+    graphiti_ingest_parser.add_argument("--llm-model", required=True)
+    graphiti_ingest_parser.add_argument("--small-model", required=True)
+    graphiti_ingest_parser.add_argument(
+        "--embedding-model", default="text-embedding-3-small"
+    )
+    graphiti_ingest_parser.add_argument("--reranker-model", default="gpt-4.1-nano")
+    graphiti_ingest_parser.add_argument("--legacy-group-id", action="store_true")
 
     graphiti_search_parser = sub.add_parser("graphiti-search")
     graphiti_search_parser.add_argument("--release", type=Path, required=True)
@@ -129,7 +161,49 @@ def main() -> int:
     graphiti_search_parser.add_argument("--max-queries", type=int)
     graphiti_search_parser.add_argument("--search-limit", type=int, default=10)
     graphiti_search_parser.add_argument("--allow-partial", action="store_true")
+    graphiti_search_parser.add_argument("--llm-model", required=True)
+    graphiti_search_parser.add_argument("--small-model", required=True)
+    graphiti_search_parser.add_argument(
+        "--embedding-model", default="text-embedding-3-small"
+    )
+    graphiti_search_parser.add_argument("--reranker-model", default="gpt-4.1-nano")
+    graphiti_search_parser.add_argument("--legacy-group-id", action="store_true")
+
+    oracle_ingest_parser = sub.add_parser("oracle-ingest")
+    oracle_ingest_parser.add_argument("--release", type=Path, required=True)
+    oracle_ingest_parser.add_argument("--output", type=Path, required=True)
+    oracle_ingest_parser.add_argument("--certificate", type=Path)
+    oracle_ingest_parser.add_argument("--comparison", type=Path)
+
+    oracle_verify_parser = sub.add_parser("oracle-verify")
+    oracle_verify_parser.add_argument("--release", type=Path, required=True)
+    oracle_verify_parser.add_argument("--output", type=Path, required=True)
+    oracle_verify_parser.add_argument("--certificate", type=Path)
+    oracle_verify_parser.add_argument("--comparison", type=Path)
+
+    operational_ingest_parser = sub.add_parser("operational-ingest")
+    operational_ingest_parser.add_argument("--release", type=Path, required=True)
+    operational_ingest_parser.add_argument("--snapshot-id", required=True)
+    operational_ingest_parser.add_argument("--output", type=Path, required=True)
+    operational_ingest_parser.add_argument("--env-prefix", default="NEO4J_OPERATIONAL")
+
+    operational_verify_parser = sub.add_parser("operational-verify")
+    operational_verify_parser.add_argument("--release", type=Path, required=True)
+    operational_verify_parser.add_argument("--snapshot-id", required=True)
+    operational_verify_parser.add_argument("--output", type=Path, required=True)
+    operational_verify_parser.add_argument("--env-prefix", default="NEO4J_OPERATIONAL")
+
+    operational_ingest_all_parser = sub.add_parser("operational-ingest-all")
+    operational_ingest_all_parser.add_argument("--release", type=Path, required=True)
+    operational_ingest_all_parser.add_argument("--output", type=Path, required=True)
+    operational_ingest_all_parser.add_argument("--env-prefix", default="NEO4J_OPERATIONAL")
+
+    operational_verify_all_parser = sub.add_parser("operational-verify-all")
+    operational_verify_all_parser.add_argument("--release", type=Path, required=True)
+    operational_verify_all_parser.add_argument("--output", type=Path, required=True)
+    operational_verify_all_parser.add_argument("--env-prefix", default="NEO4J_OPERATIONAL")
     args = parser.parse_args()
+    exit_code = 0
     if args.command == "preflight": report = preflight(args.output)
     elif args.command == "construct-documents": report = construct_documents(args.release, args.profile, args.output)
     elif args.command == "run": report = run_queries(args.release, args.profile, args.output, args.top_k)
@@ -140,16 +214,30 @@ def main() -> int:
         _write_json(args.output, report)
     elif args.command == "offline-closure":
         from gsm_memory.retrieval.offline import run_offline_closure_sync
+        config = RetrievalConfig.load(args.retrieval_config) if args.retrieval_config else None
         report = run_offline_closure_sync(args.release, args.profile, document_top_k=args.document_top_k,
-                                          graph_top_k=args.graph_top_k, token_budget=args.token_budget)
+                                          graph_top_k=args.graph_top_k, token_budget=args.token_budget,
+                                          retrieval_config=config)
         _write_json(args.output, report)
+    elif args.command == "build-dense-index":
+        report = build_dense_index(args.release, args.profile, args.config, args.output)
     elif args.command == "graphiti-ingest":
         import asyncio
 
-        from gsm_memory.adapters.graphiti_baseline import ingest_graphiti_baseline
+        from gsm_memory.adapters.graphiti_baseline import (
+            GraphitiRuntimeConfig,
+            ingest_graphiti_baseline,
+        )
 
         report = asyncio.run(ingest_graphiti_baseline(
             args.release,
+            runtime_config=GraphitiRuntimeConfig(
+                llm_model=args.llm_model,
+                small_model=args.small_model,
+                embedding_model=args.embedding_model,
+                reranker_model=args.reranker_model,
+                legacy_group_id=args.legacy_group_id,
+            ),
             snapshot_id=args.snapshot_id,
             max_episodes=args.max_episodes,
         ))
@@ -157,16 +245,69 @@ def main() -> int:
     elif args.command == "graphiti-search":
         import asyncio
 
-        from gsm_memory.adapters.graphiti_baseline import search_graphiti_baseline
+        from gsm_memory.adapters.graphiti_baseline import (
+            GraphitiRuntimeConfig,
+            search_graphiti_baseline,
+        )
 
         report = asyncio.run(search_graphiti_baseline(
             args.release,
+            runtime_config=GraphitiRuntimeConfig(
+                llm_model=args.llm_model,
+                small_model=args.small_model,
+                embedding_model=args.embedding_model,
+                reranker_model=args.reranker_model,
+                legacy_group_id=args.legacy_group_id,
+            ),
             snapshot_id=args.snapshot_id,
             max_queries=args.max_queries,
             search_limit=args.search_limit,
             allow_partial=args.allow_partial,
         ))
         _write_json(args.output, report)
+    elif args.command in {"oracle-ingest", "oracle-verify"}:
+        from gsm_memory.adapters.neo4j_oracle import ingest_oracle, verify_oracle
+
+        operation = ingest_oracle if args.command == "oracle-ingest" else verify_oracle
+        report = operation(
+            args.release,
+            certificate=args.certificate,
+            comparison=args.comparison,
+        )
+        _write_json(args.output, report)
+        exit_code = 0 if report.get("status") == "pass" else 1
+    elif args.command in {"operational-ingest", "operational-verify"}:
+        from gsm_memory.adapters.neo4j_operational import (
+            ingest_operational_snapshot,
+            verify_operational_snapshot,
+        )
+
+        operation = (
+            ingest_operational_snapshot
+            if args.command == "operational-ingest"
+            else verify_operational_snapshot
+        )
+        report = operation(
+            args.release,
+            args.snapshot_id,
+            env_prefix=args.env_prefix,
+        )
+        _write_json(args.output, report)
+        exit_code = 0 if report.get("status") == "pass" else 1
+    elif args.command in {"operational-ingest-all", "operational-verify-all"}:
+        from gsm_memory.adapters.neo4j_operational import (
+            ingest_all_operational_snapshots,
+            verify_all_operational_snapshots,
+        )
+
+        operation = (
+            ingest_all_operational_snapshots
+            if args.command == "operational-ingest-all"
+            else verify_all_operational_snapshots
+        )
+        report = operation(args.release, env_prefix=args.env_prefix)
+        _write_json(args.output, report)
+        exit_code = 0 if report.get("status") == "pass" else 1
     else:
         import asyncio
         from gsm_memory.adapters.graphiti import construct_mode_a
@@ -177,9 +318,10 @@ def main() -> int:
     # machine-readable details live in the declared output artifact.
     print(json.dumps({key: value for key, value in report.items()
                       if key not in {"chunks", "projection_links", "traces", "nodes", "edges",
-                                     "rows", "candidate_incomplete_inventory", "selection_loss_inventory"}},
+                                     "rows", "snapshots", "candidate_incomplete_inventory",
+                                     "selection_loss_inventory"}},
                      ensure_ascii=True, sort_keys=True))
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

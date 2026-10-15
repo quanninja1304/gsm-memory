@@ -3,7 +3,6 @@
 - `unit/` — deterministic component tests without external services.
 - `integration/` — component-boundary and snapshot-package tests.
 - `conformance/` — observed behavior of external/reference systems.
-- `fixtures/` — small immutable inputs used across test layers.
 - `support/` — test-only harness utilities.
 
 Run the current Graphiti conformance harness from the repository root:
