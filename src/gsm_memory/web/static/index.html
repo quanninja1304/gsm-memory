@@ -38,6 +38,31 @@
       </div>
 
       <div class="header-actions">
+        <!-- Model Selector Dropdown & Indicator -->
+        <div class="model-selector-container" id="model-selector-container">
+          <div class="model-selector-label">
+            <svg class="model-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="4" width="16" height="16" rx="2"/>
+              <rect x="9" y="9" width="6" height="6"/>
+              <line x1="9" y1="1" x2="9" y2="4"/>
+              <line x1="15" y1="1" x2="15" y2="4"/>
+              <line x1="9" y1="20" x2="9" y2="23"/>
+              <line x1="15" y1="20" x2="15" y2="23"/>
+              <line x1="20" y1="9" x2="23" y2="9"/>
+              <line x1="20" y1="14" x2="23" y2="14"/>
+              <line x1="1" y1="9" x2="4" y2="9"/>
+              <line x1="1" y1="14" x2="4" y2="14"/>
+            </svg>
+            <span class="model-select-caption">Model:</span>
+          </div>
+          <select id="select-model" class="model-select" title="Chọn mô hình AI (Cloud API, OpenAI hoặc Local Ollama)">
+            <option value="api" selected>Cloud API (Mặc định)</option>
+            <option value="openai:gpt-4o-mini">OpenAI (gpt-4o-mini)</option>
+            <option value="ollama:qwen2.5:7b">Local Ollama (Qwen 2.5 7B)</option>
+          </select>
+          <span class="model-status-indicator indicator-api" id="model-status-indicator" title="Trạng thái kết nối mô hình">API</span>
+        </div>
+
         <!-- Database Explorer Button (compact icon button matching inspector button) -->
         <button id="btn-open-db" class="btn-icon" title="Cơ sở dữ liệu vận hành" aria-label="Cơ sở dữ liệu vận hành">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -317,9 +342,11 @@
               </div>
               <div class="graph-legend">
                 <span class="legend-dot dot-driver"></span> Tài xế
-                <span class="legend-dot dot-trip"></span> Chuyến đi
-                <span class="legend-dot dot-service"></span> Dịch vụ
-                <span class="legend-dot dot-other"></span> Thuộc tính
+                <span class="legend-dot dot-vehicle"></span> Phương tiện
+                <span class="legend-dot dot-trip"></span> Chuyến xe
+                <span class="legend-dot dot-incident"></span> Sự cố
+                <span class="legend-dot dot-complaint"></span> Khiếu nại
+                <span class="legend-dot dot-policy"></span> Quy chế
               </div>
             </div>
             <div class="graph-canvas-container" id="graph-canvas-container">

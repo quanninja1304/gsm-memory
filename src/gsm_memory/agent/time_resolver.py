@@ -157,11 +157,41 @@ def resolve_relative_time(
             "unit": "range",
         }
 
-    # 8. Cụ thể: tháng M/YYYY hoặc tháng M
-    m_match = re.search(r"\btháng\s+(\d{1,2})(?:\s*[/-]\s*(\d{4})|\s+năm\s+(\d{4}))?\b", q_lower)
+    # 8. Cụ thể: ngày DD/MM/YYYY hoặc ngày DD/MM (Priority over month-only so 17/8 isn't swallowed by tháng 8)
+    d_viet = re.search(r"\b(?:ngày|ngay)\s+(\d{1,2})\s+(?:tháng|thang)\s+(\d{1,2})(?:\s+(?:năm|nam)\s+(\d{2,4}))?\b", q_lower)
+    d_match = d_viet or re.search(r"\b(?:(?:ngày|ngay)\s+)?(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?\b", raw, re.IGNORECASE)
+    if d_match:
+        day_v = int(d_match.group(1))
+        mon_v = int(d_match.group(2))
+        raw_yr = d_match.group(3)
+        yr_v = int(raw_yr) if raw_yr else curr_year
+        # Correct common keyboard typos (e.g. 1026 -> 2026)
+        if yr_v == 1026 or (1000 <= yr_v <= 1999 and str(yr_v).endswith("26")):
+            yr_v = 2026
+        elif 0 < yr_v < 100:
+            yr_v = 2000 + yr_v
+        if 1 <= mon_v <= 12 and 1 <= day_v <= 31:
+            try:
+                d_obj = date(yr_v, mon_v, day_v)
+                iso_d = d_obj.isoformat()
+                return {
+                    "time_raw": raw,
+                    "time_resolved": iso_d,
+                    "time_display": f"ngày {d_obj.strftime('%d/%m/%Y')}",
+                    "date_from": iso_d,
+                    "date_to": iso_d,
+                    "unit": "day",
+                }
+            except Exception:
+                pass
+
+    # 9. Cụ thể: tháng M/YYYY hoặc tháng M (Khi câu hỏi KHÔNG có ngày cụ thể)
+    m_match = re.search(r"\b(?:tháng|thang)\s+(\d{1,2})(?:\s*[/-]\s*(\d{4})|\s+(?:năm|nam)\s+(\d{4}))?\b", q_lower)
     if m_match:
         m_val = int(m_match.group(1))
         y_val = int(m_match.group(2) or m_match.group(3) or curr_year)
+        if y_val == 1026 or (1000 <= y_val <= 1999 and str(y_val).endswith("26")):
+            y_val = 2026
         if 1 <= m_val <= 12:
             _, last_day = calendar.monthrange(y_val, m_val)
             iso_month = f"{y_val:04d}-{m_val:02d}"
@@ -174,30 +204,12 @@ def resolve_relative_time(
                 "unit": "month",
             }
 
-    # 9. Cụ thể: ngày DD/MM/YYYY
-    d_match = re.search(r"\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})\b", raw)
-    if d_match:
-        day_v = int(d_match.group(1))
-        mon_v = int(d_match.group(2))
-        yr_v = int(d_match.group(3))
-        try:
-            d_obj = date(yr_v, mon_v, day_v)
-            iso_d = d_obj.isoformat()
-            return {
-                "time_raw": raw,
-                "time_resolved": iso_d,
-                "time_display": f"ngày {d_obj.strftime('%d/%m/%Y')}",
-                "date_from": iso_d,
-                "date_to": iso_d,
-                "unit": "day",
-            }
-        except Exception:
-            pass
-
     # 10. Năm: năm YYYY
-    y_match = re.search(r"\bnăm\s+(\d{4})\b", q_lower)
+    y_match = re.search(r"\b(?:năm|nam)\s+(\d{4})\b", q_lower)
     if y_match:
         yr_v = int(y_match.group(1))
+        if yr_v == 1026 or (1000 <= yr_v <= 1999 and str(yr_v).endswith("26")):
+            yr_v = 2026
         return {
             "time_raw": raw,
             "time_resolved": f"{yr_v:04d}",
@@ -235,31 +247,35 @@ def extract_time_from_text(
 
     t_lower = text.lower()
 
-    # Priority 1: Exact date DD/MM/YYYY or DD-MM-YYYY
-    d_match = re.search(r"\b(\d{1,2}[/.-]\d{1,2}[/.-]\d{4})\b", text)
+    # Priority 1: Exact date with day (e.g., 17/8/2026, 17/8/1026, ngày 17/08/2026, ngày 17 tháng 8...)
+    d_viet = re.search(r"\b((?:ngày|ngay)\s+\d{1,2}\s+(?:tháng|thang)\s+\d{1,2}(?:\s+(?:năm|nam)\s+\d{2,4})?)\b", t_lower)
+    if d_viet:
+        return resolve_relative_time(d_viet.group(1), ref_datetime)
+
+    d_match = re.search(r"\b((?:(?:ngày|ngay)\s+)?\d{1,2}[/.-]\d{1,2}(?:[/.-]\d{2,4})?)\b", text, re.IGNORECASE)
     if d_match:
         return resolve_relative_time(d_match.group(1), ref_datetime)
 
     # Priority 2: Month expressions: tháng M/YYYY, tháng M-YYYY, tháng M
-    m_match = re.search(r"\b(tháng\s+\d{1,2}(?:\s*[/-]\s*\d{4}|\s+năm\s+\d{4})?)\b", t_lower)
+    m_match = re.search(r"\b((?:tháng|thang)\s+\d{1,2}(?:\s*[/-]\s*\d{4}|\s+(?:năm|nam)\s+\d{4})?)\b", t_lower)
     if m_match:
         return resolve_relative_time(m_match.group(1), ref_datetime)
 
     # Priority 3: Common relative time expressions
     for expr in [
-        "hôm nay", "ngày hôm nay",
-        "hôm qua", "ngày hôm qua",
-        "hôm kia",
-        "tháng trước", "tháng vừa rồi", "tháng rồi", "tháng vừa qua",
-        "tháng này", "tháng hiện tại",
-        "30 ngày qua", "30 ngày gần nhất", "30 ngày",
-        "7 ngày qua", "7 ngày gần nhất", "tuần này", "tuần qua",
+        "hôm nay", "ngày hôm nay", "ngay hom nay", "hom nay",
+        "hôm qua", "ngày hôm qua", "ngay hom qua", "hom qua",
+        "hôm kia", "hom kia",
+        "tháng trước", "thang truoc", "tháng vừa rồi", "thang vua roi", "tháng rồi", "tháng vừa qua",
+        "tháng này", "thang nay", "tháng hiện tại",
+        "30 ngày qua", "30 ngay qua", "30 ngày gần nhất", "30 ngay gan nhat", "30 ngày", "30 ngay",
+        "7 ngày qua", "7 ngay qua", "7 ngày gần nhất", "7 ngay gan nhat", "tuần này", "tuan nay", "tuần qua", "tuan qua",
     ]:
         if expr in t_lower:
             return resolve_relative_time(expr, ref_datetime)
 
     # Priority 4: Year expressions: năm YYYY
-    y_match = re.search(r"\b(năm\s+\d{4})\b", t_lower)
+    y_match = re.search(r"\b((?:năm|nam)\s+\d{4})\b", t_lower)
     if y_match:
         return resolve_relative_time(y_match.group(1), ref_datetime)
 

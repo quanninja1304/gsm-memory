@@ -22,125 +22,117 @@ if str(SRC_DIR) not in sys.path:
 import pyarrow.parquet as pq
 
 from gsm_memory.db.connection import get_db_path, get_db_session
-from gsm_memory.db.models import DriverRecord, SnapshotRecord, TripRecord
+from gsm_memory.db.models import (
+    ComplaintRecord,
+    DriverRecord,
+    IncidentRecord,
+    SnapshotRecord,
+    TripRecord,
+)
 from gsm_memory.db.repository import LocalDatabaseRepository
 from gsm_memory.db.schema import init_schema
 
 # Pinned benchmark snapshots catalog
 SNAPSHOTS_SEED_DATA = [
     {
-        "snapshot_id": "d4cc0438-d831-541a-8123-ddda94ccdac8",
-        "label": "L0 Canonical Baseline (17/09/2026 12:00)",
+        "snapshot_id": "a01883a7-d8be-55bb-a561-479a63adf9ee",
+        "label": "Snapshot 1 (17/08/2026 23:59:59)",
+        "known_as_of": "2026-08-17T23:59:59.000000Z",
+        "scope": "Thời điểm 17/08/2026 (Khởi tạo hệ thống, 45 nodes, 58 edges, 0 trips)",
+        "aliases": ["17/08", "17/08/2026", "2026-08-17", "snapshot 1", "snapshot-1"],
+        "is_baseline": False,
+    },
+    {
+        "snapshot_id": "41d9cbe1-5ddd-5ca5-96ad-1b9c0929480a",
+        "label": "Snapshot 2 (18/08/2026 23:59:59)",
+        "known_as_of": "2026-08-18T23:59:59.000000Z",
+        "scope": "Thời điểm 18/08/2026 (62 nodes, 103 edges, 6 trips, 4 sự cố)",
+        "aliases": ["18/08", "18/08/2026", "2026-08-18", "snapshot 2", "snapshot-2"],
+        "is_baseline": False,
+    },
+    {
+        "snapshot_id": "32cc841a-0440-5283-80d7-aebb77b935b3",
+        "label": "Snapshot 3 (20/08/2026 23:59:59)",
+        "known_as_of": "2026-08-20T23:59:59.000000Z",
+        "scope": "Thời điểm 20/08/2026 (80 nodes, 179 edges, 21 trips, 3 khiếu nại, 4 sự cố)",
+        "aliases": ["20/08", "20/08/2026", "2026-08-20", "snapshot 3", "snapshot-3"],
+        "is_baseline": False,
+    },
+    {
+        "snapshot_id": "b768a6f4-6b45-5014-a87f-98d013e0ec5a",
+        "label": "Snapshot 4 (22/08/2026 23:59:59)",
+        "known_as_of": "2026-08-22T23:59:59.000000Z",
+        "scope": "Thời điểm 22/08/2026 (96 nodes, 253 edges, 35 trips, 5 khiếu nại, 4 sự cố)",
+        "aliases": ["22/08", "22/08/2026", "2026-08-22", "snapshot 4", "snapshot-4"],
+        "is_baseline": False,
+    },
+    {
+        "snapshot_id": "7ad8774d-08fc-55a6-badb-2447ee6cab53",
+        "label": "Snapshot 5 (24/08/2026 23:59:59)",
+        "known_as_of": "2026-08-24T23:59:59.000000Z",
+        "scope": "Thời điểm 24/08/2026 (112 nodes, 327 edges, 49 trips, 7 khiếu nại, 4 sự cố)",
+        "aliases": ["24/08", "24/08/2026", "2026-08-24", "snapshot 5", "snapshot-5"],
+        "is_baseline": False,
+    },
+    {
+        "snapshot_id": "fd133f31-6db4-5c7c-9791-c1301176dc3f",
+        "label": "Snapshot 6 (26/08/2026 23:59:59)",
+        "known_as_of": "2026-08-26T23:59:59.000000Z",
+        "scope": "Thời điểm 26/08/2026 (128 nodes, 401 edges, 63 trips, 9 khiếu nại, 4 sự cố)",
+        "aliases": ["26/08", "26/08/2026", "2026-08-26", "snapshot 6", "snapshot-6"],
+        "is_baseline": False,
+    },
+    {
+        "snapshot_id": "a6037ae7-4642-55d9-a36a-88fca6875fdf",
+        "label": "Snapshot 7 (28/08/2026 23:59:59)",
+        "known_as_of": "2026-08-28T23:59:59.000000Z",
+        "scope": "Thời điểm 28/08/2026 (139 nodes, 453 edges, 73 trips, 10 khiếu nại, 4 sự cố)",
+        "aliases": ["28/08", "28/08/2026", "2026-08-28", "snapshot 7", "snapshot-7"],
+        "is_baseline": False,
+    },
+    {
+        "snapshot_id": "002366a5-e09e-5214-9fe4-c7fffeaf1396",
+        "label": "Snapshot 8 (31/08/2026 23:59:59)",
+        "known_as_of": "2026-08-31T23:59:59.000000Z",
+        "scope": "Thời điểm 31/08/2026 (147 nodes, 490 edges, 80 trips, 11 khiếu nại, 4 sự cố)",
+        "aliases": ["31/08", "31/08/2026", "2026-08-31", "tháng 8", "tháng 08", "tháng 8/2026", "2026-08", "snapshot 8", "snapshot-8"],
+        "is_baseline": False,
+    },
+    {
+        "snapshot_id": "081a61c0-56dd-5f43-88a4-f4dfb2894412",
+        "label": "Snapshot 9 (01/09/2026 23:59:59)",
+        "known_as_of": "2026-09-01T23:59:59.000000Z",
+        "scope": "Thời điểm 01/09/2026 (149 nodes, 494 edges, 80 trips, 11 khiếu nại, 5 sự cố)",
+        "aliases": ["01/09", "01/09/2026", "2026-09-01", "đầu tháng 9", "snapshot 9", "snapshot-9"],
+        "is_baseline": False,
+    },
+    {
+        "snapshot_id": "e64f47d9-1a09-5954-9ac6-a3e9770fa38a",
+        "label": "Snapshot 10 (16/09/2026 12:00:00)",
+        "known_as_of": "2026-09-16T12:00:00.000000Z",
+        "scope": "Thời điểm 16/09/2026 (192 nodes, 550 edges, 80 trips, 11 khiếu nại, 5 sự cố)",
+        "aliases": ["16/09", "16/09/2026", "2026-09-16", "hôm qua", "snapshot 10", "snapshot-10"],
+        "is_baseline": False,
+    },
+    {
+        "snapshot_id": "96d00bc2-d39b-592b-b0d8-0ad4a5b80c30",
+        "label": "Snapshot 11 (17/09/2026 12:00:00)",
         "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Tháng 09/2026 & Toàn bộ 80 chuyến đi (L0)",
+        "scope": "Thời điểm 17/09/2026 (193 nodes, 558 edges, 80 trips, 11 khiếu nại, 5 sự cố)",
+        "aliases": ["17/09", "17/09/2026", "2026-09-17", "tháng 9", "tháng 09", "tháng 9/2026", "2026-09", "kỳ đánh giá", "snapshot 11", "snapshot-11"],
+        "is_baseline": False,
+    },
+    {
+        "snapshot_id": "8b1426b6-2fad-5aba-b886-e16de44c18e7",
+        "label": "Snapshot 12 Baseline (18/09/2026 03:00:00)",
+        "known_as_of": "2026-09-18T03:00:00.000000Z",
+        "scope": "Toàn bộ đồ thị GSMOperationalV3Timeline (201 nodes, 582 edges, 80 trips, 11 khiếu nại, 5 sự cố)",
         "aliases": [
-            "tháng 9", "tháng 09", "tháng 9/2026", "2026-09",
-            "30 ngày gần nhất", "30 ngày qua", "30 ngày",
-            "kỳ này", "kỳ đánh giá", "hôm nay", "hiện tại", "gần nhất",
-            "17/09", "17/09/2026", "snapshot l0"
+            "18/09", "18/09/2026", "2026-09-18", "hiện tại", "gần nhất", "hôm nay", "mới nhất",
+            "baseline", "toàn bộ", "30 ngày gần nhất", "30 ngày qua", "30 ngày", "kỳ này",
+            "snapshot 12", "snapshot-12"
         ],
         "is_baseline": True,
-    },
-    {
-        "snapshot_id": "25b69c05-6a60-51e3-9209-74e5d49816fa",
-        "label": "L0 Cutoff A0 (16/09/2026 12:00)",
-        "known_as_of": "2026-09-16T12:00:00.000000Z",
-        "scope": "Ngày 16/09/2026 (79 chuyến đi)",
-        "aliases": ["16/09", "16/09/2026", "2026-09-16", "hôm qua", "cutoff a0"],
-        "is_baseline": False,
-    },
-    {
-        "snapshot_id": "624c0fb1-f1e5-59af-9642-0771d1d2571f",
-        "label": "L0 Cutoff AC (17/09/2026 01:00)",
-        "known_as_of": "2026-09-17T01:00:00.000000Z",
-        "scope": "Sáng sớm 17/09/2026 (80 chuyến đi)",
-        "aliases": ["17/09 sáng", "2026-09-17t01", "cutoff ac"],
-        "is_baseline": False,
-    },
-    {
-        "snapshot_id": "da177d3f-6b43-52ae-a778-4fa7c6edbbf1",
-        "label": "L0 Cutoff 06/08 (06/08/2026)",
-        "known_as_of": "2026-08-06T00:00:00.000000Z",
-        "scope": "Tháng 08/2026 (Chốt ngày 06/08)",
-        "aliases": ["06/08", "06/08/2026", "2026-08-06", "cutoff 06/08"],
-        "is_baseline": False,
-    },
-    {
-        "snapshot_id": "d8c98a0b-7b07-50f2-b1ed-9fe102ccc5e6",
-        "label": "L0 Cutoff 04/08 (04/08/2026)",
-        "known_as_of": "2026-08-04T00:00:00.000000Z",
-        "scope": "Đầu tháng 08/2026 (Chốt ngày 04/08)",
-        "aliases": ["tháng 8", "tháng 08", "tháng 8/2026", "2026-08", "đầu tháng 8", "04/08", "04/08/2026", "2026-08-04", "tháng trước", "cutoff 04/08"],
-        "is_baseline": False,
-    },
-    # 7 Alternate Benchmark Branches (All known as of 17/09/2026 12:00)
-    {
-        "snapshot_id": "df057563-78f4-5ac1-aba6-5b48c572fb4a",
-        "label": "Branch L_NO_OPDAY (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng thiếu ngày vận hành (L_NO_OPDAY)",
-        "aliases": ["l_no_opday", "no_opday", "thiếu ngày vận hành", "nhánh thiếu ngày vận hành", "snapshot no opday"],
-        "is_baseline": False,
-    },
-    {
-        "snapshot_id": "d644104b-2ae9-54e3-b07f-ed1cefe897f1",
-        "label": "Branch L_WRONG_DRIVER (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng sai định danh tài xế (L_WRONG_DRIVER)",
-        "aliases": ["l_wrong_driver", "wrong_driver", "sai tài xế", "nhánh sai tài xế", "snapshot wrong driver"],
-        "is_baseline": False,
-    },
-    {
-        "snapshot_id": "6c606951-1fbd-586a-bf9b-51faafb07a24",
-        "label": "Branch L_CONFLICT (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng xung đột dữ liệu (L_CONFLICT)",
-        "aliases": ["l_conflict", "conflict", "xung đột", "xung đột dữ liệu", "nhánh xung đột", "snapshot conflict"],
-        "is_baseline": False,
-    },
-    {
-        "snapshot_id": "296f03c2-6abf-57b3-8a17-249486d98fe8",
-        "label": "Branch L_RETRACT (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng rút lại dữ liệu (L_RETRACT)",
-        "aliases": ["l_retract", "retract", "rút lại", "rút lại dữ liệu", "nhánh rút lại", "snapshot retract"],
-        "is_baseline": False,
-    },
-    {
-        "snapshot_id": "ff172ebe-4740-54d3-a235-e819dc21c959",
-        "label": "Branch L_WRONG_WINDOW (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng sai cửa sổ thời gian (L_WRONG_WINDOW)",
-        "aliases": ["l_wrong_window", "wrong_window", "sai cửa sổ", "sai cửa sổ thời gian", "nhánh sai cửa sổ", "snapshot wrong window"],
-        "is_baseline": False,
-    },
-    {
-        "snapshot_id": "f70bbf42-f1ec-5bcf-b8d3-8a7b53086076",
-        "label": "Branch L_NO_BRIDGE (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng thiếu liên kết bắc cầu (L_NO_BRIDGE)",
-        "aliases": ["l_no_bridge", "no_bridge", "thiếu cầu nối", "nhánh thiếu cầu nối", "snapshot no bridge"],
-        "is_baseline": False,
-    },
-    {
-        "snapshot_id": "688de316-96de-59b6-9c70-3d4745aba76f",
-        "label": "Branch L_NO_COVERAGE (17/09/2026 12:00)",
-        "known_as_of": "2026-09-17T12:00:00.000000Z",
-        "scope": "Nhánh đối chứng thiếu độ phủ dữ liệu (L_NO_COVERAGE)",
-        "aliases": ["l_no_coverage", "no_coverage", "thiếu độ phủ", "nhánh thiếu độ phủ", "snapshot no coverage"],
-        "is_baseline": False,
-    },
-    # Dedicated Snapshot Tháng 07/2025 - Knowledge Graph Ontology V2
-    {
-        "snapshot_id": "snapshot-2025-07",
-        "label": "Snapshot V2 Tháng 07/2025 (Driver Operations Ontology)",
-        "known_as_of": "2025-07-31T23:59:59.000000Z",
-        "scope": "Đồ thị tri thức vận hành tài xế V2 (Ontology GraphRAG phân tầng Tháng 07/2025)",
-        "aliases": [
-            "tháng 7", "tháng 07", "tháng 7/2025", "tháng 07/2025", "07/2025", "2025-07",
-            "snapshot v2", "đồ thị mới", "v2", "ontology v2", "tháng 7 năm 2025", "snapshot-2025-07"
-        ],
-        "is_baseline": False,
     },
 ]
 
@@ -282,92 +274,6 @@ DRIVERS_SEED_DATA = [
         "acceptance_rate": 0.93,
         "cancellation_rate_30d": 0.0,
     },
-    # Driver Operations Ontology V2 (Tháng 07/2025)
-    {
-        "driver_id": "v2_drv_001",
-        "driver_code": "DRV-V2-001",
-        "full_name": "Trần Quốc Toản",
-        "phone": "0901 888 001",
-        "email": "toan.tq@gsm.vn",
-        "depot_name": "Hub Cầu Giấy (Đội Xanh 1)",
-        "region": "Hà Nội",
-        "service_type": "Taxi Xanh SM Luxury",
-        "program": "full_time",
-        "status": "active",
-        "vehicle_model": "VinFast VF 8",
-        "license_plate": "29E-888.12",
-        "rating_avg": 4.95,
-        "acceptance_rate": 0.98,
-        "cancellation_rate_30d": 0.0,
-    },
-    {
-        "driver_id": "v2_drv_002",
-        "driver_code": "DRV-V2-002",
-        "full_name": "Lê Văn Hùng",
-        "phone": "0901 888 002",
-        "email": "hung.lv@gsm.vn",
-        "depot_name": "Hub Long Biên (Đội Xanh 2)",
-        "region": "Hà Nội",
-        "service_type": "Taxi Xanh SM Standard",
-        "program": "full_time",
-        "status": "active",
-        "vehicle_model": "VinFast VF e34",
-        "license_plate": "29E-666.89",
-        "rating_avg": 4.42,
-        "acceptance_rate": 0.81,
-        "cancellation_rate_30d": 0.18,
-    },
-    {
-        "driver_id": "v2_drv_003",
-        "driver_code": "DRV-V2-003",
-        "full_name": "Nguyễn Hoàng Nam",
-        "phone": "0901 888 003",
-        "email": "nam.nh@gsm.vn",
-        "depot_name": "Hub Quận 7 (Đội Xanh Nam Sài Gòn)",
-        "region": "TP.HCM",
-        "service_type": "Taxi Xanh SM Standard",
-        "program": "full_time",
-        "status": "active",
-        "vehicle_model": "VinFast VF 5 Plus",
-        "license_plate": "51K-777.33",
-        "rating_avg": 4.82,
-        "acceptance_rate": 0.94,
-        "cancellation_rate_30d": 0.02,
-    },
-    {
-        "driver_id": "v2_drv_004",
-        "driver_code": "DRV-V2-004",
-        "full_name": "Phạm Thị Mai",
-        "phone": "0901 888 004",
-        "email": "mai.pt@gsm.vn",
-        "depot_name": "Hub Tân Bình (Đội Xanh Tân Sơn Nhất)",
-        "region": "TP.HCM",
-        "service_type": "Taxi Xanh SM Standard",
-        "program": "full_time",
-        "status": "suspended",
-        "vehicle_model": "VinFast VF e34",
-        "license_plate": "51K-444.11",
-        "rating_avg": 4.15,
-        "acceptance_rate": 0.88,
-        "cancellation_rate_30d": 0.08,
-    },
-    {
-        "driver_id": "v2_drv_005",
-        "driver_code": "DRV-V2-005",
-        "full_name": "Đặng Văn Phúc",
-        "phone": "0901 888 005",
-        "email": "phuc.dv@gsm.vn",
-        "depot_name": "Hub Cầu Giấy (Đội Xanh 1)",
-        "region": "Hà Nội",
-        "service_type": "Xanh SM Bike",
-        "program": "bike_partner",
-        "status": "active",
-        "vehicle_model": "VinFast Feliz S",
-        "license_plate": "29MD-123.45",
-        "rating_avg": 4.88,
-        "acceptance_rate": 0.97,
-        "cancellation_rate_30d": 0.0,
-    },
 ]
 
 # Alias map for driver IDs so DRV-007 and DRV-008 map cleanly
@@ -486,153 +392,91 @@ def seed_database(force_recreate: bool = True) -> DatabaseStats:
         )
         repo.upsert_driver(rec)
 
-    # 2. SEED 80 BENCHMARK TRIPS FROM RECORD_LEDGER.PARQUET
-    ledger_path = ROOT_DIR / "data" / "gsm-dev-core-0.2.2" / "public" / "operational" / "record_ledger.parquet"
+    # 2. SEED 80 BENCHMARK TRIPS, 11 COMPLAINTS & 5 INCIDENTS FROM v3_timeline_seed.json
+    seed_json_path = ROOT_DIR / "data" / "v3_timeline_seed.json"
     benchmark_trips_count = 0
+    complaints_count = 0
+    incidents_count = 0
 
-    if ledger_path.exists():
-        print("  🚕 Importing 80 canonical terminal trips from ledger...")
-        table = pq.read_table(str(ledger_path))
-        for row in table["assertions"].to_pylist():
-            for a in row:
-                if a.get("predicate") == "TRIP_OUTCOME":
-                    q = a.get("qualifiers", {})
-                    trip_id = q.get("trip_id")
-                    raw_driver_id = a.get("subject_id")
-                    driver_id = DRIVER_ID_ALIASES.get(raw_driver_id, raw_driver_id)
-                    outcome = q.get("outcome", "completed")
-                    reason_code = q.get("reason_code", "unspecified")
-                    event_time = a.get("event_time") or "2026-09-01T08:00:00.000000Z"
+    if seed_json_path.exists():
+        print(f"  🚕 Importing canonical trips, complaints & incidents from {seed_json_path.name}...")
+        with open(seed_json_path, "r", encoding="utf-8") as f:
+            seed_data = json.load(f)
 
-                    # Realistic route selection based on driver
-                    route = ROUTES_HN[benchmark_trips_count % len(ROUTES_HN)] if "Hà Nội" in str(driver_id) or benchmark_trips_count % 5 == 0 else ROUTES_HCM[benchmark_trips_count % len(ROUTES_HCM)]
-                    pickup, dropoff, dist, fare = route
+        # 2a. TRIPS
+        for t in seed_data.get("trips", []):
+            st_dt_str = t["start_time"]
+            try:
+                st_dt = datetime.fromisoformat(st_dt_str.replace("Z", "+00:00"))
+            except Exception:
+                st_dt = datetime(2026, 8, 18, 2, 0, tzinfo=timezone.utc)
+            dist = 8.5
+            end_dt = st_dt + timedelta(minutes=int(dist * 2.5) + 10)
+            is_cancelled = t["outcome"] == "cancelled"
+            cancel_party = "driver" if is_cancelled else "none"
+            rating = None if is_cancelled else 5
+            feedback = None if is_cancelled else "Chuyến đi an toàn, tài xế văn minh"
 
-                    is_cancelled = outcome == "cancelled"
-                    cancel_party = "driver" if is_cancelled else "none"
-                    rating = None if is_cancelled else random.choice([5, 5, 5, 4])
-                    feedback = None if is_cancelled else random.choice(FEEDBACK_GOOD)
-                    notes = "Chuyến xe bị hủy theo yêu cầu tài xế" if is_cancelled else "Hoàn thành tốt"
+            v_snaps = t.get("visibility_snapshot_ids") or []
+            earliest_snap = v_snaps[0] if v_snaps else "8b1426b6-2fad-5aba-b886-e16de44c18e7"
 
-                    # Calculate end time (~20 - 45 mins after start)
-                    try:
-                        st_dt = datetime.fromisoformat(event_time.replace("Z", "+00:00"))
-                    except Exception:
-                        st_dt = datetime(2026, 9, 1, 8, 0, tzinfo=timezone.utc)
-                    end_dt = st_dt + timedelta(minutes=int(dist * 2.5) + 10)
-
-                    t_rec = TripRecord(
-                        trip_id=trip_id,
-                        driver_id=driver_id,
-                        snapshot_id="d4cc0438-d831-541a-8123-ddda94ccdac8",
-                        start_time=st_dt.isoformat(),
-                        end_time=end_dt.isoformat(),
-                        pickup_address=pickup,
-                        dropoff_address=dropoff,
-                        region="TP.HCM" if "TP.HCM" in dropoff or "Quận" in dropoff else "Hà Nội",
-                        service_type="Taxi Xanh SM",
-                        distance_km=dist,
-                        fare_amount=fare if not is_cancelled else 0,
-                        outcome="cancelled" if is_cancelled else "completed",
-                        reason_code=reason_code,
-                        cancel_party=cancel_party,
-                        passenger_rating=rating,
-                        passenger_feedback=feedback,
-                        notes=notes,
-                        created_at=st_dt.isoformat(),
-                    )
-                    repo.upsert_trip(t_rec)
-                    benchmark_trips_count += 1
-
-    print(f"  ✅ Imported {benchmark_trips_count} benchmark trips.")
-
-    # 3. SUPPLEMENTARY REALISTIC TRIPS FOR FULL COMPREHENSIVE COVERAGE
-    print("  🚗 Generating supplementary trips for August & September 2026...")
-    supp_count = 0
-    base_dates = [
-        datetime(2026, 8, 10, 7, 30, tzinfo=timezone.utc),
-        datetime(2026, 8, 15, 9, 15, tzinfo=timezone.utc),
-        datetime(2026, 8, 20, 11, 45, tzinfo=timezone.utc),
-        datetime(2026, 8, 25, 14, 20, tzinfo=timezone.utc),
-        datetime(2026, 8, 30, 17, 10, tzinfo=timezone.utc),
-        datetime(2026, 9, 2, 8, 0, tzinfo=timezone.utc),
-        datetime(2026, 9, 5, 10, 30, tzinfo=timezone.utc),
-        datetime(2026, 9, 8, 13, 15, tzinfo=timezone.utc),
-        datetime(2026, 9, 11, 16, 45, tzinfo=timezone.utc),
-        datetime(2026, 9, 14, 19, 0, tzinfo=timezone.utc),
-        datetime(2026, 9, 16, 8, 30, tzinfo=timezone.utc),
-    ]
-
-    for d_info in DRIVERS_SEED_DATA:
-        d_id = d_info["driver_id"]
-        # Generate 10-15 trips per driver
-        routes_pool = ROUTES_HN if d_info["region"] == "Hà Nội" else ROUTES_HCM
-        for i, dt in enumerate(base_dates):
-            t_id = f"trip-supp-{d_info['driver_code'].lower()}-{i+1:03d}"
-            route = routes_pool[i % len(routes_pool)]
-            pickup, dropoff, dist, fare = route
-
-            trip_start = dt + timedelta(hours=i % 4, minutes=random.randint(0, 30))
-            trip_end = trip_start + timedelta(minutes=int(dist * 2.8) + 8)
-
-            supp_snap = "d8c98a0b-7b07-50f2-b1ed-9fe102ccc5e6" if trip_start.month == 8 else "d4cc0438-d831-541a-8123-ddda94ccdac8"
             t_rec = TripRecord(
-                trip_id=t_id,
-                driver_id=d_id,
-                snapshot_id=supp_snap,
-                start_time=trip_start.isoformat(),
-                end_time=trip_end.isoformat(),
-                pickup_address=pickup,
-                dropoff_address=dropoff,
-                region=d_info["region"],
-                service_type=d_info["service_type"],
+                trip_id=t["trip_id"],
+                driver_id=t["driver_id"],
+                snapshot_id=earliest_snap,
+                visibility_snapshot_ids=v_snaps,
+                start_time=st_dt.isoformat(),
+                end_time=end_dt.isoformat(),
+                pickup_address=t.get("pickup") or "Điểm đón GSM",
+                dropoff_address=t.get("dropoff") or "Điểm đến GSM",
+                region=t.get("region") or "TP.HCM",
+                service_type=t.get("service_type") or "Taxi Xanh SM",
                 distance_km=dist,
-                fare_amount=fare,
-                outcome="completed",
-                reason_code="completed_normal",
-                cancel_party="none",
-                passenger_rating=5 if i % 4 != 0 else 4,
-                passenger_feedback=random.choice(FEEDBACK_GOOD),
-                notes="Chuyến đi vận hành tiêu chuẩn",
-                created_at=trip_start.isoformat(),
+                fare_amount=120000 if not is_cancelled else 0,
+                outcome=t["outcome"],
+                reason_code=t.get("reason_code", "unspecified"),
+                cancel_party=cancel_party,
+                passenger_rating=rating,
+                passenger_feedback=feedback,
+                notes=t.get("description"),
+                created_at=st_dt.isoformat(),
             )
             repo.upsert_trip(t_rec)
-            supp_count += 1
+            benchmark_trips_count += 1
 
-    print(f"  ✅ Added {supp_count} supplementary trips.")
+        # 2b. COMPLAINTS
+        for c in seed_data.get("complaints", []):
+            c_rec = ComplaintRecord(
+                complaint_id=c["complaint_id"],
+                driver_id=c["driver_id"],
+                trip_id=c.get("trip_id"),
+                category=c.get("category", "general"),
+                event_time=c["event_time"],
+                name=c.get("name"),
+                description=c.get("description", ""),
+                visibility_snapshot_ids=c.get("visibility_snapshot_ids") or [],
+                created_at=c["event_time"],
+            )
+            repo.upsert_complaint(c_rec)
+            complaints_count += 1
 
-    # 3b. SEED V2 TRIPS FOR SNAPSHOT THÁNG 07/2025
-    v2_trips_data = [
-        ("v2_trip_001_1", "v2_drv_001", "2025-07-15T08:15:00.000000Z", "Sân bay Nội Bài, Ga T1", "Hồ Hoàn Kiếm, Tràng Tiền", "Hà Nội", "Taxi Xanh SM Luxury", 28.0, 295000, "completed", "unspecified", "none", 5, "Xe VF 8 rất êm, tài xế lịch sự"),
-        ("v2_trip_002_1", "v2_drv_002", "2025-07-20T08:30:00.000000Z", "Chợ Đồng Xuân, Hoàn Kiếm", "Tràng Tiền Plaza, Hoàn Kiếm", "Hà Nội", "Taxi Xanh SM Standard", 5.2, 0, "cancelled", "driver_cancelled_rush_hour", "driver", None, "Tài xế tự ý hủy chuyến giờ cao điểm"),
-        ("v2_trip_003_1", "v2_drv_003", "2025-07-12T10:00:00.000000Z", "Bitexco Financial Tower, Quận 1", "Vinhomes Grand Park, Thủ Đức", "TP.HCM", "Taxi Xanh SM Standard", 14.5, 165000, "completed", "unspecified", "none", 5, "Tài xế nhiệt tình, xe VF 5 sạch sẽ"),
-        ("v2_trip_004_1", "v2_drv_004", "2025-07-18T10:10:00.000000Z", "Sân bay Tân Sơn Nhất, Ga T2", "Chợ Bến Thành, Quận 1", "TP.HCM", "Taxi Xanh SM Standard", 11.2, 190000, "completed", "reckless_speed_warning", "none", 1, "Tài xế chạy quá tốc độ, phanh gấp nguy hiểm"),
-        ("v2_trip_005_1", "v2_drv_005", "2025-07-22T08:45:00.000000Z", "Keangnam Landmark 72, Cầu Giấy", "Vincom Center Trần Duy Hưng, Cầu Giấy", "Hà Nội", "Xanh SM Bike", 4.8, 35000, "completed", "unspecified", "none", 5, "Giao hàng nhanh, lái xe an toàn"),
-    ]
-    for tid, did, st, pu, do_, reg, srv, dist, fare, outc, rcode, cparty, prate, feed in v2_trips_data:
-        st_dt = datetime.fromisoformat(st.replace("Z", "+00:00"))
-        end_dt = st_dt + timedelta(minutes=int(dist * 2.5) + 10)
-        repo.upsert_trip(TripRecord(
-            trip_id=tid,
-            driver_id=did,
-            snapshot_id="snapshot-2025-07",
-            start_time=st_dt.isoformat(),
-            end_time=end_dt.isoformat(),
-            pickup_address=pu,
-            dropoff_address=do_,
-            region=reg,
-            service_type=srv,
-            distance_km=dist,
-            fare_amount=fare,
-            outcome=outc,
-            reason_code=rcode,
-            cancel_party=cparty,
-            passenger_rating=prate,
-            passenger_feedback=feed,
-            notes="Chuyến đi thuộc đồ thị tri thức vận hành V2 (Snapshot 07/2025)",
-            created_at=st_dt.isoformat(),
-        ))
-    print(f"  ✅ Added {len(v2_trips_data)} V2 trips for Snapshot 07/2025.")
+        # 2c. INCIDENTS
+        for i in seed_data.get("incidents", []):
+            i_rec = IncidentRecord(
+                incident_id=i["incident_id"],
+                driver_id=i.get("driver_id"),
+                trip_id=i.get("trip_id"),
+                incident_type=i.get("incident_type", "operational_issue"),
+                event_time=i.get("event_time"),
+                name=i.get("name"),
+                description=i.get("description", ""),
+                visibility_snapshot_ids=i.get("visibility_snapshot_ids") or [],
+                created_at=i.get("event_time") or now_str,
+            )
+            repo.upsert_incident(i_rec)
+            incidents_count += 1
+
+    print(f"  ✅ Imported {benchmark_trips_count} trips, {complaints_count} complaints, {incidents_count} incidents.")
 
     # 4. RECALCULATE METRICS FOR ALL DRIVERS
     print("  📊 Recomputing driver metrics & cancellation rates...")

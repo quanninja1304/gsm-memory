@@ -54,6 +54,7 @@ DDL_STATEMENTS: Sequence[str] = [
         trip_id TEXT PRIMARY KEY,
         driver_id TEXT NOT NULL REFERENCES drivers(driver_id) ON DELETE CASCADE,
         snapshot_id TEXT REFERENCES snapshots(snapshot_id),
+        visibility_snapshot_ids TEXT, -- JSON array of visible snapshot UUIDs
         start_time TEXT NOT NULL,
         end_time TEXT,
         pickup_address TEXT NOT NULL,
@@ -124,6 +125,42 @@ DDL_STATEMENTS: Sequence[str] = [
     """,
     "CREATE INDEX IF NOT EXISTS idx_memory_session ON context_memory(session_id);",
     "CREATE INDEX IF NOT EXISTS idx_memory_driver ON context_memory(driver_id);",
+
+    # 7. BẢNG KHIẾU NẠI (COMPLAINTS)
+    """
+    CREATE TABLE IF NOT EXISTS complaints (
+        complaint_id TEXT PRIMARY KEY,
+        driver_id TEXT REFERENCES drivers(driver_id) ON DELETE CASCADE,
+        trip_id TEXT REFERENCES trips(trip_id) ON DELETE SET NULL,
+        category TEXT,
+        event_time TEXT NOT NULL,
+        name TEXT,
+        description TEXT,
+        visibility_snapshot_ids TEXT, -- JSON array of visible snapshot UUIDs
+        created_at TEXT NOT NULL
+    );
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_complaints_driver ON complaints(driver_id);",
+    "CREATE INDEX IF NOT EXISTS idx_complaints_trip ON complaints(trip_id);",
+    "CREATE INDEX IF NOT EXISTS idx_complaints_event_time ON complaints(event_time);",
+
+    # 8. BẢNG SỰ CỐ (INCIDENTS)
+    """
+    CREATE TABLE IF NOT EXISTS incidents (
+        incident_id TEXT PRIMARY KEY,
+        driver_id TEXT REFERENCES drivers(driver_id) ON DELETE SET NULL,
+        trip_id TEXT REFERENCES trips(trip_id) ON DELETE SET NULL,
+        incident_type TEXT,
+        event_time TEXT,
+        name TEXT,
+        description TEXT,
+        visibility_snapshot_ids TEXT, -- JSON array of visible snapshot UUIDs
+        created_at TEXT NOT NULL
+    );
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_incidents_driver ON incidents(driver_id);",
+    "CREATE INDEX IF NOT EXISTS idx_incidents_trip ON incidents(trip_id);",
+    "CREATE INDEX IF NOT EXISTS idx_incidents_event_time ON incidents(event_time);",
 ]
 
 
@@ -133,12 +170,14 @@ def init_schema(conn: sqlite3.Connection) -> None:
         for stmt in DDL_STATEMENTS:
             conn.execute(stmt)
 
-        # Migration: Ensure snapshot_id exists in trips table
+        # Migration: Ensure snapshot_id and visibility_snapshot_ids exist in trips table
         try:
             cols = [r[1] for r in conn.execute("PRAGMA table_info(trips)").fetchall()]
             if "snapshot_id" not in cols:
                 conn.execute("ALTER TABLE trips ADD COLUMN snapshot_id TEXT REFERENCES snapshots(snapshot_id);")
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_trips_snapshot ON trips(snapshot_id);")
+            if "visibility_snapshot_ids" not in cols:
+                conn.execute("ALTER TABLE trips ADD COLUMN visibility_snapshot_ids TEXT;")
         except Exception as e:
             print(f"[Schema Migration Warning] {e}")
 
@@ -164,4 +203,5 @@ def init_schema(conn: sqlite3.Connection) -> None:
                         pass
         except Exception as e:
             print(f"[Schema Migration Warning] {e}")
+
 

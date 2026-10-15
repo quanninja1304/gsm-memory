@@ -377,6 +377,58 @@ def test_query_driver_graph_extracts_nodes_and_edges():
     assert mock_pipeline.last_subgraph == mock_subgraph
 
 
+def test_query_driver_graph_v3_timeline_extraction():
+    """Verify that query_driver_graph extracts rich V3 Timeline entities: Complaint, Incident, Measurement, Decision, Finding."""
+    from gsm_memory.agent.tools import query_driver_graph
+    from gsm_memory.agent.conversational_pipeline import Subgraph, SubgraphNode, SubgraphEdge
+
+    mock_pipeline = MagicMock()
+    mock_subgraph = Subgraph(
+        seed_id="drv-001-uuid",
+        snapshot_id="snap-baseline",
+        nodes=[
+            SubgraphNode(id="drv-001-uuid", label="Driver", name="Nguyễn Văn An", props={"code": "DRV-001"}),
+            SubgraphNode(id="fleet-01", label="Fleet", name="Depot Hồ Chí Minh 1", props={}),
+            SubgraphNode(id="veh-01", label="Vehicle", name="Phương tiện 04", props={"mock_plate": "MOCK-004", "model": "VF 5 Plus", "battery_health": 95}),
+            SubgraphNode(id="trip-01", label="Trip", name="Chuyến 1", props={"outcome": "completed"}),
+            SubgraphNode(id="comp-01", label="Complaint", name="Phản ánh thái độ", props={"category": "service_attitude", "description": "Nói lớn tiếng", "event_time": "2026-08-19"}),
+            SubgraphNode(id="inc-01", label="Incident", name="Cảnh báo vận hành", props={"incident_type": "vehicle_operability", "description": "Đèn cảnh báo", "event_time": "2026-08-18"}),
+            SubgraphNode(id="meas-01", label="Measurement", name="RM_REVENUE", props={"definition_id": "RM_REVENUE", "value": "280000", "unit": "VND", "window_start": "2026-09-11", "window_end": "2026-09-12"}),
+            SubgraphNode(id="find-01", label="ViolationFinding", name="Kết quả doanh số", props={"status": "triggered", "threshold": "280000", "observed_value": "240000"}),
+            SubgraphNode(id="dec-01", label="EnforcementDecision", name="Quyết định 01", props={"status": "applied", "effective_at": "2026-09-14"}),
+        ],
+        edges=[
+            SubgraphEdge(start_id="drv-001-uuid", end_id="fleet-01", rel_type="MEMBER_OF", props={}),
+            SubgraphEdge(start_id="drv-001-uuid", end_id="veh-01", rel_type="OPERATED", props={}),
+            SubgraphEdge(start_id="drv-001-uuid", end_id="trip-01", rel_type="PERFORMED", props={}),
+            SubgraphEdge(start_id="drv-001-uuid", end_id="comp-01", rel_type="RECEIVED_COMPLAINT", props={}),
+            SubgraphEdge(start_id="drv-001-uuid", end_id="inc-01", rel_type="HAS_INCIDENT", props={}),
+            SubgraphEdge(start_id="drv-001-uuid", end_id="meas-01", rel_type="HAS_MEASUREMENT", props={}),
+            SubgraphEdge(start_id="drv-001-uuid", end_id="find-01", rel_type="HAS_FINDING", props={}),
+            SubgraphEdge(start_id="drv-001-uuid", end_id="dec-01", rel_type="RECEIVED_DECISION", props={}),
+        ]
+    )
+    mock_pipeline.expand_subgraph_bfs.return_value = mock_subgraph
+
+    res = query_driver_graph(pipeline=mock_pipeline, driver_id="drv-001-uuid", snapshot_id="snap-baseline")
+    assert res["node_count"] == 9
+    assert res["edge_count"] == 8
+    assert res["node_breakdown"]["Complaint"] == 1
+    assert res["node_breakdown"]["Incident"] == 1
+    assert res["node_breakdown"]["Measurement"] == 1
+    assert res["node_breakdown"]["ViolationFinding"] == 1
+    assert res["node_breakdown"]["EnforcementDecision"] == 1
+    assert len(res["complaints"]) == 1
+    assert res["complaints"][0]["category"] == "service_attitude"
+    assert len(res["incidents"]) == 1
+    assert len(res["findings"]) == 1
+    assert len(res["decisions"]) == 1
+    assert len(res["measurements"]) == 1
+    assert "Phản ánh thái độ" in res["summary"]
+    assert "Cảnh báo vận hành" in res["summary"]
+    assert "Kết quả doanh số" in res["summary"]
+
+
 def test_react_agent_guards_force_cancel_rate_tool_calling():
     """Verify that ReActAgent guards prevent early final answer without calling calculate_cancel_rate."""
     # Step 1: LLM prematurely gives final answer without calling calculate_cancel_rate
@@ -503,7 +555,7 @@ def test_agent_attendance_evaluation_workflow_decomposed():
 
     actions_executed = [s.action for s in result.steps]
     assert "search_gsm_policies" in actions_executed
-    assert "get_driver_daily_stats" in actions_executed
+    assert ("get_driver_operational_stats" in actions_executed or "get_driver_daily_stats" in actions_executed)
     assert "calculate_acceptance_rate" in actions_executed
     assert "evaluate_attendance_standard" not in actions_executed
     assert "Đạt đầy đủ tiêu chuẩn chấm công" in result.final_answer
@@ -558,7 +610,7 @@ def test_react_agent_multi_tool_execution_in_single_turn():
 
     actions_executed = [s.action for s in result.steps if s.action]
     assert "search_gsm_policies" in actions_executed
-    assert "get_driver_daily_stats" in actions_executed
+    assert ("get_driver_operational_stats" in actions_executed or "get_driver_daily_stats" in actions_executed)
     assert len(actions_executed) == 2
 
     # Verify action_start events had proper action_index
@@ -762,8 +814,598 @@ def test_react_agent_handles_pseudo_action_final_without_error():
     assert "Tình hình vận hành thực tế" in result.final_answer
 
 
+def test_upgraded_cancel_rate_and_threshold_comparison():
+    """Verify calculate_cancel_rate supports completed_trips and threshold_pct exact rational comparison."""
+    from gsm_memory.agent.tools import calculate_cancel_rate
+
+    # Case A: total_trips computed from completed_trips
+    res_a = calculate_cancel_rate(cancelled_trips=2, completed_trips=8, threshold_pct=20.0)
+    assert res_a["metric_status"] == "valid"
+    assert res_a["total_trips"] == 10
+    assert res_a["fraction"] == "1/5"
+    assert res_a["rate_pct"] == 20.0
+    assert res_a["passed"] is True
+    assert "ĐẠT QUY CHẾ" in res_a["summary"]
+
+    # Case B: exceeding threshold
+    res_b = calculate_cancel_rate(cancelled_trips=3, completed_trips=7, threshold_pct=20.0)
+    assert res_b["passed"] is False
+    assert "VƯỢT TRẦN QUY CHẾ" in res_b["summary"]
+
+    # Case C: zero trips returns undefined
+    res_c = calculate_cancel_rate(cancelled_trips=0, total_trips=0)
+    assert res_c["metric_status"] == "undefined"
+    assert res_c["cancel_rate"] is None
 
 
+def test_revenue_charge_preconditions_validation():
+    """Verify calculate_revenue_charge supports prerequisite checks for task T02."""
+    from gsm_memory.agent.tools import calculate_revenue_charge
+
+    # Taxi driver is not applicable
+    res_taxi = calculate_revenue_charge(200000, program="taxi_driver")
+    assert res_taxi["applicable"] is False
+    assert res_taxi["charge_vnd"] == 0
+    assert res_taxi["verdict"] == "not_applicable"
+
+    # Bike partner in Hanoi on operating day
+    res_bike = calculate_revenue_charge(200000, program="bike_partner", operating_region="Hà Nội", is_operating_day=True)
+    assert res_bike["applicable"] is True
+    assert res_bike["charge_vnd"] == 16000  # (280000 - 200000) // 5 = 16000
+
+    # Boundary case: revenue >= 280k
+    res_boundary = calculate_revenue_charge(280000)
+    assert res_boundary["charge_vnd"] == 0
 
 
+def test_penalty_points_and_attendance_tools():
+    """Verify calculate_violation_penalty_points and calculate_attendance_hours."""
+    from gsm_memory.agent.tools import calculate_attendance_hours, calculate_violation_penalty_points
+
+    # Penalty points tiers
+    assert calculate_violation_penalty_points(0)["status_code"] == "NORMAL"
+    assert calculate_violation_penalty_points(5)["status_code"] == "REMINDER"
+    assert calculate_violation_penalty_points([5, 10])["status_code"] == "WARNING"
+    assert calculate_violation_penalty_points(25)["status_code"] == "SUSPENSION"
+    assert calculate_violation_penalty_points(35)["status_code"] == "TERMINATION_REVIEW"
+
+    # Attendance hours
+    att_res = calculate_attendance_hours(hours_worked=[8.0, 8.5, 8.0, 8.0, 8.0], required_days=5)
+    assert att_res["passed"] is True
+    assert att_res["equivalent_standard_days"] > 5.0
+
+
+def test_react_agent_injects_chat_history_into_llm_messages():
+    """Verify that multi-turn conversational chat_history is injected into LLM messages."""
+    received_messages = []
+
+    def mock_call_llm(messages, **kwargs):
+        received_messages.append(list(messages))
+        # Emit a final answer directly
+        return (
+            "Final Answer:\n"
+            "**1. Tình hình vận hành thực tế:**\n- 5 chuyến hoàn thành\n"
+            "**2. Đối chiếu quy chế & Kết luận:**\n- Đạt tiêu chuẩn\n"
+            "**3. Khuyến nghị cho Quản lý vận hành:**\n- Tiếp tục theo dõi\n",
+            "mock_model",
+            {},
+        )
+
+    agent = ReActAgent(call_llm_fn=mock_call_llm, max_iterations=2)
+    query = "Tại sao anh ấy lại không vi phạm quy chế?"
+    context = {
+        "driver_id": "c499f934-bfe1-5509-a578-afb09cee357c",
+        "chat_history": [
+            {"role": "user", "content": "Kiểm tra tài xế Bình (DRV-002) trong tháng 9/2026?"},
+            {"role": "assistant", "content": "Tài xế Bình có 5 chuyến, 0 chuyến hủy, tỷ lệ hủy 0%."},
+        ],
+    }
+
+    list(agent.run_stream(query, context=context))
+    assert len(received_messages) >= 1
+    first_call_msgs = received_messages[0]
+
+    # Verify that the past user and assistant messages exist between system and last user prompt
+    roles = [m["role"] for m in first_call_msgs]
+    assert "system" in roles
+    assert "user" in roles
+    assert "assistant" in roles
+    assert any("Kiểm tra tài xế Bình" in m["content"] for m in first_call_msgs)
+    assert any("Tài xế Bình có 5 chuyến" in m["content"] for m in first_call_msgs)
+
+
+def test_react_agent_reflection_hint_on_tool_failure():
+    """Verify that when a tool encounters an error, a helpful reflection hint is generated."""
+    agent = ReActAgent(call_llm_fn=MagicMock(), max_iterations=2)
+
+    # Mock execute_tool to return error
+    agent.execute_tool = MagicMock(return_value=({"error": "Không tìm thấy tài xế DRV-999"}, None))
+
+    call_count = [0]
+    def mock_call_llm(messages, **kwargs):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            return (
+                "Thought: Tra cứu hồ sơ tài xế DRV-999\n"
+                "Action: get_driver_profile\n"
+                'Action Input: {"driver_identifier": "DRV-999"}'
+            ), "mock", {}
+        return (
+            "Final Answer:\n"
+            "**1. Tình hình vận hành thực tế:**\n- Chưa có dữ liệu\n"
+            "**2. Đối chiếu quy chế & Kết luận:**\n- Chưa đủ căn cứ\n"
+            "**3. Khuyến nghị cho Quản lý vận hành:**\n- Theo dõi thêm\n"
+        ), "mock", {}
+
+    agent.call_llm_fn = mock_call_llm
+    events = list(agent.run_stream("Kiểm tra DRV-999"))
+    obs_events = [e for e in events if e.get("type") == "observation"]
+
+    assert len(obs_events) >= 1
+    obs = obs_events[0]["observation"]
+    assert "_reflection_hint" in obs
+    assert "báo lỗi" in obs["_reflection_hint"]
+
+
+def test_react_agent_resolves_tool_aliases_and_rejects_hallucinations():
+    """Verify that common tool misnomers and English aliases are mapped properly,
+
+    while nonexistent hallucinations are cleanly rejected.
+    """
+    agent = ReActAgent(call_llm_fn=lambda m, **k: ("", "", {}))
+
+    # Common aliases
+    assert agent._resolve_tool_name("get_driver_info") == "get_driver_profile"
+    assert agent._resolve_tool_name("driver_info") == "get_driver_profile"
+    assert agent._resolve_tool_name("search_policies") == "search_gsm_policies"
+    assert agent._resolve_tool_name("query_trips") in ("get_driver_trip_summary", "get_driver_trip_metrics")
+    assert agent._resolve_tool_name("cancel_rate") == "calculate_cancel_rate"
+    assert agent._resolve_tool_name("driver_graph") == "query_driver_graph"
+    assert agent._resolve_tool_name("attendance_hours") == "calculate_attendance_hours"
+
+    # Completely nonexistent tools
+    assert agent._resolve_tool_name("nonexistent_fake_tool_xyz") is None
+    assert agent._resolve_tool_name("check_weather_tomorrow") is None
+
+
+def test_get_full_policy_document_retrieves_raw_content():
+    """Verify get_full_policy_document fetches complete text from catalog and normalized markdown files."""
+    from gsm_memory.agent.tools import get_full_policy_document
+
+    res_p094 = get_full_policy_document(None, policy_code="P094")
+    assert res_p094.get("policy_code") == "P094"
+    assert res_p094.get("total_characters", 0) > 1000
+    assert not res_p094.get("is_truncated")
+    assert "hủy" in res_p094.get("content", "").lower() or "quy chế" in res_p094.get("content", "").lower()
+
+    res_p027 = get_full_policy_document(None, policy_code="P027")
+    assert res_p027.get("policy_code") == "P027"
+    assert res_p027.get("total_characters", 0) > 1000
+
+    # Test error handling on invalid code
+    res_err = get_full_policy_document(None, policy_code="NONEXISTENT_9999")
+    assert "error" in res_err
+
+
+def test_react_agent_executes_get_full_policy_document():
+    """Verify that ReActAgent dispatches get_full_policy_document and collects citations."""
+    agent = ReActAgent(call_llm_fn=lambda m, **k: ("", "", {}))
+    assert agent._resolve_tool_name("get_full_policy") == "get_full_policy_document"
+    assert agent._resolve_tool_name("full_policy") == "get_full_policy_document"
+    assert agent._resolve_tool_name("read_policy") == "get_full_policy_document"
+
+    obs, cits = agent.execute_tool("get_full_policy_document", {"policy_code": "P094"})
+    assert obs.get("policy_code") == "P094"
+    assert "content" in obs
+    assert any("P094" in c.get("citation_locator", "") for c in cits)
+
+
+def test_get_full_policy_document_handles_multiple_codes():
+    """Verify get_full_policy_document can fetch multiple policy documents in a single call."""
+    from gsm_memory.agent.tools import get_full_policy_document
+
+    res = get_full_policy_document(None, policy_code="P094, P027, P017")
+    assert res.get("policies_count") == 3
+    assert "documents" in res
+    assert len(res["documents"]) == 3
+    doc_codes = [d["policy_code"] for d in res["documents"]]
+    assert doc_codes == ["P094", "P027", "P017"]
+    assert "P094" in res["content"] and "P027" in res["content"] and "P017" in res["content"]
+
+
+def test_react_agent_rejects_driver_tools_on_pure_policy_lookup():
+    """Verify that if LLM attempts to call get_driver_daily_stats on a pure policy query,
+
+    the agent immediately rejects it with _force_finalize and breaks the loop.
+    """
+    call1_search = (
+        "Thought: Cần tra cứu quy chế hủy chuyến.\n"
+        "Action: search_gsm_policies\n"
+        'Action Input: {"query": "chính sách hủy chuyến"}\n'
+    )
+    call2_full_doc = (
+        "Thought: Đọc toàn văn quy chế P094.\n"
+        "Action: get_full_policy_document\n"
+        'Action Input: {"policy_code": "P094"}\n'
+    )
+    call3_hallucinated_driver = (
+        "Thought: Cần kiểm tra số liệu tài xế ngày 2023-03-16.\n"
+        "Action: get_driver_daily_stats\n"
+        'Action Input: {"driver_id": "DRV-002", "date": "2023-03-16"}\n'
+    )
+    call4_synthesize = (
+        "Dựa trên các văn bản quy chế và quy định hiện hành của GSM về câu hỏi \"chính sách hủy chuyến nói về gì\", tôi xin thông tin chi tiết như sau:\n\n"
+        "**1. Quy định chung & Tiêu chuẩn áp dụng:**\n"
+        "- **Văn bản quy định:** P094 Bản tin vận doanh\n"
+        "- **Đối tượng:** Tài xế GSM\n"
+        "- **Nội dung:** Quy định hủy chuyến khi thời tiết ngập lụt\n\n"
+        "**2. Căn cứ và trích dẫn điều khoản quy chế chi tiết:**\n"
+        "- Trích đoạn điều khoản P094\n\n"
+        "**3. Lưu ý đối soát cho Quản lý:**\n"
+        "- Tuân thủ quy định."
+    )
+
+    responses = [call1_search, call2_full_doc, call3_hallucinated_driver, call4_synthesize]
+
+    def mock_call_llm(messages, **kwargs):
+        return responses.pop(0), "mock_model", {}
+
+    agent = ReActAgent(call_llm_fn=mock_call_llm, max_iterations=5)
+    query = "chính sách hủy chuyến nói về gì"
+    events = list(agent.run_stream(query))
+
+    obs_events = [e for e in events if e.get("type") == "observation"]
+    assert len(obs_events) == 3
+
+    # The 3rd observation must be the rejection with _force_finalize
+    obs3 = obs_events[2]["observation"]
+    assert "error" in obs3
+    assert "Thao tác không được phép" in obs3["error"]
+    assert obs3.get("_force_finalize") is True
+
+    final_event = next(e for e in events if e.get("type") == "final_result")
+    result: ReActResult = final_event["result"]
+    assert result.final_answer != ""
+
+
+def test_evaluate_daily_revenue_auto_db_lookup():
+    """Verify evaluate_daily_revenue automatically fetches driver revenue from DB trips when revenue_vnd is omitted."""
+    from gsm_memory.agent.tools import evaluate_daily_revenue
+    from gsm_memory.db.models import DriverRecord, TripRecord
+
+    mock_driver = DriverRecord(
+        driver_id="drv-uuid-007",
+        driver_code="DRV-007",
+        full_name="Nguyễn Văn A",
+        created_at="2026-09-01T00:00:00Z",
+        updated_at="2026-09-15T00:00:00Z",
+    )
+    trips = [
+        TripRecord(
+            trip_id="trip-1",
+            driver_id="drv-uuid-007",
+            outcome="completed",
+            fare_amount=350000,
+            start_time="2026-09-15T08:00:00Z",
+            pickup_address="A",
+            dropoff_address="B",
+            created_at="2026-09-15T08:00:00Z",
+        ),
+        TripRecord(
+            trip_id="trip-2",
+            driver_id="drv-uuid-007",
+            outcome="completed",
+            fare_amount=400000,
+            start_time="2026-09-15T12:00:00Z",
+            pickup_address="A",
+            dropoff_address="B",
+            created_at="2026-09-15T12:00:00Z",
+        ),
+        TripRecord(
+            trip_id="trip-3",
+            driver_id="drv-uuid-007",
+            outcome="cancelled",
+            fare_amount=200000,
+            start_time="2026-09-15T14:00:00Z",
+            pickup_address="A",
+            dropoff_address="B",
+            created_at="2026-09-15T14:00:00Z",
+        ),
+        TripRecord(
+            trip_id="trip-4",
+            driver_id="drv-uuid-007",
+            outcome="completed",
+            fare_amount=500000,
+            start_time="2026-09-16T08:00:00Z",
+            pickup_address="A",
+            dropoff_address="B",
+            created_at="2026-09-16T08:00:00Z",
+        ),
+    ]
+    mock_db = MagicMock()
+    mock_db.get_driver.return_value = mock_driver
+    mock_db.get_trips.return_value = trips
+
+    # 1. Automatic lookup for 2026-09-15: completed trips = trip-1 (350k) + trip-2 (400k) = 750k
+    res = evaluate_daily_revenue(
+        driver_id="DRV-007",
+        date="2026-09-15",
+        threshold_vnd=720000,
+        snapshot_id="snap-1",
+        db_repo=mock_db,
+    )
+    assert res["revenue_vnd"] == 750000
+    assert res["passed"] is True
+    assert res["diff_vnd"] == 30000
+    assert "ĐẠT ĐỊNH MỨC" in res["summary"]
+
+    # 2. Threshold not passed: e.g. 900k
+    res_fail = evaluate_daily_revenue(
+        driver_id="DRV-007",
+        date="2026-09-15",
+        threshold_vnd=900000,
+        snapshot_id="snap-1",
+        db_repo=mock_db,
+    )
+    assert res_fail["revenue_vnd"] == 750000
+    assert res_fail["passed"] is False
+    assert res_fail["diff_vnd"] == -150000
+    assert "KHÔNG ĐẠT" in res_fail["summary"]
+
+
+def test_get_driver_trip_summary_counts_incidents_and_complaints():
+    """Verify get_driver_trip_summary queries and returns incidents_count and complaints_count."""
+    from gsm_memory.agent.tools import get_driver_trip_summary
+    from gsm_memory.db.models import DriverRecord, IncidentRecord, ComplaintRecord
+
+    mock_driver = DriverRecord(
+        driver_id="drv-uuid-008",
+        driver_code="DRV-008",
+        full_name="Lê Văn C",
+        created_at="2026-09-01T00:00:00Z",
+        updated_at="2026-09-15T00:00:00Z",
+    )
+    mock_incidents = [
+        IncidentRecord(
+            incident_id="INC-001",
+            driver_id="drv-uuid-008",
+            incident_type="collision",
+            event_time="2026-09-15T10:00:00Z",
+            name="Va quẹt xe",
+            description="Va quẹt nhẹ tại ngã tư",
+            created_at="2026-09-15T10:00:00Z",
+        )
+    ]
+    mock_complaints = [
+        ComplaintRecord(
+            complaint_id="CMP-001",
+            driver_id="drv-uuid-008",
+            category="service_quality",
+            event_time="2026-09-15T14:00:00Z",
+            name="Thái độ phục vụ",
+            description="Tài xế bấm còi to",
+            created_at="2026-09-15T14:00:00Z",
+        )
+    ]
+    mock_db = MagicMock()
+    mock_db.get_driver.return_value = mock_driver
+    mock_db.get_driver_snapshot_metrics.return_value = {
+        "total_trips": 10,
+        "completed_trips": 9,
+        "cancelled_trips": 1,
+        "cancel_rate": 0.10,
+        "rating_avg": 4.88,
+    }
+    mock_db.get_incidents.return_value = mock_incidents
+    mock_db.get_complaints.return_value = mock_complaints
+
+    res = get_driver_trip_summary(
+        db_repo=mock_db,
+        driver_identifier="DRV-008",
+        date="2026-09-15",
+        snapshot_id="snap-test",
+    )
+    assert res["found"] is True
+    assert res["incidents_count"] == 1
+    assert res["complaints_count"] == 1
+    assert "1 sự cố vi phạm" in res["summary"]
+    assert "1 khiếu nại" in res["summary"]
+
+
+def test_recent_incidents_and_detail_separation():
+    """Verify get_recent_incidents returns only concise summary without description,
+
+    and get_incident_detail returns full description.
+    """
+    from gsm_memory.agent.tools import get_recent_incidents, get_incident_detail
+    from gsm_memory.db.models import DriverRecord, IncidentRecord
+
+    mock_driver = DriverRecord(
+        driver_id="drv-uuid-009",
+        driver_code="DRV-009",
+        full_name="Hoàng Văn D",
+        created_at="2026-09-01T00:00:00Z",
+        updated_at="2026-09-15T00:00:00Z",
+    )
+    mock_inc = IncidentRecord(
+        incident_id="INC-888",
+        driver_id="drv-uuid-009",
+        incident_type="traffic_violation",
+        event_time="2026-09-14T09:00:00Z",
+        name="Vượt đèn vàng",
+        description="Tài xế cố vượt qua giao lộ khi đèn tín hiệu chuyển vàng.",
+        created_at="2026-09-14T09:00:00Z",
+    )
+    mock_db = MagicMock()
+    mock_db.get_driver.return_value = mock_driver
+    mock_db.get_incidents.return_value = [mock_inc]
+    mock_db.get_incident.return_value = mock_inc
+
+    # 1. get_recent_incidents should return top list with id, name, type, date (NO description in list)
+    list_res = get_recent_incidents(
+        db_repo=mock_db,
+        driver_identifier="DRV-009",
+    )
+    assert list_res["found"] is True
+    assert len(list_res["incidents"]) == 1
+    inc_item = list_res["incidents"][0]
+    assert inc_item["incident_id"] == "INC-888"
+    assert inc_item["name"] == "Vượt đèn vàng"
+    assert inc_item["incident_type"] == "traffic_violation"
+    assert "description" not in inc_item
+
+    # 2. get_incident_detail retrieves full description
+    detail_res = get_incident_detail(
+        incident_id="INC-888",
+        db_repo=mock_db,
+    )
+    assert detail_res["found"] is True
+    assert detail_res["incident_id"] == "INC-888"
+    assert detail_res["description"] == "Tài xế cố vượt qua giao lộ khi đèn tín hiệu chuyển vàng."
+    assert "Vượt đèn vàng" in detail_res["summary"]
+
+
+def test_recent_complaints_and_detail_separation():
+    """Verify get_recent_complaints returns only concise summary without description,
+
+    and get_complaint_detail returns full description.
+    """
+    from gsm_memory.agent.tools import get_recent_complaints, get_complaint_detail
+    from gsm_memory.db.models import DriverRecord, ComplaintRecord
+
+    mock_driver = DriverRecord(
+        driver_id="drv-uuid-010",
+        driver_code="DRV-010",
+        full_name="Phạm Văn E",
+        created_at="2026-09-01T00:00:00Z",
+        updated_at="2026-09-15T00:00:00Z",
+    )
+    mock_comp = ComplaintRecord(
+        complaint_id="CMP-999",
+        driver_id="drv-uuid-010",
+        category="driving_style",
+        event_time="2026-09-12T16:30:00Z",
+        name="Phanh gấp liên tục",
+        description="Khách hàng phản ánh tài xế thường xuyên phanh gấp khiến người say xe.",
+        created_at="2026-09-12T16:30:00Z",
+    )
+    mock_db = MagicMock()
+    mock_db.get_driver.return_value = mock_driver
+    mock_db.get_complaints.return_value = [mock_comp]
+    mock_db.get_complaint.return_value = mock_comp
+
+    # 1. get_recent_complaints should return top list with id, name, category, date (NO description in list)
+    list_res = get_recent_complaints(
+        db_repo=mock_db,
+        driver_identifier="DRV-010",
+    )
+    assert list_res["found"] is True
+    assert len(list_res["complaints"]) == 1
+    comp_item = list_res["complaints"][0]
+    assert comp_item["complaint_id"] == "CMP-999"
+    assert comp_item["name"] == "Phanh gấp liên tục"
+    assert comp_item["category"] == "driving_style"
+    assert "description" not in comp_item
+
+    # 2. get_complaint_detail retrieves full description
+    detail_res = get_complaint_detail(
+        complaint_id="CMP-999",
+        db_repo=mock_db,
+    )
+    assert detail_res["found"] is True
+    assert detail_res["complaint_id"] == "CMP-999"
+    assert detail_res["description"] == "Khách hàng phản ánh tài xế thường xuyên phanh gấp khiến người say xe."
+    assert "Phanh gấp liên tục" in detail_res["summary"]
+
+
+def test_deduplicate_repeated_text_removes_loops() -> None:
+    """Verify that deduplicate_repeated_text strips degenerative repeated sentences and paragraphs."""
+    from gsm_memory.agent.react_agent import deduplicate_repeated_text
+
+    repeated_text = (
+        "Tài xế Nguyễn Văn An (DRV-001) trong tháng 08/2026 có 3 khiếu nại ghi nhận.\n\n"
+        "Tài xế Nguyễn Văn An (DRV-001) trong tháng 08/2026 có 3 khiếu nại ghi nhận.\n\n"
+        "Tài xế Nguyễn Văn An (DRV-001) trong tháng 08/2026 có 3 khiếu nại ghi nhận."
+    )
+    cleaned = deduplicate_repeated_text(repeated_text)
+    assert cleaned == "Tài xế Nguyễn Văn An (DRV-001) trong tháng 08/2026 có 3 khiếu nại ghi nhận."
+
+    # Sentence level repetition test
+    sent_repeat = (
+        "Tài xế đã hoàn thành tốt chuyến đi. "
+        "Lý do là tiết kiệm pin cho xe điện VinFast. "
+        "Lý do là tiết kiệm pin cho xe điện VinFast."
+    )
+    cleaned_sent = deduplicate_repeated_text(sent_repeat)
+    assert cleaned_sent.count("tiết kiệm pin cho xe điện VinFast") == 1
+
+
+def test_react_agent_allows_direct_answer_with_chat_history() -> None:
+    """Verify that ReActAgent allows direct answer at iteration 1 when prior chat history exists."""
+    from gsm_memory.agent.react_agent import ReActAgent
+
+    def mock_llm_direct_answer(messages, **kwargs):
+        return (
+            "Thought: Thông tin lý do đã có sẵn trong lịch sử trò chuyện (tài xế muốn tiết kiệm pin xe điện). Trả lời trực tiếp ngay.\n"
+            "Final Answer: Lý do tài xế từ chối hạ nhiệt độ điều hòa là để tiết kiệm pin cho xe điện VinFast.",
+            "test_model",
+            {},
+        )
+
+    agent = ReActAgent(call_llm_fn=mock_llm_direct_answer, max_iterations=3)
+    history_ctx = {
+        "driver_id": "drv-001",
+        "chat_history": [
+            {"role": "user", "content": "Tài xế An có bị phàn nàn về điều hòa không?"},
+            {"role": "assistant", "content": "Có 1 phản ánh: tài xế từ chối hạ nhiệt độ điều hòa vì tiết kiệm pin xe điện."},
+        ],
+    }
+
+    res = agent.run("Lý do là gì?", context=history_ctx)
+    assert res.status == "ANSWERED"
+    assert "tiết kiệm pin cho xe điện VinFast" in res.final_answer
+    assert len(res.steps) == 1
+    assert res.steps[0].action is None  # Direct answer without redundant tool calls
+
+
+def test_react_agent_natural_response_sanitizes_leaks_and_empty_forms() -> None:
+    """Verify that ReAct agent sanitizes internal technical leaks and empty form-filling boilerplate."""
+    from gsm_memory.agent.react_agent import ReActAgent
+
+    def mock_llm_synth_with_leaks(messages, **kwargs):
+        if any("CÁC BƯỚC SUY LUẬN VÀ QUAN SÁT THỰC TẾ" in m.get("content", "") for m in messages):
+            # Simulate an LLM output that leaked technical jargon and form headings
+            return (
+                "Tình hình vận hành thực tế:\n"
+                "Số liệu chuyến hoàn thành: Không có thông tin cụ thể.\n"
+                "Tài xế Nguyễn Văn An không có chuyến xe nào bị hủy, như được ghi nhận trong Observation từ công cụ get_cancelled_trips_detail.\n"
+                "Căn cứ và đối chiếu quy chế GSM:\n"
+                "Văn bản quy chế GSM tìm thấy: Không có văn bản quy chế nào.\n"
+                "Kết luận rõ ràng:\n"
+                "Tài xế An không vi phạm quy chế hủy chuyến.",
+                "test_model",
+                {},
+            )
+        return (
+            "Thought: Kiểm tra chuyến hủy của An.\n"
+            "Action: get_cancelled_trips_detail\n"
+            'Action Input: {"driver_identifier": "Nguyễn Văn An"}\n',
+            "test_model",
+            {},
+        )
+
+    agent = ReActAgent(call_llm_fn=mock_llm_synth_with_leaks, max_iterations=2)
+    agent.execute_tool = MagicMock(return_value=({"driver_identifier": "Nguyễn Văn An", "total_cancelled_trips": 0, "cancelled_trips": []}, None))
+
+    res = agent.run("Tài xế An có vi phạm hủy chuyến không?")
+    assert res.status == "ANSWERED"
+    # Ensure technical leaks are completely sanitized
+    assert "Observation" not in res.final_answer
+    assert "công cụ get_cancelled_trips_detail" not in res.final_answer
+    # Ensure empty form echoes are removed
+    assert "Số liệu chuyến hoàn thành: Không có" not in res.final_answer
+    assert "Văn bản quy chế GSM tìm thấy: Không có" not in res.final_answer
+    # Natural conclusion remains intact
+    assert "không có chuyến xe nào bị hủy" in res.final_answer
+    assert "không vi phạm quy chế" in res.final_answer
 

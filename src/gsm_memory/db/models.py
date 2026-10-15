@@ -42,6 +42,7 @@ class TripRecord(BaseModel):
     trip_id: str
     driver_id: str
     snapshot_id: str | None = None
+    visibility_snapshot_ids: list[str] = Field(default_factory=list)
     start_time: str
     end_time: str | None = None
     pickup_address: str
@@ -57,6 +58,31 @@ class TripRecord(BaseModel):
     passenger_feedback: str | None = None
     notes: str | None = None
     created_at: str
+
+
+class ComplaintRecord(BaseModel):
+    complaint_id: str
+    driver_id: str
+    trip_id: str | None = None
+    category: str
+    event_time: str
+    name: str | None = None
+    description: str
+    visibility_snapshot_ids: list[str] = Field(default_factory=list)
+    created_at: str
+
+
+class IncidentRecord(BaseModel):
+    incident_id: str
+    driver_id: str | None = None
+    trip_id: str | None = None
+    incident_type: str | None = None
+    event_time: str | None = None
+    name: str | None = None
+    description: str
+    visibility_snapshot_ids: list[str] = Field(default_factory=list)
+    created_at: str
+
 
 
 class ChatSessionRecord(BaseModel):

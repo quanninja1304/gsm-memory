@@ -14,9 +14,11 @@ from gsm_memory.db.connection import create_connection, get_db_path, get_db_sess
 from gsm_memory.db.models import (
     ChatMessageRecord,
     ChatSessionRecord,
+    ComplaintRecord,
     ContextMemoryItem,
     DatabaseStats,
     DriverRecord,
+    IncidentRecord,
     SnapshotRecord,
     TripRecord,
 )
@@ -364,6 +366,8 @@ class LocalDatabaseRepository:
             # 3. Snapshot ID
             if snapshot_id:
                 self.set_context_key(session_id, "snapshot_id", str(snapshot_id), confidence=1.0)
+            elif "time_data" in (missing_fields or []):
+                self.delete_context_key(session_id, "snapshot_id")
 
             # 4. Policy scope & topics
             if policy_scope:
@@ -615,10 +619,9 @@ class LocalDatabaseRepository:
             snap_clauses = ["driver_id = ?"]
             snap_params: list[Any] = [driver_id]
             if snapshot_id:
-                snap_clauses.append("(snapshot_id = ? AND trip_id NOT LIKE 'trip-supp-%')")
-                snap_params.append(snapshot_id)
-            else:
-                snap_clauses.append("trip_id NOT LIKE 'trip-supp-%'")
+                snap_clauses.append("(snapshot_id = ? OR visibility_snapshot_ids LIKE '%\"' || ? || '\"%')")
+                snap_params.extend([snapshot_id, snapshot_id])
+
 
             cursor_snap = conn.execute(
                 f"""
@@ -768,6 +771,35 @@ class LocalDatabaseRepository:
                 )
             return snapshots
 
+    def get_latest_snapshot(self) -> SnapshotRecord | None:
+        """Return the most recent snapshot in the database ordered by known_as_of DESC."""
+        snapshots = self.list_snapshots()
+        return snapshots[0] if snapshots else None
+
+    def get_latest_snapshot_for_driver(self, driver_id: str | None = None) -> SnapshotRecord | None:
+        """Return the latest snapshot, or the latest snapshot where this driver has trip data."""
+        latest = self.get_latest_snapshot()
+        if not driver_id or not latest:
+            return latest
+        if self.count_driver_trips(driver_id, snapshot_id=latest.snapshot_id) > 0:
+            return latest
+        with get_db_session(self.db_path) as conn:
+            q = """
+                SELECT s.snapshot_id
+                FROM snapshots s
+                JOIN trips t ON (t.snapshot_id = s.snapshot_id OR t.visibility_snapshot_ids LIKE '%' || s.snapshot_id || '%')
+                WHERE t.driver_id = ?
+                GROUP BY s.snapshot_id
+                ORDER BY s.known_as_of DESC
+                LIMIT 1
+            """
+            row = conn.execute(q, (driver_id,)).fetchone()
+            if row:
+                found = self.get_snapshot(row["snapshot_id"])
+                if found:
+                    return found
+        return latest
+
     def get_snapshot(self, snapshot_id: str) -> SnapshotRecord | None:
         with get_db_session(self.db_path) as conn:
             cursor = conn.execute("SELECT * FROM snapshots WHERE snapshot_id = ?", (snapshot_id,))
@@ -841,22 +873,11 @@ class LocalDatabaseRepository:
                 for c in candidates:
                     if c.is_baseline:
                         return c
-                # If no candidate is baseline, but target_iso falls within the benchmark period
-                # (e.g. 2026-08 or 2026-09), prefer the canonical baseline snapshot over empty historical cutoffs
-                baseline_snaps = [s for s in snapshots if s.is_baseline]
-                if baseline_snaps and (target_iso.startswith("2026-08") or target_iso.startswith("2026-09")):
-                    return baseline_snaps[0]
+                # If no candidate is baseline, return the latest snapshot among candidates
+                # (snapshots is ordered by known_as_of DESC, so candidates[0] is the newest snapshot)
                 return candidates[0]
 
-            # 3. If still no candidates, check if target_iso falls within covering snapshots (known_as_of >= target_iso)
-            covering = [s for s in snapshots if s.known_as_of[:10] >= target_iso[:10]]
-            if covering:
-                for c in covering:
-                    if c.is_baseline:
-                        return c
-                return covering[-1]
-
-            # Target ISO specified (e.g. 2027-09 or 2025) but not present in database
+            # Target ISO specified (e.g. 2024, 2025-05, or 2027-09) but not present in database
             return None
 
         # 3. Match explicit branch names or benchmark aliases
@@ -878,16 +899,18 @@ class LocalDatabaseRepository:
 
     def upsert_trip(self, t: TripRecord) -> None:
         with get_db_session(self.db_path) as conn:
+            v_snaps_json = json.dumps(t.visibility_snapshot_ids or [])
             conn.execute(
                 """
                 INSERT INTO trips (
-                    trip_id, driver_id, snapshot_id, start_time, end_time, pickup_address, dropoff_address,
+                    trip_id, driver_id, snapshot_id, visibility_snapshot_ids, start_time, end_time, pickup_address, dropoff_address,
                     region, service_type, distance_km, fare_amount, outcome, reason_code,
                     cancel_party, passenger_rating, passenger_feedback, notes, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(trip_id) DO UPDATE SET
                     driver_id = excluded.driver_id,
                     snapshot_id = COALESCE(excluded.snapshot_id, trips.snapshot_id),
+                    visibility_snapshot_ids = COALESCE(excluded.visibility_snapshot_ids, trips.visibility_snapshot_ids),
                     start_time = excluded.start_time,
                     end_time = excluded.end_time,
                     pickup_address = excluded.pickup_address,
@@ -907,6 +930,7 @@ class LocalDatabaseRepository:
                     t.trip_id,
                     t.driver_id,
                     t.snapshot_id,
+                    v_snaps_json,
                     t.start_time,
                     t.end_time,
                     t.pickup_address,
@@ -937,8 +961,8 @@ class LocalDatabaseRepository:
             clauses = ["driver_id = ?"]
             params: list[Any] = [driver_id]
             if snapshot_id:
-                clauses.append("(snapshot_id = ? OR snapshot_id IS NULL)")
-                params.append(snapshot_id)
+                clauses.append("(snapshot_id = ? OR visibility_snapshot_ids LIKE '%\"' || ? || '\"%')")
+                params.extend([snapshot_id, snapshot_id])
             if start_time:
                 clauses.append("start_time >= ?")
                 params.append(start_time)
@@ -952,6 +976,7 @@ class LocalDatabaseRepository:
         self,
         driver_id: str | None = None,
         outcome: str | None = None,
+        snapshot_id: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[TripRecord]:
@@ -964,6 +989,9 @@ class LocalDatabaseRepository:
             if outcome:
                 clauses.append("outcome = ?")
                 params.append(outcome)
+            if snapshot_id:
+                clauses.append("(snapshot_id = ? OR visibility_snapshot_ids LIKE '%\"' || ? || '\"%')")
+                params.extend([snapshot_id, snapshot_id])
 
             where_str = f"WHERE {' AND '.join(clauses)}" if clauses else ""
             params.extend([limit, offset])
@@ -976,7 +1004,16 @@ class LocalDatabaseRepository:
             """
             cursor = conn.execute(query, params)
             rows = cursor.fetchall()
-            return [TripRecord(**dict(r)) for r in rows]
+            results: list[TripRecord] = []
+            for r in rows:
+                d = dict(r)
+                if isinstance(d.get("visibility_snapshot_ids"), str):
+                    try:
+                        d["visibility_snapshot_ids"] = json.loads(d["visibility_snapshot_ids"])
+                    except Exception:
+                        d["visibility_snapshot_ids"] = []
+                results.append(TripRecord(**d))
+            return results
 
     def get_trip(self, trip_id: str) -> TripRecord | None:
         with get_db_session(self.db_path) as conn:
@@ -984,7 +1021,204 @@ class LocalDatabaseRepository:
             r = cursor.fetchone()
             if not r:
                 return None
-            return TripRecord(**dict(r))
+            d = dict(r)
+            if isinstance(d.get("visibility_snapshot_ids"), str):
+                try:
+                    d["visibility_snapshot_ids"] = json.loads(d["visibility_snapshot_ids"])
+                except Exception:
+                    d["visibility_snapshot_ids"] = []
+            return TripRecord(**d)
+
+    # =========================================================================
+    # COMPLAINTS
+    # =========================================================================
+
+    def upsert_complaint(self, c: ComplaintRecord) -> None:
+        with get_db_session(self.db_path) as conn:
+            v_snaps_json = json.dumps(c.visibility_snapshot_ids or [])
+            conn.execute(
+                """
+                INSERT INTO complaints (
+                    complaint_id, driver_id, trip_id, category, event_time, name, description,
+                    visibility_snapshot_ids, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(complaint_id) DO UPDATE SET
+                    driver_id = excluded.driver_id,
+                    trip_id = excluded.trip_id,
+                    category = excluded.category,
+                    event_time = excluded.event_time,
+                    name = excluded.name,
+                    description = excluded.description,
+                    visibility_snapshot_ids = excluded.visibility_snapshot_ids
+                """,
+                (
+                    c.complaint_id,
+                    c.driver_id,
+                    c.trip_id,
+                    c.category,
+                    c.event_time,
+                    c.name,
+                    c.description,
+                    v_snaps_json,
+                    c.created_at,
+                ),
+            )
+
+    def get_complaints(
+        self,
+        driver_id: str | None = None,
+        snapshot_id: str | None = None,
+        limit: int = 100,
+    ) -> list[ComplaintRecord]:
+        with get_db_session(self.db_path) as conn:
+            clauses: list[str] = []
+            params: list[Any] = []
+            if driver_id:
+                clauses.append("driver_id = ?")
+                params.append(driver_id)
+            if snapshot_id:
+                clauses.append("visibility_snapshot_ids LIKE '%\"' || ? || '\"%'")
+                params.append(snapshot_id)
+            where_str = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+            params.append(limit)
+            q = f"SELECT * FROM complaints {where_str} ORDER BY event_time DESC LIMIT ?"
+            rows = conn.execute(q, params).fetchall()
+            results: list[ComplaintRecord] = []
+            for r in rows:
+                d = dict(r)
+                if isinstance(d.get("visibility_snapshot_ids"), str):
+                    try:
+                        d["visibility_snapshot_ids"] = json.loads(d["visibility_snapshot_ids"])
+                    except Exception:
+                        d["visibility_snapshot_ids"] = []
+                results.append(ComplaintRecord(**d))
+            return results
+
+    def get_complaint(self, complaint_id: str) -> ComplaintRecord | None:
+        with get_db_session(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT * FROM complaints WHERE complaint_id = ? OR complaint_id LIKE ? LIMIT 1",
+                (complaint_id, f"%{complaint_id}%"),
+            ).fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            if isinstance(d.get("visibility_snapshot_ids"), str):
+                try:
+                    d["visibility_snapshot_ids"] = json.loads(d["visibility_snapshot_ids"])
+                except Exception:
+                    d["visibility_snapshot_ids"] = []
+            return ComplaintRecord(**d)
+
+    def count_complaints(self, driver_id: str | None = None, snapshot_id: str | None = None) -> int:
+        with get_db_session(self.db_path) as conn:
+            clauses: list[str] = []
+            params: list[Any] = []
+            if driver_id:
+                clauses.append("driver_id = ?")
+                params.append(driver_id)
+            if snapshot_id:
+                clauses.append("visibility_snapshot_ids LIKE '%\"' || ? || '\"%'")
+                params.append(snapshot_id)
+            where_str = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+            q = f"SELECT COUNT(*) FROM complaints {where_str}"
+            return conn.execute(q, params).fetchone()[0]
+
+    # =========================================================================
+    # INCIDENTS
+    # =========================================================================
+
+    def upsert_incident(self, i: IncidentRecord) -> None:
+        with get_db_session(self.db_path) as conn:
+            v_snaps_json = json.dumps(i.visibility_snapshot_ids or [])
+            conn.execute(
+                """
+                INSERT INTO incidents (
+                    incident_id, driver_id, trip_id, incident_type, event_time, name, description,
+                    visibility_snapshot_ids, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(incident_id) DO UPDATE SET
+                    driver_id = excluded.driver_id,
+                    trip_id = excluded.trip_id,
+                    incident_type = excluded.incident_type,
+                    event_time = excluded.event_time,
+                    name = excluded.name,
+                    description = excluded.description,
+                    visibility_snapshot_ids = excluded.visibility_snapshot_ids
+                """,
+                (
+                    i.incident_id,
+                    i.driver_id,
+                    i.trip_id,
+                    i.incident_type,
+                    i.event_time,
+                    i.name,
+                    i.description,
+                    v_snaps_json,
+                    i.created_at,
+                ),
+            )
+
+    def get_incidents(
+        self,
+        driver_id: str | None = None,
+        snapshot_id: str | None = None,
+        limit: int = 100,
+    ) -> list[IncidentRecord]:
+        with get_db_session(self.db_path) as conn:
+            clauses: list[str] = []
+            params: list[Any] = []
+            if driver_id:
+                clauses.append("driver_id = ?")
+                params.append(driver_id)
+            if snapshot_id:
+                clauses.append("visibility_snapshot_ids LIKE '%\"' || ? || '\"%'")
+                params.append(snapshot_id)
+            where_str = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+            params.append(limit)
+            q = f"SELECT * FROM incidents {where_str} ORDER BY event_time DESC LIMIT ?"
+            rows = conn.execute(q, params).fetchall()
+            results: list[IncidentRecord] = []
+            for r in rows:
+                d = dict(r)
+                if isinstance(d.get("visibility_snapshot_ids"), str):
+                    try:
+                        d["visibility_snapshot_ids"] = json.loads(d["visibility_snapshot_ids"])
+                    except Exception:
+                        d["visibility_snapshot_ids"] = []
+                results.append(IncidentRecord(**d))
+            return results
+
+    def get_incident(self, incident_id: str) -> IncidentRecord | None:
+        with get_db_session(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT * FROM incidents WHERE incident_id = ? OR incident_id LIKE ? LIMIT 1",
+                (incident_id, f"%{incident_id}%"),
+            ).fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            if isinstance(d.get("visibility_snapshot_ids"), str):
+                try:
+                    d["visibility_snapshot_ids"] = json.loads(d["visibility_snapshot_ids"])
+                except Exception:
+                    d["visibility_snapshot_ids"] = []
+            return IncidentRecord(**d)
+
+    def count_incidents(self, driver_id: str | None = None, snapshot_id: str | None = None) -> int:
+        with get_db_session(self.db_path) as conn:
+            clauses: list[str] = []
+            params: list[Any] = []
+            if driver_id:
+                clauses.append("driver_id = ?")
+                params.append(driver_id)
+            if snapshot_id:
+                clauses.append("visibility_snapshot_ids LIKE '%\"' || ? || '\"%'")
+                params.append(snapshot_id)
+            where_str = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+            q = f"SELECT COUNT(*) FROM incidents {where_str}"
+            return conn.execute(q, params).fetchone()[0]
+
 
     # =========================================================================
     # STATS

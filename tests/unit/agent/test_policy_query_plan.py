@@ -25,12 +25,24 @@ def dummy_pipeline(tmp_path: Path) -> ConversationalPipeline:
     mock_driver.vehicle_model = "VF e34"
     repo.get_driver_by_code.side_effect = lambda code: mock_driver if code == "DRV-002" else None
     repo.search_drivers_by_name.side_effect = lambda name: [mock_driver] if "bình" in name.lower() else []
+    repo.find_driver_in_text.side_effect = lambda text: mock_driver if "bình" in str(text).lower() else None
     repo.get_driver.side_effect = lambda d_id: mock_driver if d_id == mock_driver.driver_id else None
 
     mock_snap = MagicMock()
     mock_snap.snapshot_id = DEFAULT_SNAPSHOT_ID
     mock_snap.label = "tháng 9/2026"
-    repo.find_snapshot_by_alias_or_time.return_value = mock_snap
+    mock_snap.known_as_of = "2026-09-17T12:00:00Z"
+
+    def mock_find_snap(time_query=None, time_resolved=None):
+        if time_resolved and "2026-08" in time_resolved:
+            s_aug = MagicMock()
+            s_aug.snapshot_id = "002366a5-e09e-5214-9fe4-c7fffeaf1396"
+            s_aug.label = "Snapshot 8 (31/08/2026)"
+            s_aug.known_as_of = "2026-08-31T23:59:59Z"
+            return s_aug
+        return mock_snap
+
+    repo.find_snapshot_by_alias_or_time.side_effect = mock_find_snap
     repo.count_driver_trips.return_value = 10
 
     # Initialize pipeline with dummy or mocked heavy components to keep unit test fast
@@ -42,6 +54,12 @@ def dummy_pipeline(tmp_path: Path) -> ConversationalPipeline:
     pipe.openrouter_api_key = None
     pipe.nvidia_api_key = None
     pipe.nvidia_model = "test-model"
+    pipe.ollama_base_url = "http://127.0.0.1:11434/v1"
+    pipe.ollama_model = "qwen2.5:7b"
+    pipe.openai_api_key = None
+    pipe.openai_base_url = "https://api.openai.com/v1"
+    pipe.openai_model = "gpt-4o-mini"
+    pipe.llm_provider = "api"
     pipe.db_repo = repo
     pipe.chunks = []
     pipe.bm25_index = MagicMock()
@@ -51,6 +69,11 @@ def dummy_pipeline(tmp_path: Path) -> ConversationalPipeline:
     pipe.hybrid_searcher.search_hybrid.return_value = ([], {})
     pipe.neo4j_driver = None
     pipe.langfuse = None
+    pipe._call_llm = MagicMock(return_value=(
+        "Dựa trên các quy định đã được đối soát, mức khoán doanh số áp dụng theo P154.",
+        "test-model",
+        {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+    ))
     return pipe
 
 
@@ -267,7 +290,8 @@ def test_policy_lookup_isolates_driver_context_and_gives_policy_breakdown(dummy_
     assert plan.intent == "POLICY_LOOKUP"
     assert plan.driver_id is None
     assert plan.driver_mention is None
-    assert plan.time_scope is None
+    # Time is always available: auto-filled with latest snapshot when user does not specify time
+    assert plan.time_scope is not None
     assert plan.modalities == ["document"]
     assert any("hủy chuyến" in t for t in plan.policy_topics)
 
@@ -338,6 +362,148 @@ def test_gather_multi_source_evidence_returns_up_to_5_chunks_preserving_code_and
         assert e["full_content"] == f"Nội dung điều khoản số {i} về quy định vận hành GSM."
         assert f"P{150 + i}" in e["content"]
         assert f"Quy chế số {i}" in e["content"]
+
+
+def test_case_1_driver_history_without_time_autofills_latest_snapshot_and_runs(dummy_pipeline: ConversationalPipeline) -> None:
+    """Case 1: Asking about driver only (no time, no policy).
+    - Intent is DRIVER_HISTORY.
+    - Policy is NOT required (does not block on policy_target).
+    - Time is auto-filled with latest snapshot.
+    - Runs without blocking (missing_fields == []).
+    """
+    query = "Tài xế DRV-002 đã thực hiện bao nhiêu chuyến xe và tỷ lệ hủy ra sao?"
+    plan = dummy_pipeline.plan_query(query)
+
+    assert plan.intent == "DRIVER_HISTORY"
+    assert plan.driver_id == "c499f934-bfe1-5509-a578-afb09cee357c"
+    assert "DRV-002" in (plan.driver_mention or "")
+    assert plan.time_scope is not None
+    assert plan.snapshot_id is not None
+    assert "policy_target" not in plan.missing_fields
+    assert "time_scope" not in plan.missing_fields
+    assert len(plan.missing_fields) == 0
+
+
+def test_case_2_policy_lookup_without_time_autofills_latest_snapshot_and_runs(dummy_pipeline: ConversationalPipeline) -> None:
+    """Case 2: Asking about policy only (no time, no driver).
+    - Intent is POLICY_LOOKUP.
+    - Driver is NOT required (does not block on driver_id).
+    - Time is auto-filled with latest snapshot.
+    - Runs without blocking (missing_fields == []).
+    """
+    query = "Quy chế P154 của GSM quy định về mức khoán và tỷ lệ chia sẻ doanh số như thế nào?"
+    plan = dummy_pipeline.plan_query(query)
+
+    assert plan.intent == "POLICY_LOOKUP"
+    assert plan.driver_id is None
+    assert "P154" in plan.policy_scope
+    assert plan.time_scope is not None
+    assert plan.snapshot_id is not None
+    assert "driver_id" not in plan.missing_fields
+    assert "time_scope" not in plan.missing_fields
+    assert len(plan.missing_fields) == 0
+
+
+def test_case_3_hybrid_reasoning_without_time_autofills_latest_snapshot_and_runs(dummy_pipeline: ConversationalPipeline) -> None:
+    """Case 3: Asking about both driver and policy compliance (no time specified).
+    - Intent is HYBRID_REASONING.
+    - Driver is resolved.
+    - Policy target is resolved from query.
+    - Time is auto-filled with latest snapshot.
+    - Runs without blocking (missing_fields == []).
+    """
+    query = "Kiểm tra tài xế DRV-002 có vi phạm quy định hủy chuyến không?"
+    plan = dummy_pipeline.plan_query(query)
+
+    assert plan.intent == "HYBRID_REASONING"
+    assert plan.driver_id == "c499f934-bfe1-5509-a578-afb09cee357c"
+    assert any("hủy chuyến" in t for t in plan.policy_topics)
+    assert plan.time_scope is not None
+    assert plan.snapshot_id is not None
+    assert "driver_id" not in plan.missing_fields
+    assert "policy_target" not in plan.missing_fields
+    assert "time_scope" not in plan.missing_fields
+    assert len(plan.missing_fields) == 0
+
+
+def test_exact_date_extraction_with_typo_and_august_snapshot(dummy_pipeline: ConversationalPipeline) -> None:
+    """Verify that a query mentioning '17/8/1026' preserves the exact day and resolves to August snapshot."""
+    query = "kiểm tra xem tài xế bình trong tháng 17/8/1026 có vi phạm chính sách hủy chuyến không"
+    plan = dummy_pipeline.plan_query(query)
+
+    assert plan.intent == "HYBRID_REASONING"
+    assert plan.driver_id == "c499f934-bfe1-5509-a578-afb09cee357c"
+    # Must preserve exact day 17, not collapse to month only
+    assert "17/08/2026" in str(plan.time_scope) or "17" in str(plan.time_scope)
+    assert plan.time_resolved == "2026-08-17"
+    # Must select August snapshot (Snapshot 8: 002366a5...), NOT September baseline (8b1426b6...)
+    assert plan.snapshot_id == "002366a5-e09e-5214-9fe4-c7fffeaf1396"
+    assert len(plan.missing_fields) == 0
+
+
+def test_repository_august_month_snapshot_selection() -> None:
+    """Verify that find_snapshot_by_alias_or_time selects August snapshot for 2026-08."""
+    from gsm_memory.db.repository import LocalDatabaseRepository
+    repo = LocalDatabaseRepository()
+    snap = repo.find_snapshot_by_alias_or_time(time_resolved="2026-08")
+    assert snap is not None
+    # Must be Snapshot 8 (latest in August), not September baseline
+    assert snap.snapshot_id == "002366a5-e09e-5214-9fe4-c7fffeaf1396"
+    assert "2026-08" in snap.known_as_of
+
+
+def test_greeting_intent_returns_clean_answered(dummy_pipeline: ConversationalPipeline) -> None:
+    """Greetings should be recognized as GREETING intent and answered immediately with a helpful introduction."""
+    greetings = ["Xin chào bạn", "Chào bot", "Hello", "Bạn có thể giúp gì cho tôi?"]
+    for q in greetings:
+        plan = dummy_pipeline.plan_query(q)
+        assert plan.intent == "GREETING"
+        assert len(plan.missing_fields) == 0
+
+        res = dummy_pipeline.execute(q)
+        assert res.status == "ANSWERED"
+        assert "GSM" in res.answer
+        assert "tài xế" in res.answer.lower() or "chính sách" in res.answer.lower()
+
+
+def test_out_of_scope_guard_refuses_off_topic(dummy_pipeline: ConversationalPipeline) -> None:
+    """Out-of-scope queries (weather, recipes, coding, politics) should be intercepted by domain guard."""
+    off_topics = [
+        "Thời tiết hôm nay tại Hà Nội thế nào?",
+        "Chỉ cho tôi cách nấu món phở bò Nam Định ngon",
+        "Viết giúp tôi một bài thơ về mùa thu lãng mạn",
+        "Hướng dẫn lập trình ứng dụng React với TypeScript",
+        "Giá vàng hôm nay tăng hay giảm bao nhiêu",
+    ]
+    for q in off_topics:
+        plan = dummy_pipeline.plan_query(q)
+        assert plan.intent == "OUT_OF_SCOPE"
+        assert len(plan.missing_fields) == 0
+
+        res = dummy_pipeline.execute(q)
+        assert res.status == "ANSWERED"
+        assert "chỉ hỗ trợ" in res.answer.lower() or "phạm vi" in res.answer.lower() or "gsm" in res.answer.lower()
+        # Ensure it does not attempt to search policy or ask for missing driver
+        assert "Tên/Mã văn bản quy chế" not in res.answer
+        assert "Vui lòng cung cấp" not in res.answer
+
+
+def test_in_scope_queries_not_blocked_by_guard(dummy_pipeline: ConversationalPipeline) -> None:
+    """Legitimate GSM driver, policy, and compliance queries must not be falsely blocked by the domain guard."""
+    valid_queries = [
+        "Tài xế DRV-002 đã hoàn thành bao nhiêu chuyến xe?",
+        "Tỷ lệ hủy chuyến của tài xế Bình trong tháng 9 ra sao?",
+        "Quy chế P154 quy định mức khoán doanh số như thế nào?",
+        "Chính sách thưởng doanh số của GSM áp dụng thế nào?",
+        "Hành vi hủy cuốc xe sai quy định bị xử lý ra sao?",
+    ]
+    for q in valid_queries:
+        plan = dummy_pipeline.plan_query(q)
+        assert plan.intent != "OUT_OF_SCOPE"
+        assert plan.intent in ("DRIVER_HISTORY", "POLICY_LOOKUP", "HYBRID_REASONING")
+
+
+
 
 
 

@@ -127,6 +127,7 @@ class ChatRequest(BaseModel):
     time_mention: str | None = None
     snapshot_id: str | None = None
     policy_topics: list[str] | None = None
+    model: str | None = None
 
 
 class CreateSessionRequest(BaseModel):
@@ -167,6 +168,7 @@ def startup_event() -> None:
 def api_health() -> dict[str, Any]:
     pipe = get_pipeline()
     stats = db_repo.get_stats()
+    ollama_ok = pipe.is_ollama_available()
     return {
         "status": "healthy",
         "release": "gsm-dev-core-0.2.2",
@@ -174,6 +176,7 @@ def api_health() -> dict[str, Any]:
         "bm25_chunks_count": len(pipe.chunks),
         "neo4j_connected": pipe.neo4j_driver is not None,
         "langfuse_connected": pipe.langfuse is not None,
+        "ollama_connected": ollama_ok,
         "default_snapshot_id": pipe.default_snapshot_id,
         "db": {
             "drivers_count": stats.drivers_count,
@@ -181,6 +184,100 @@ def api_health() -> dict[str, Any]:
             "chat_sessions_count": stats.chat_sessions_count,
             "context_memories_count": stats.context_memories_count,
             "db_size_kb": round(stats.db_size_bytes / 1024, 1),
+        },
+    }
+
+
+@app.get("/api/models")
+def api_models() -> dict[str, Any]:
+    """List available LLM providers (Cloud API vs OpenAI vs Local Ollama) and real-time connectivity status."""
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(override=True)
+    except Exception:
+        pass
+
+    pipe = get_pipeline()
+    # Refresh OpenAI env config in case .env was recently modified
+    pipe.openai_api_key = (
+        os.getenv("OPENAI_API_KEY")
+        or os.getenv("keyOpenAI")
+        or os.getenv("KEY_OPENAI")
+    )
+    pipe.openai_base_url = (
+        os.getenv("OPENAI_BASE_URL")
+        or os.getenv("base_url_openAI")
+        or os.getenv("BASE_URL_OPENAI")
+        or "https://api.openai.com/v1"
+    )
+    pipe.openai_model = (
+        os.getenv("OPENAI_MODEL")
+        or os.getenv("modelModel")
+        or os.getenv("model_openAI")
+        or os.getenv("MODEL_OPENAI")
+        or "gpt-4o-mini"
+    )
+
+    ollama_ok = pipe.is_ollama_available()
+    openai_ok = pipe.is_openai_available()
+
+    installed_models = ["qwen2.5:7b"]
+    if ollama_ok:
+        try:
+            import urllib.request
+            base = pipe.ollama_base_url.rstrip("/")
+            tags_url = base.replace("/v1", "/api/tags") if "/v1" in base else f"{base}/api/tags"
+            req = urllib.request.Request(tags_url, headers={"User-Agent": "GSM-Memory-Assistant"})
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                models_list = data.get("models", [])
+                if models_list:
+                    installed_models = [m.get("name") for m in models_list if m.get("name")]
+        except Exception:
+            pass
+
+    openai_m = pipe.openai_model or "gpt-4o-mini"
+    openai_b = pipe.openai_base_url or "https://api.openai.com/v1"
+
+    return {
+        "default": "api",
+        "current": pipe.model_name,
+        "models": [
+            {
+                "id": "api",
+                "name": "Cloud API (Mặc định)",
+                "provider": "api",
+                "badge": "Cloud API",
+                "description": f"Cloud LLM ({pipe.llm_provider.upper()} - {pipe.model_name})",
+                "available": True,
+            },
+            {
+                "id": f"openai:{openai_m}",
+                "name": f"OpenAI ({openai_m})",
+                "provider": "openai",
+                "badge": "OpenAI",
+                "description": f"OpenAI API ({openai_m} @ {openai_b})",
+                "available": openai_ok,
+            },
+            {
+                "id": "ollama:qwen2.5:7b",
+                "name": "Local Ollama (Qwen 2.5 7B)",
+                "provider": "ollama",
+                "badge": "Local AI",
+                "description": "Chạy cục bộ trên máy qua Ollama (qwen2.5:7b)",
+                "available": ollama_ok,
+                "installed_models": installed_models,
+            },
+        ],
+        "ollama_status": {
+            "connected": ollama_ok,
+            "base_url": pipe.ollama_base_url,
+            "model": pipe.ollama_model,
+        },
+        "openai_status": {
+            "configured": openai_ok,
+            "base_url": openai_b,
+            "model": openai_m,
         },
     }
 
@@ -432,8 +529,18 @@ def api_chat_stream(req: ChatRequest):
         context["snapshot_id"] = req.snapshot_id
     if req.policy_topics:
         context["policy_topics"] = req.policy_topics
+    if req.model:
+        context["model"] = req.model
 
-    # 4. Save User message to Database
+    # 4. Pull previous conversation messages from SQLite for multi-turn dialog context
+    past_msgs = db_repo.get_messages(session_id=session_id, limit=10)
+    chat_history: list[dict[str, str]] = []
+    for m in past_msgs:
+        if m.content and m.role in ("user", "assistant") and getattr(m, "status", "") != "ERROR":
+            chat_history.append({"role": m.role, "content": m.content})
+    context["chat_history"] = chat_history
+
+    # 5. Save User message to Database
     user_msg_id = db_repo.add_message(
         session_id=session_id,
         role="user",
@@ -553,8 +660,18 @@ def api_chat(req: ChatRequest) -> dict[str, Any]:
         context["snapshot_id"] = req.snapshot_id
     if req.policy_topics:
         context["policy_topics"] = req.policy_topics
+    if req.model:
+        context["model"] = req.model
 
-    # 4. Save User message to Database
+    # 4. Pull previous conversation messages from SQLite for multi-turn dialog context
+    past_msgs = db_repo.get_messages(session_id=session_id, limit=10)
+    chat_history: list[dict[str, str]] = []
+    for m in past_msgs:
+        if m.content and m.role in ("user", "assistant") and getattr(m, "status", "") != "ERROR":
+            chat_history.append({"role": m.role, "content": m.content})
+    context["chat_history"] = chat_history
+
+    # 5. Save User message to Database
     user_msg_id = db_repo.add_message(
         session_id=session_id,
         role="user",
@@ -673,6 +790,7 @@ def api_chat(req: ChatRequest) -> dict[str, Any]:
             "latency_ms": latency_ms,
             "active_context": db_repo.get_context(session_id),
             "react_steps": getattr(res, "react_steps", []) or [],
+            "model_used": getattr(res, "model_used", "") or pipe.model_name,
         }
     except Exception as e:
         latency_ms = round((time.perf_counter() - t_start) * 1000, 2)

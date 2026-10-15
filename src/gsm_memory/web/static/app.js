@@ -94,6 +94,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const metricStatus = document.getElementById("metric-status");
   const metricModel = document.getElementById("metric-model");
 
+  // Model Selector
+  const selectModel = document.getElementById("select-model");
+  const modelStatusIndicator = document.getElementById("model-status-indicator");
+  let selectedModel = localStorage.getItem("gsm_selected_model") || "api";
+
   // App State
   let currentSessionId = null;
   let isSubmitting = false;
@@ -107,11 +112,96 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function initApp() {
     setupEventListeners();
+    await loadAvailableModels();
     await loadSessions();
     await refreshDbBadgeAndSummary();
   }
 
+  function updateModelBadge(modelId, isOnline = true) {
+    if (!modelStatusIndicator) return;
+    if (modelId && (modelId.startsWith("ollama:") || modelId === "ollama")) {
+      modelStatusIndicator.className = isOnline
+        ? "model-status-indicator indicator-local"
+        : "model-status-indicator indicator-offline";
+      modelStatusIndicator.textContent = isOnline ? "LOCAL" : "OFFLINE";
+      modelStatusIndicator.title = isOnline ? "Đang dùng mô hình cục bộ Ollama Qwen 2.5 7B" : "Ollama chưa được khởi động trên máy";
+    } else if (modelId && (modelId.startsWith("openai:") || modelId === "openai")) {
+      modelStatusIndicator.className = isOnline
+        ? "model-status-indicator indicator-openai"
+        : "model-status-indicator indicator-offline";
+      modelStatusIndicator.textContent = isOnline ? "OPENAI" : "NO KEY";
+      modelStatusIndicator.title = isOnline ? `Đang dùng OpenAI (${modelId})` : "Chưa cấu hình OpenAI API Key";
+    } else {
+      modelStatusIndicator.className = "model-status-indicator indicator-api";
+      modelStatusIndicator.textContent = "API";
+      modelStatusIndicator.title = "Đang dùng Cloud API Model (NVIDIA / OpenRouter)";
+    }
+  }
+
+  async function loadAvailableModels() {
+    try {
+      const res = await fetch("/api/models");
+      if (!res.ok) return;
+      const data = await res.json();
+      const models = data.models || [];
+      const ollamaConnected = Boolean(data.ollama_status?.connected);
+
+      if (selectModel) {
+        selectModel.innerHTML = "";
+        const openaiConfigured = Boolean(data.openai_status?.configured);
+        models.forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m.id;
+          let label = m.name;
+          if (m.provider === "ollama") {
+            label = ollamaConnected ? `${m.name} [Sẵn sàng]` : `${m.name} [Chưa kết nối]`;
+          } else if (m.provider === "openai") {
+            label = openaiConfigured ? `${m.name} [Sẵn sàng]` : `${m.name} [Chưa có Key]`;
+          }
+          opt.textContent = label;
+          if (m.id === selectedModel) {
+            opt.selected = true;
+          }
+          selectModel.appendChild(opt);
+        });
+
+        const isLocal = selectedModel.startsWith("ollama:") || selectedModel === "ollama";
+        const isOpenAI = selectedModel.startsWith("openai:") || selectedModel === "openai";
+        const isOnline = isLocal ? ollamaConnected : (isOpenAI ? openaiConfigured : true);
+        updateModelBadge(selectedModel, isOnline);
+      }
+    } catch (e) {
+      console.warn("Could not load /api/models:", e);
+      if (selectModel) {
+        selectModel.value = selectedModel;
+        updateModelBadge(selectedModel);
+      }
+    }
+  }
+
   function setupEventListeners() {
+    // Model Selector Change
+    if (selectModel) {
+      selectModel.value = selectedModel;
+      updateModelBadge(selectedModel);
+      selectModel.addEventListener("change", (e) => {
+        selectedModel = e.target.value;
+        localStorage.setItem("gsm_selected_model", selectedModel);
+        const isLocal = selectedModel.startsWith("ollama:") || selectedModel === "ollama";
+        const isOpenAI = selectedModel.startsWith("openai:") || selectedModel === "openai";
+        updateModelBadge(selectedModel);
+        if (metricModel) {
+          if (isLocal) {
+            metricModel.textContent = "Local Ollama (qwen2.5:7b)";
+          } else if (isOpenAI) {
+            metricModel.textContent = `OpenAI (${selectedModel.replace("openai:", "")})`;
+          } else {
+            metricModel.textContent = "Cloud API (Mặc định)";
+          }
+        }
+      });
+    }
+
     // Textarea auto-resize & counter
     queryInput.addEventListener("input", () => {
       autoResizeTextarea();
@@ -557,6 +647,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({
           query: text,
           session_id: currentSessionId,
+          model: selectedModel,
         }),
       });
 
@@ -665,6 +756,7 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({
             query: text,
             session_id: currentSessionId,
+            model: selectedModel,
           }),
         });
         indicator.remove();
@@ -895,7 +987,7 @@ document.addEventListener("DOMContentLoaded", () => {
       setInfo(
         "ReAct Loop Active",
         "Vòng Lặp ReAct: Suy Luận & Gọi Công Cụ",
-        `Agent thiết lập tối đa ${event.max_iterations || 5} vòng lặp tự chủ để đối soát và giải quyết câu hỏi.`,
+        `Agent thiết lập tối đa ${event.max_iterations || 50} vòng lặp tự chủ để đối soát và giải quyết câu hỏi.`,
         3
       );
     }
@@ -1095,16 +1187,21 @@ document.addEventListener("DOMContentLoaded", () => {
       if (plan.policy_topics && plan.policy_topics.length > 0) {
         policyItems.push(Array.isArray(plan.policy_topics) ? plan.policy_topics.join(", ") : plan.policy_topics);
       }
-      const policyDisplay = policyItems.length > 0 ? policyItems.join(" / ") : "Không đề cập";
-
       const isPolicyLookup = plan.intent === "POLICY_LOOKUP";
+      const isDriverHistory = plan.intent === "DRIVER_HISTORY";
+      const policyDisplay = policyItems.length > 0
+        ? policyItems.join(" / ")
+        : (isDriverHistory ? "Không yêu cầu (Chỉ tra cứu vận hành)" : "Không đề cập");
+
       const driverDisplay = plan.driver_id
         ? `<span class="val-present">${escapeHtml(plan.driver_mention || plan.driver_id)}</span>`
         : (isPolicyLookup ? `<span class="val-present">Không yêu cầu</span>` : `<span class="val-missing">Chưa có (Thiếu ID)</span>`);
 
-      const timeDisplay = plan.time_scope
-        ? `<span class="val-present">${escapeHtml(plan.time_scope)}</span>`
-        : (isPolicyLookup ? `<span class="val-present">Toàn bộ / Không yêu cầu</span>` : `<span class="val-missing">Chưa có (Thiếu thời gian cụ thể)</span>`);
+      const hasTimeMissing = hasMissing && (plan.missing_fields || []).includes("time_data");
+      const timeVal = plan.time_display || plan.time_scope;
+      const timeDisplay = timeVal
+        ? `<span class="${hasTimeMissing ? 'val-missing' : 'val-present'}">${escapeHtml(timeVal)}</span>`
+        : `<span class="val-present">Snapshot mới nhất</span>`;
 
       planCard.innerHTML = `
         <div class="chat-plan-header">
@@ -1260,6 +1357,23 @@ document.addEventListener("DOMContentLoaded", () => {
       footer.appendChild(traceBtn);
     }
 
+    const modelUsed = data.model_used || data.model || "";
+    if (modelUsed) {
+      const isLocal = modelUsed.toLowerCase().includes("ollama") || modelUsed.toLowerCase().includes("qwen");
+      const isOpenAI = modelUsed.toLowerCase().includes("openai") || modelUsed.toLowerCase().startsWith("gpt-") || modelUsed.toLowerCase().startsWith("o1") || modelUsed.toLowerCase().startsWith("o3");
+      const modelPill = document.createElement("span");
+      modelPill.className = `message-model-pill ${isLocal ? 'pill-local' : (isOpenAI ? 'pill-openai' : 'pill-api')}`;
+      let displayModel = "Cloud API";
+      if (isLocal) {
+        displayModel = "Local Ollama (Qwen 2.5 7B)";
+      } else if (isOpenAI) {
+        displayModel = `OpenAI (${modelUsed.replace(/^openai:/, '')})`;
+      }
+      modelPill.innerHTML = `🤖 ${escapeHtml(displayModel)}`;
+      modelPill.title = `Mô hình thực thi: ${modelUsed}`;
+      footer.appendChild(modelPill);
+    }
+
     if (footer.children.length > 0) {
       bubble.appendChild(footer);
     }
@@ -1293,22 +1407,27 @@ document.addEventListener("DOMContentLoaded", () => {
       planStatusBadge.textContent = hasMissing ? "Thiếu Trường Bắt Buộc" : "Kế Hoạch Hợp Lệ";
       planIntentBadge.textContent = plan.intent;
 
+      const isPolicyLookup = plan.intent === "POLICY_LOOKUP";
+      const isDriverHistory = plan.intent === "DRIVER_HISTORY";
+
       planFieldDriver.innerHTML = plan.driver_id
         ? `<span class="val-present">${escapeHtml(plan.driver_mention || plan.driver_id)}</span>`
-        : `<span class="val-missing">Chưa có (Thiếu ID tài xế)</span>`;
+        : (isPolicyLookup ? `<span class="val-present">Không yêu cầu</span>` : `<span class="val-missing">Chưa có (Thiếu ID tài xế)</span>`);
 
-      planFieldTime.innerHTML = plan.time_scope
-        ? `<span class="val-present">${escapeHtml(plan.time_scope)}</span>`
-        : `<span class="val-missing">Chưa có (Thiếu mốc cụ thể)</span>`;
+      const hasTimeMissingDetail = hasMissing && (plan.missing_fields || []).includes("time_data");
+      const timeValDetail = plan.time_display || plan.time_scope;
+      planFieldTime.innerHTML = timeValDetail
+        ? `<span class="${hasTimeMissingDetail ? 'val-missing' : 'val-present'}">${escapeHtml(timeValDetail)}</span>`
+        : `<span class="val-present">Snapshot mới nhất</span>`;
 
       planFieldPolicy.textContent = (plan.policy_scope && plan.policy_scope.length > 0)
         ? (Array.isArray(plan.policy_scope) ? plan.policy_scope.join(", ") : plan.policy_scope)
-        : "Không đề cập";
+        : (isDriverHistory ? "Không yêu cầu (Chỉ tra cứu vận hành)" : "Không đề cập");
 
       if (planFieldTopics) {
         planFieldTopics.textContent = (plan.policy_topics && plan.policy_topics.length > 0)
           ? (Array.isArray(plan.policy_topics) ? plan.policy_topics.join(", ") : plan.policy_topics)
-          : "Không đề cập";
+          : (isDriverHistory ? "Không yêu cầu" : "Không đề cập");
       }
 
       planFieldModalities.textContent = (plan.modalities || []).join(", ") || "document";
@@ -1533,6 +1652,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (data.status) {
       metricStatus.textContent = data.status;
     }
+    if (data.model_used || data.model) {
+      const mu = data.model_used || data.model;
+      if (metricModel) {
+        const isLocal = mu.toLowerCase().includes("ollama") || mu.toLowerCase().includes("qwen");
+        const isOpenAI = mu.toLowerCase().includes("openai") || mu.toLowerCase().startsWith("gpt-") || mu.toLowerCase().startsWith("o1") || mu.toLowerCase().startsWith("o3");
+        if (isLocal) {
+          metricModel.textContent = "Local Ollama (qwen2.5:7b)";
+        } else if (isOpenAI) {
+          metricModel.textContent = `OpenAI (${mu.replace(/^openai:/, '')})`;
+        } else {
+          metricModel.textContent = mu;
+        }
+      }
+    }
   }
 
   function resetInspector() {
@@ -1544,6 +1677,17 @@ document.addEventListener("DOMContentLoaded", () => {
     resetSvgGraph();
     metricLatency.textContent = "-- ms";
     metricStatus.textContent = "READY";
+    if (metricModel) {
+      const isLocal = selectedModel.startsWith("ollama:") || selectedModel === "ollama";
+      const isOpenAI = selectedModel.startsWith("openai:") || selectedModel === "openai";
+      if (isLocal) {
+        metricModel.textContent = "Local Ollama (qwen2.5:7b)";
+      } else if (isOpenAI) {
+        metricModel.textContent = `OpenAI (${selectedModel.replace("openai:", "")})`;
+      } else {
+        metricModel.textContent = "Cloud API";
+      }
+    }
     traceExternalLink.href = "#";
     traceExternalLink.classList.add("disabled");
     const rCard = document.getElementById("react-timeline-card");
@@ -1635,6 +1779,10 @@ document.addEventListener("DOMContentLoaded", () => {
       text.setAttribute("text-anchor", "middle");
       text.setAttribute("class", "graph-node-label");
       text.textContent = (n.name || n.label || "Node").slice(0, 14);
+
+      const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      title.textContent = `${n.name || n.id} [${n.label || "Node"}]`;
+      g.appendChild(title);
 
       g.appendChild(circle);
       g.appendChild(text);

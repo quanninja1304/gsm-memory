@@ -42,6 +42,21 @@ class QdrantPolicyHit:
     alias: str = ""
 
 
+@dataclass
+class QdrantOperationalHit:
+    node_id: str
+    kind: str  # "complaint" | "incident"
+    node_type: str  # "Complaint" | "Incident"
+    driver_id: str
+    driver_name: str
+    category: str
+    name: str
+    description: str
+    score: float
+    event_time: str = ""
+    trip_id: str = ""
+
+
 class QdrantPolicyRetriever:
     """Robust REST-based policy retrieval client for Qdrant Cloud/Local."""
 
@@ -149,6 +164,80 @@ class QdrantPolicyRetriever:
                 )
             )
 
+        return hits
+
+    def search_operational_nodes(
+        self,
+        query: str,
+        *,
+        driver_id: str | None = None,
+        kind: str | None = None,
+        top_k: int = 5,
+        score_threshold: float = 0.0,
+    ) -> list[QdrantOperationalHit]:
+        """Perform dense embedding search on Qdrant for operational nodes (complaints, incidents).
+
+        Maps directly to Neo4j nodes via node_id to prevent graph context explosion.
+        """
+        if not self.is_available():
+            logger.warning("Qdrant is not available, skipping operational node search.")
+            return []
+
+        try:
+            query_vector = self.embedder.embed_query(query)
+        except Exception as exc:
+            logger.warning("Failed to embed query via NvidiaNemotronEmbedder: %s", exc)
+            return []
+
+        must_filters: list[dict[str, Any]] = []
+        if kind:
+            must_filters.append({"key": "kind", "match": {"value": kind}})
+        else:
+            must_filters.append({"key": "kind", "match": {"any": ["complaint", "incident"]}})
+
+        if driver_id:
+            must_filters.append({"key": "driver_id", "match": {"value": driver_id}})
+
+        payload: dict[str, Any] = {
+            "vector": query_vector,
+            "limit": top_k,
+            "with_payload": True,
+            "score_threshold": score_threshold,
+            "filter": {"must": must_filters},
+        }
+
+        try:
+            resp = self._session.post(
+                f"{self.url}/collections/{self.collection_name}/points/search",
+                json=payload,
+                timeout=self.timeout,
+            )
+            if resp.status_code != 200:
+                logger.error("Qdrant operational search error %s: %s", resp.status_code, resp.text)
+                return []
+            data = resp.json().get("result", [])
+        except Exception as exc:
+            logger.error("Error executing operational search on Qdrant: %s", exc)
+            return []
+
+        hits: list[QdrantOperationalHit] = []
+        for p in data:
+            pl = p.get("payload") or {}
+            hits.append(
+                QdrantOperationalHit(
+                    node_id=str(pl.get("node_id", p.get("id"))),
+                    kind=str(pl.get("kind", "")),
+                    node_type=str(pl.get("node_type", "")),
+                    driver_id=str(pl.get("driver_id", "")),
+                    driver_name=str(pl.get("driver_name", "")),
+                    category=str(pl.get("category", "")),
+                    name=str(pl.get("name", "")),
+                    description=str(pl.get("description", "")),
+                    score=float(p.get("score", 0.0)),
+                    event_time=str(pl.get("event_time", "")),
+                    trip_id=str(pl.get("trip_id", "")),
+                )
+            )
         return hits
 
     def get_stats(self) -> dict[str, Any]:
