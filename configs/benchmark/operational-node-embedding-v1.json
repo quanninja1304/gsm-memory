@@ -1,0 +1,24 @@
+{
+  "schema_version": "gsm-operational-node-embedding-v1",
+  "dataset_version": "gsm-operational-mock-v0.2",
+  "contract_version": "gsm-operational-kg-v3-draft-1",
+  "provider": "qdrant_cloud",
+  "model": "intfloat/multilingual-e5-small",
+  "dimensions": 384,
+  "document_prefix": "passage: ",
+  "qdrant_collection": "gsm_operational_nodes_v3",
+  "qdrant_vector_name": "dense",
+  "marker_label": "GSMOperationalV3",
+  "vector_property": "semantic_embedding",
+  "text_sha256_property": "semantic_text_sha256",
+  "vector_sha256_property": "semantic_embedding_sha256",
+  "model_property": "semantic_embedding_model",
+  "dimensions_property": "semantic_embedding_dimensions",
+  "index_name": "gsm_operational_v3_semantic",
+  "similarity": "cosine",
+  "expected_node_counts": {
+    "Complaint": 11,
+    "Incident": 4,
+    "MaintenanceEvent": 8
+  }
+}

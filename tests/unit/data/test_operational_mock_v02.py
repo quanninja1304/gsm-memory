@@ -176,10 +176,11 @@ def test_v02_keeps_policy_full_text_out_of_neo4j(dataset):
 def test_v02_semantic_index_selects_exactly_reviewed_free_text_nodes(dataset):
     inputs = build_semantic_node_inputs(dataset)
 
-    assert len(inputs) == 15
+    assert len(inputs) == 23
     assert Counter(row["node_type"] for row in inputs) == {
         "Complaint": 11,
         "Incident": 4,
+        "MaintenanceEvent": 8,
     }
     assert all(row["text"] for row in inputs)
     assert all(len(row["content_sha256"]) == 64 for row in inputs)

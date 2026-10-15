@@ -1806,7 +1806,7 @@ def build_semantic_node_inputs(
     for row in dataset.nodes:
         label = row["label"]
         props = row["props"]
-        if label not in {"Complaint", "Incident"}:
+        if label not in {"Complaint", "Incident", "MaintenanceEvent"}:
             continue
         if props.get("source_kind") != "synthetic_extension":
             continue
@@ -1834,7 +1834,7 @@ def build_semantic_node_inputs(
         )
     selected.sort(key=lambda item: (item["node_type"], item["node_id"]))
     counts = Counter(item["node_type"] for item in selected)
-    if counts != {"Complaint": 11, "Incident": 4}:
+    if counts != {"Complaint": 11, "Incident": 4, "MaintenanceEvent": 8}:
         raise ValueError(f"unexpected semantic node population: {dict(counts)}")
     return tuple(selected)
 

@@ -261,10 +261,11 @@ def test_v03_driver_states_are_readable_and_temporally_explicit(dataset):
 
 def test_v03_semantic_inputs_are_a_plan_not_vector_generation(dataset):
     inputs = build_semantic_node_inputs(dataset)
-    assert len(inputs) == 15
+    assert len(inputs) == 23
     assert Counter(row["node_type"] for row in inputs) == {
         "Complaint": 11,
         "Incident": 4,
+        "MaintenanceEvent": 8,
     }
     assert all("vector" not in row for row in inputs)
 
