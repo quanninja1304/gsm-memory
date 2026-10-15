@@ -760,11 +760,13 @@ class ReActAgent:
                 driver_ident = str(args.get("driver_identifier") or args.get("driver_id") or "")
                 target_snap = args.get("snapshot_id") or ctx.get("snapshot_id")
                 target_date = self._sanitize_date_arg(args.get("date")) or (ctx.get("time_resolved") if ctx.get("user_specified_time") else None)
+                target_limit = int(args.get("limit") or 10)
                 res = get_cancelled_trips_detail(
                     db_repo=self.db_repo,
                     driver_identifier=driver_ident,
                     snapshot_id=target_snap,
                     date=target_date,
+                    limit=target_limit,
                     pipeline=self.pipeline_ref,
                 )
                 time_loc = f":{target_date}" if target_date else ""
@@ -1040,24 +1042,27 @@ class ReActAgent:
             "  + Bước 2 (Đọc toàn văn văn bản): Gọi `get_full_policy_document` với tham số `policy_code` (hỗ trợ truyền nhiều mã cùng lúc, ví dụ: 'P094, P027, P017') để đọc toàn văn đầy đủ toàn bộ các quy chế này.\n"
             "  + Bước 3 (Kết luận): Sau khi đã có Observation từ Bước 2, bạn ĐÃ CÓ ĐỦ DỮ LIỆU. BẮT BUỘC xuất ngay Thought và Final Answer theo Mẫu Dạng 2 (Báo cáo Tra cứu Quy chế GSM).\n"
             "  + TUYỆT ĐỐI CẤM đối với Trường Hợp A: TUYỆT ĐỐI CẤM gọi bất kỳ công cụ tài xế nào (`get_driver_operational_stats`, `get_driver_profile`, `get_driver_trip_summary`, `query_driver_graph`...) và TUYỆT ĐỐI CẤM tự bịa ra mã tài xế (như DRV-002) hay ngày tháng khi người dùng không hỏi về tài xế!\n\n"
-            "  + BẮT BUỘC ưu tiên gọi `query_driver_graph` để tra cứu đồ thị tri thức (Knowledge Graph) có ĐỊNH HƯỚNG theo chủ đề (focus) của câu hỏi để tránh bùng nổ dữ liệu:\n"
-            "    * Hỏi về khu vực, thành phố, địa bàn hoạt động: Gọi `query_driver_graph(driver_identifier=..., focus='location')` -> Duyệt Driver -> Region và Driver -> Trip (top 10 gần nhất) -> Zone (quận/khu vực đón/trả cụ thể).\n"
-            "    * Hỏi về phản ánh, khiếu nại của khách hàng: Gọi `query_driver_graph(driver_identifier=..., focus='complaints', semantic_query='từ khóa phàn nàn')` -> Duyệt Driver -> Complaint -> Trip (xác định chuyến nào bị khiếu nại và lý do).\n"
-            "    * Hỏi về sự cố vận hành, kỹ thuật, biên bản: Gọi `query_driver_graph(driver_identifier=..., focus='incidents', semantic_query='từ khóa sự cố')` -> Duyệt Driver -> Incident -> Trip/PolicyRule.\n"
-            "    * Hỏi về đội xe, trạm depot: Gọi `query_driver_graph(driver_identifier=..., focus='fleet')` -> Duyệt Driver -> Fleet -> Region.\n"
-            "    * Hỏi về phương tiện, dòng xe, biển số, bảo dưỡng: Gọi `query_driver_graph(driver_identifier=..., focus='vehicle')` -> Duyệt Driver -> Vehicle -> VehicleType, MaintenanceEvent.\n"
-            "    * Hỏi về chỉ số KPI đo lường: Gọi `query_driver_graph(driver_identifier=..., focus='kpi_metrics')` -> Duyệt Driver -> Measurement.\n"
-            "    * Hỏi về chế tài, xử lý kỷ luật, vi phạm: Gọi `query_driver_graph(driver_identifier=..., focus='enforcement')` -> Duyệt Driver -> EnforcementDecision -> ViolationFinding -> PolicyRule.\n"
-            "  + Gọi `get_driver_profile` để tra cứu hồ sơ nhân sự, phương tiện, biển số, trạng thái.\n"
-            "  + Gọi `get_driver_trip_summary` (hoặc `get_driver_trip_metrics`) để lấy số cuốc hoàn thành, số cuốc hủy, tỷ lệ hủy, số sự cố và khiếu nại theo ngày/tháng/năm hoặc snapshot.\n"
-            "  + Gọi `get_cancelled_trips_detail` khi cần biết danh sách cụ thể các chuyến bị hủy và nguyên nhân hủy.\n"
-            "  + Gọi `get_driver_operational_stats` khi cần số cuốc xe (phát, nhận, hoàn thành, hủy) và doanh thu theo ngày hoặc tháng/kỳ và snapshot.\n"
-            "  + Gọi `get_recent_incidents` để lấy danh sách sự cố gần nhất (trả về TỔNG SỐ LƯỢNG, phân loại và chi tiết nội dung của từng sự cố).\n"
-            "  + Gọi `get_recent_complaints` để lấy danh sách khiếu nại/phản ánh khách hàng gần nhất (trả về TỔNG SỐ LƯỢNG, phân loại và nội dung mô tả chi tiết của từng khiếu nại).\n"
+            "--- TRƯỜNG HỢP B: KHI CÂU HỎI LIÊN QUAN ĐẾN TÀI XẾ / HOẠT ĐỘNG VẬN HÀNH: ---\n"
+            "  + LỰA CHỌN CÔNG CỤ ĐÚNG TRỌNG TÂM CÂU HỎI:\n"
+            "    * Hỏi về hồ sơ nhân sự, thông tin tài xế, phương tiện, biển số mặc định, trạng thái: Gọi `get_driver_profile`.\n"
+            "    * Hỏi về tổng hợp chuyến đi, số cuốc hoàn thành/hủy, tỷ lệ hủy, tổng quan sự cố/khiếu nại: Gọi `get_driver_trip_summary` (hoặc `get_driver_trip_metrics`).\n"
+            "    * Hỏi về chi tiết danh sách chuyến bị hủy và nguyên nhân hủy: Gọi `get_cancelled_trips_detail` (mặc định lấy tối đa 10 chuyến hủy gần nhất, kèm thống kê phân loại nguyên nhân và bên hủy).\n"
+            "    * Hỏi về cuốc xe (phát, nhận, hoàn thành, hủy) và doanh thu theo ngày hoặc tháng/kỳ: Gọi `get_driver_operational_stats`.\n"
+            "    * Hỏi về danh sách khiếu nại/phản ánh khách hàng gần nhất: Gọi `get_recent_complaints` (hoặc `get_complaint_detail` khi cần xem chi tiết một vụ việc).\n"
+            "    * Hỏi về danh sách sự cố vận hành, kỹ thuật: Gọi `get_recent_incidents` (hoặc `get_incident_detail` khi cần xem chi tiết một sự cố).\n"
+            "    * Khi câu hỏi yêu cầu tra cứu đồ thị tri thức (Knowledge Graph), duyệt mạng lưới quan hệ đa thực thể hoặc tìm kiếm ngữ nghĩa theo chủ đề (focus):\n"
+            "      - Khu vực, thành phố, địa bàn hoạt động hoặc zone đón/trả: Gọi `query_driver_graph(driver_identifier=..., focus='location')` -> Duyệt Driver -> Region và Driver -> Trip -> Zone.\n"
+            "      - Phản ánh, khiếu nại tìm kiếm theo ngữ nghĩa sâu hoặc xác định chuyến xe bị khiếu nại: Gọi `query_driver_graph(driver_identifier=..., focus='complaints', semantic_query='...')` -> Duyệt Driver -> Complaint -> Trip.\n"
+            "      - Sự cố vận hành, kỹ thuật liên kết quy chế: Gọi `query_driver_graph(driver_identifier=..., focus='incidents', semantic_query='...')` -> Duyệt Driver -> Incident -> Trip/PolicyRule.\n"
+            "      - Đội xe, Hub điều hành và địa bàn: Gọi `query_driver_graph(driver_identifier=..., focus='fleet')` -> Duyệt Driver -> Fleet -> Region.\n"
+            "      - Phương tiện, dòng xe, biển số, lịch sử bảo dưỡng: Gọi `query_driver_graph(driver_identifier=..., focus='vehicle')` -> Duyệt Driver -> Vehicle -> VehicleType, MaintenanceEvent.\n"
+            "      - Chỉ số KPI đo lường chuẩn hóa: Gọi `query_driver_graph(driver_identifier=..., focus='kpi_metrics')` -> Duyệt Driver -> Measurement.\n"
+            "      - Quyết định chế tài, biên bản xử lý kỷ luật vi phạm: Gọi `query_driver_graph(driver_identifier=..., focus='enforcement')` -> Duyệt Driver -> EnforcementDecision -> ViolationFinding -> PolicyRule.\n"
             "QUY TẮC LỰA CHỌN CÔNG CỤ ĐÚNG TRỌNG TÂM & CHỐNG GỌI TOOL THỪA:\n"
             "  + QUY TRÌNH BẮT BUỘC KHI TÍNH TOÁN CÁC CHỈ SỐ VẬN HÀNH (Tỷ lệ hủy chuyến, Tỷ lệ nhận cuốc, Tỷ lệ hoàn thành, Doanh thu):\n"
             "    * BƯỚC 1: BẮT BUỘC gọi `get_driver_trip_summary` (hoặc `get_driver_trip_metrics` / `get_driver_operational_stats`) với driver_identifier và snapshot_id để lấy số liệu thực tế từ CSDL. TUYỆT ĐỐI CẤM tự bịa ra các con số (như 5, 15, 20)!\n"
             "    * BƯỚC 2: Dùng số liệu thực tế nhận được từ Observation ở Bước 1 để gọi công cụ tính toán `calculate_cancel_rate` hoặc đối chiếu quy chế.\n"
+            "    * BƯỚC 3 (ĐỐI VỚI HỦY CHUYẾN): Nếu phát hiện tài xế có chuyến bị hủy (cancelled_trips > 0), KHUYẾN NGHỊ gọi `get_cancelled_trips_detail` (mặc định lấy tối đa 10 chuyến gần nhất) để làm rõ nguyên nhân hủy (do khách hàng, lý do bất khả kháng hợp lệ theo P094 hay tài xế tự ý hủy) nhằm kết luận vi phạm chính xác và khách quan nhất.\n"
             "  + CHỈ GỌI CÁC TOOL TÍNH TOÁN/ĐỐI SOÁT (`evaluate_rating_condition`, `evaluate_daily_revenue`, `calculate_cancel_rate`, `calculate_acceptance_rate`, `calculate_completion_rate`, `calculate_revenue_charge`...) KHI VÀ CHỈ KHI câu hỏi của người dùng có yêu cầu tính toán, kiểm tra doanh số, điểm sao, tỷ lệ hủy/nhận/hoàn thành, hoặc thẩm định tiêu chuẩn thưởng/phạt/chấm công.\n"
             "  + TUYỆT ĐỐI KHÔNG tự ý gọi `evaluate_rating_condition` hay `evaluate_daily_revenue` khi người dùng chỉ hỏi về chi tiết sự việc, khiếu nại, phản ánh khách hàng, thái độ phục vụ, lý do từ chối, thông tin chuyến xe hoặc hồ sơ tài xế!\n"
             "  + NGUYÊN TẮC DỪNG SỚM (EARLY STOP): Ngay khi một công cụ (như `query_driver_graph` hoặc `get_driver_profile` hoặc `get_recent_complaints`) đã trả về đầy đủ nội dung/chi tiết để trả lời cho câu hỏi, BẮT BUỘC DỪNG GỌI THÊM CÔNG CỤ và xuất ngay Thought + Final Answer. Tuyệt đối không gọi thêm các công cụ không liên quan để kéo dài vòng lặp!\n"
@@ -1081,7 +1086,8 @@ class ReActAgent:
             "   - NẾU TÀI XẾ HOÀN TOÀN KHÔNG CÓ CHUYẾN HỦY / KHÔNG CÓ SỰ CỐ / HỒ SƠ SẠCH: Được phép khẳng định trực diện tài xế tuân thủ tốt, không phát sinh vi phạm quy chế hủy chuyến hay sự cố trong kỳ đối soát.\n"
             "   - TUYỆT ĐỐI KHÔNG tự ý kết luận 'đạt tiêu chuẩn thưởng' hoặc 'đạt KPI' nếu chưa có quy chế quy định tiêu chuẩn thưởng cho đối tượng này trong hệ thống.\n"
             "   - NẾU TÀI XẾ CÓ PHÁT SINH CHUYẾN BỊ HỦY (ví dụ: do yêu cầu của tài xế driver_request):\n"
-            "     + Phải ghi nhận trung thực số chuyến bị hủy và lý do hủy từ dữ liệu Observation.\n"
+            "     + Phải ghi nhận trung thực số chuyến bị hủy và nêu rõ nguyên nhân hủy của các chuyến gần nhất từ dữ liệu Observation.\n"
+            "     + Đối chiếu với quy chế hủy chuyến hợp lệ (như Bản tin P094): Nếu lý do hủy thuộc các trường hợp bất khả kháng/hợp lệ (khách quá tải, đường ngập...) thì nêu rõ tính hợp lệ; nếu là tài xế tự ý từ chối hoặc không có lý do hợp lệ thì mới kết luận có vi phạm.\n"
             "     + Nếu không có quy chế phạt hủy chuyến: Nêu rõ chưa đủ căn cứ quy chế để kết luận vi phạm, khuyến nghị bộ phận quản lý theo dõi và trao đổi thêm với tài xế.\n"
             "5. NGUYÊN TẮC BẢO TOÀN SỐ LƯỢNG KHIẾU NẠI & SỰ CỐ:\n"
             "   - Khi câu hỏi yêu cầu thống kê hoặc kiểm tra tổng quan tình hình sự cố/khiếu nại, hãy nêu chính xác tổng số lượng thực tế theo Observation (không kết luận sai lệch chỉ vì mới xem ví dụ 3 vụ).\n"
@@ -1218,12 +1224,12 @@ class ReActAgent:
                             f"Bước 1: Đây có thể là câu hỏi nối tiếp từ lượt hội thoại trước{time_hint}. "
                             "Nếu thông tin trả lời (như lý do, chi tiết sự việc, thời gian, tên xe, biển số) đã có sẵn trong lịch sử hội thoại gần nhất, "
                             "BẮT BUỘC đưa ra ngay (Thought + Final Answer) để trả lời trực tiếp, rõ ràng cho người dùng mà KHÔNG cần gọi lại công cụ cũ. "
-                            "Nếu cần tra cứu thêm dữ liệu mới chưa có, hãy đưa ra Thought và Action gọi công cụ đúng trọng tâm (ưu tiên query_driver_graph, get_driver_profile, get_recent_complaints...):"
+                            "Nếu cần tra cứu thêm dữ liệu mới chưa có, hãy đưa ra Thought và Action gọi công cụ đúng trọng tâm câu hỏi (ví dụ: get_driver_profile, get_driver_trip_summary, get_recent_complaints, get_recent_incidents, query_driver_graph...):"
                         )
                     else:
                         action_instruction = (
                             f"Bước 1: Hãy đưa ra Thought và Action để gọi công cụ tra cứu dữ liệu thực tế đầu tiên{time_hint}"
-                            "BẮT BUỘC PHẢI GỌI CÔNG CỤ (Ưu tiên Action: query_driver_graph để mở rộng các nút & cạnh đồ thị nếu câu hỏi liên quan đến tài xế/vận hành, hoặc get_driver_profile, get_driver_trip_summary, get_recent_complaints...), "
+                            "BẮT BUỘC PHẢI GỌI CÔNG CỤ đúng trọng tâm câu hỏi (ví dụ: get_driver_profile khi hỏi thông tin tài xế/xe; get_driver_trip_summary / get_driver_operational_stats khi hỏi số liệu chuyến đi; get_recent_complaints / get_recent_incidents khi hỏi khiếu nại/sự cố; query_driver_graph khi tra cứu mối quan hệ đồ thị tri thức hoặc liên kết đa thực thể...), "
                             "TUYỆT ĐỐI KHÔNG xuất ra Final Answer khi chưa có Observation thực tế:"
                         )
             elif last_was_dup:
@@ -1772,7 +1778,7 @@ class ReActAgent:
                     "   - TUYỆT ĐỐI CẤM sao chép các cụm từ hướng dẫn trong đề bài làm tiêu đề rỗng hay mẫu điền khuyết (như 'Số liệu chuyến hoàn thành: Không có...', 'Căn cứ và đối chiếu quy chế GSM: Không có...', 'Trả lời trực diện: Không có...').\n"
                     "   - TUYỆT ĐỐI CẤM rò rỉ các thuật ngữ kỹ thuật nội bộ như 'Observation', 'Action', 'từ công cụ get_cancelled_trips_detail', 'scratchpad', 'tool', 'công cụ' trong câu trả lời. Hãy dùng ngôn ngữ nghiệp vụ: 'Theo dữ liệu hệ thống ghi nhận', 'Qua tra cứu lịch sử chuyến xe', 'Theo quy chế hiện hành của GSM'...\n\n"
                     "2. ĐẢM BẢO ĐỦ NỘI DUNG (SỐ LIỆU / TÍNH TOÁN, QUY CHẾ / CHÍNH SÁCH, KẾT LUẬN):\n"
-                    "   - VỀ SỐ LIỆU VẬN HÀNH & TÍNH TOÁN: Nếu có số liệu (chuyến hoàn thành, chuyến hủy, tỷ lệ hủy cancel_rate_30d, doanh thu, đánh giá sao, tỷ lệ nhận/hoàn thành cuốc...), hãy nêu đầy đủ các con số cụ thể và kết quả tính toán chính xác từ hệ thống. Nếu tài xế có hồ sơ sạch (0 chuyến hủy, không sự cố), hãy nêu rõ ràng rằng tài xế không có chuyến xe nào bị hủy và không phát sinh sự cố trong kỳ.\n"
+                    "   - VỀ SỐ LIỆU VẬN HÀNH & TÍNH TOÁN: Nếu có số liệu (chuyến hoàn thành, chuyến hủy, tỷ lệ hủy cancel_rate_30d, doanh thu, đánh giá sao, tỷ lệ nhận/hoàn thành cuốc...), hãy nêu đầy đủ các con số cụ thể và kết quả tính toán chính xác từ hệ thống. Nếu tài xế có hồ sơ sạch (0 chuyến hủy, không sự cố), hãy nêu rõ ràng rằng tài xế không có chuyến xe nào bị hủy và không phát sinh sự cố trong kỳ. Nếu tài xế có chuyến bị hủy, hãy nêu rõ số chuyến hủy và tóm tắt nguyên nhân của các chuyến hủy gần nhất (do khách hủy, lý do bất khả kháng theo quy chế P094 hay tài xế tự ý hủy) nếu có trong dữ liệu quan sát.\n"
                     "   - VỀ CĂN CỨ QUY CHẾ & CHÍNH SÁCH:\n"
                     f"     {policy_basis_instruction}\n"
                     "   - VỀ KẾT LUẬN RÕ RÀNG:\n"

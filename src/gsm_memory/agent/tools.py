@@ -775,7 +775,9 @@ def get_cancelled_trips_detail(
     driver_identifier: str,
     snapshot_id: str | None = None,
     date: str | None = None,
+    limit: int = 10,
     pipeline: Any = None,
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Tra cứu danh sách chi tiết các chuyến đi bị hủy (mã chuyến, thời gian, lý do hủy reason_code, bên hủy cancel_party)."""
     if not db_repo:
@@ -858,16 +860,38 @@ def get_cancelled_trips_detail(
         except Exception:
             pass
 
+    # Sort descending by event_time so most recent trips appear first
+    cancelled_items.sort(key=lambda x: str(x.get("event_time") or ""), reverse=True)
+    total_cancelled = len(cancelled_items)
+
+    # Compute reasons and parties breakdown
+    reasons_breakdown: dict[str, int] = {}
+    parties_breakdown: dict[str, int] = {}
+    for c in cancelled_items:
+        r = c.get("reason_code") or "không rõ"
+        reasons_breakdown[r] = reasons_breakdown.get(r, 0) + 1
+        p = c.get("cancel_party") or "Không rõ"
+        parties_breakdown[p] = parties_breakdown.get(p, 0) + 1
+
+    eff_limit = max(1, int(limit)) if limit else 10
+    displayed_items = cancelled_items[:eff_limit]
+
     time_filter_label = f" ({period_label})" if period_label else ""
     snap_label = f" trong snapshot [{snapshot_id[:8]}...]" if snapshot_id else ""
     if cancelled_items:
         detail_lines = []
-        for c in cancelled_items:
+        for c in displayed_items:
             time_part = f" lúc {c['event_time'][:19].replace('T', ' ')}" if c.get('event_time') else ""
             party_part = f", bên hủy: {c['cancel_party']}" if c.get('cancel_party') else ""
             detail_lines.append(f"Chuyến {c['trip_id'][:8]} (lý do: {c['reason_code']}{party_part}{time_part})")
+
+        breakdown_str = ""
+        if parties_breakdown:
+            breakdown_str = f" [Phân loại: {', '.join(f'{k}: {v}' for k, v in parties_breakdown.items())}]"
+
+        showing_str = f" (Hiển thị {len(displayed_items)}/{total_cancelled} chuyến hủy gần nhất)" if total_cancelled > len(displayed_items) else ""
         summary_text = (
-            f"Tài xế {driver.full_name} ({driver.driver_code}){time_filter_label}{snap_label} có {len(cancelled_items)} chuyến bị hủy: "
+            f"Tài xế {driver.full_name} ({driver.driver_code}){time_filter_label}{snap_label} có tổng cộng {total_cancelled} chuyến bị hủy{breakdown_str}{showing_str}: "
             + "; ".join(detail_lines) + "."
         )
     else:
@@ -882,8 +906,11 @@ def get_cancelled_trips_detail(
         "snapshot_id": snapshot_id,
         "date": date_prefix if date else None,
         "period": period_label if date else None,
-        "cancelled_count": len(cancelled_items),
-        "cancelled_trips": cancelled_items,
+        "cancelled_count": total_cancelled,
+        "showing_count": len(displayed_items),
+        "reasons_breakdown": reasons_breakdown,
+        "parties_breakdown": parties_breakdown,
+        "cancelled_trips": displayed_items,
         "summary": summary_text,
     }
 
@@ -2390,13 +2417,14 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "get_cancelled_trips_detail",
-        "description": "Tra cứu danh sách chi tiết các chuyến đi bị hủy của tài xế (mã chuyến, thời gian phát sinh, lý do hủy reason_code, bên hủy cancel_party ví dụ: tài xế tự hủy driver_request hay khách hủy) theo ngày/tháng/năm hoặc snapshot.",
+        "description": "Tra cứu danh sách chi tiết các chuyến đi bị hủy của tài xế (mã chuyến, thời gian phát sinh, lý do hủy reason_code, bên hủy cancel_party ví dụ: tài xế tự hủy driver_request hay khách hủy) theo ngày/tháng/năm hoặc snapshot. Mặc định lấy tối đa 10 chuyến hủy gần nhất.",
         "parameters": {
             "type": "object",
             "properties": {
                 "driver_identifier": {"type": "string", "description": "Mã tài xế (DRV-xxx), tên tài xế, hoặc UUID"},
                 "date": {"type": "string", "description": "Thời gian cần tra cứu danh sách hủy (ngày YYYY-MM-DD, tháng YYYY-MM hoặc năm YYYY)"},
                 "snapshot_id": {"type": "string", "description": "Mã snapshot cần tra cứu danh sách hủy nếu có"},
+                "limit": {"type": "integer", "description": "Số lượng chuyến hủy gần nhất cần lấy (mặc định 10 chuyến)"},
             },
             "required": ["driver_identifier"],
         },

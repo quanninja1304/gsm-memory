@@ -966,8 +966,9 @@ class ConversationalPipeline:
 
         q_lower = q_raw.lower()
         q_norm = re.sub(r"[\?!\.,;:\s]+$", "", q_lower).strip()
+        q_strip = strip_vietnamese_diacritics(q_norm)
 
-        # 1. Greetings & Social / Capability checks
+        # 1. Greetings & Social / Capability checks (both accented and diacritic-stripped)
         greeting_patterns = [
             r"^(?:xin\s+)?chào(?:\s+(?:bạn|ad|em|anh|chị|bot|ai|mọi người|gsm|cả nhà))?$",
             r"^(?:hello|hi|hey|alo|ê|hế lô)(?:\s+(?:bạn|ad|bot|there))?$",
@@ -977,8 +978,20 @@ class ConversationalPipeline:
             r"^(?:cảm\s+ơn(?:\s+(?:bạn|ad|nhiều))?|thanks?|thank\s+you)$",
             r"^(?:tạm\s+biệt|bye(?:\s+bye)?|chào\s+nhé)$",
         ]
+        greeting_patterns_stripped = [
+            r"^(?:xin\s+)?chao(?:\s+(?:ban|ad|em|anh|chi|bot|ai|moi nguoi|gsm|ca nha))?$",
+            r"^(?:hello|hi|hey|alo|e|he lo)(?:\s+(?:ban|ad|bot|there))?$",
+            r"^(?:chao\s+(?:buoi\s+)?(?:sang|chieu|toi))$",
+            r"^(?:ban\s+la\s+ai|ban\s+ten\s+gi|gioi\s+thieu(?:\s+ve\s+ban\s+than)?)$",
+            r"^(?:ban\s+(?:co\s+the\s+)?(?:lam\s+duoc\s+gi|giup\s+(?:duoc\s+)?gi(?:\s+cho\s+(?:toi|minh))?)|huong\s+dan(?:\s+su\s+dung)?)$",
+            r"^(?:cam\s+on(?:\s+(?:ban|ad|nhieu))?|thanks?|thank\s+you)$",
+            r"^(?:tam\s+biet|bye(?:\s+bye)?|chao\s+nhe)$",
+        ]
         for pat in greeting_patterns:
             if re.match(pat, q_norm, re.IGNORECASE):
+                return "GREETING"
+        for pat in greeting_patterns_stripped:
+            if re.match(pat, q_strip, re.IGNORECASE):
                 return "GREETING"
 
         # 2. Positive GSM Domain Signals (if any present, NEVER treat as OUT_OF_SCOPE)
@@ -1025,15 +1038,19 @@ class ConversationalPipeline:
     def build_greeting_message(self, query: str, context: dict[str, Any] | None = None) -> str:
         """Generate a natural, polite greeting and introduction to GSM assistant capabilities."""
         q_lower = query.lower()
-        if any(w in q_lower for w in ["cảm ơn", "thank", "thanks"]):
+        q_strip = strip_vietnamese_diacritics(q_lower)
+        if any(w in q_lower for w in ["cảm ơn", "thank", "thanks"]) or any(w in q_strip for w in ["cam on"]):
             return (
                 "Rất vui được hỗ trợ bạn! Nếu bạn cần thêm thông tin vận hành, lịch sử chuyến đi của tài xế "
                 "hoặc bất kỳ quy chế chính sách nào của GSM, đừng ngần ngại hỏi tôi nhé. Chúc bạn một ngày làm việc hiệu quả!"
             )
-        if any(w in q_lower for w in ["tạm biệt", "bye"]):
+        if any(w in q_lower for w in ["tạm biệt", "bye"]) or any(w in q_strip for w in ["tam biet"]):
             return "Tạm biệt bạn! Chúc bạn làm việc an toàn và thuận lợi cùng GSM. Hẹn gặp lại bạn!"
 
-        if any(w in q_lower for w in ["bạn là ai", "làm được gì", "giúp gì", "chức năng", "hướng dẫn"]):
+        if (
+            any(w in q_lower for w in ["bạn là ai", "làm được gì", "giúp gì", "chức năng", "hướng dẫn"])
+            or any(w in q_strip for w in ["ban la ai", "lam duoc gi", "giup gi", "chuc nang", "huong dan"])
+        ):
             return (
                 "Xin chào! Tôi là **Trợ lý AI Quản trị Vận hành & Chính sách của GSM (Taxi Xanh SM)**.\n\n"
                 "Tôi có thể hỗ trợ bạn các nghiệp vụ chuyên môn sau:\n"
@@ -1103,11 +1120,12 @@ class ConversationalPipeline:
             "   - NẾU câu hỏi hiện tại đề cập đến một tên hoặc mã tài xế mới (ví dụ: 'còn tài xế Minh thì sao', 'tài xế Bình thì sao', 'DRV-005'): BẮT BUỘC bóc tách tên mới vào 'driver_name' (ví dụ: 'Minh') hoặc mã mới vào 'driver_code', và ĐỂ 'driver_id'=null; TUYỆT ĐỐI KHÔNG dùng tên/mã tài xế từ ngữ cảnh trước!\n"
             "   - NẾU câu hỏi là câu hỏi tiếp nối không nhắc đến tên/mã tài xế nào (ví dụ: 'thế còn tháng 8 thì sao?', 'còn tháng 9 thì sao?', 'vậy hôm qua thì sao?', 'anh ấy thì sao?'): BẮT BUỘC giữ nguyên tài xế và chủ đề từ ngữ cảnh trước, TUYỆT ĐỐI KHÔNG được coi là 'OUT_OF_SCOPE' hay để mất tài xế!\n"
             "   - NẾU câu hỏi chỉ hỏi về quy chế/chính sách chung (ví dụ: 'các chính sách về vi phạm hủy chuyến', 'quy định mức khoán'), bắt buộc để driver_id=null, driver_code=null, driver_name=null, KHÔNG được tự động sao chép tài xế từ ngữ cảnh trước vào!\n"
+            "   - NẾU câu hỏi không nhắc đến bất kỳ tên hoặc mã tài xế cụ thể nào: BẮT BUỘC để driver_id=null, driver_code=null, driver_name=null. TUYỆT ĐỐI KHÔNG được tự ý lấy tên tài xế từ các ví dụ mẫu (như Bình, Minh, Dũng...) để điền vào!\n"
             "2. Trả về DUY NHẤT 1 chuỗi JSON hợp lệ, KHÔNG có markdown ```json ```, KHÔNG có suy nghĩ (thinking), giải thích hay tiếng Anh.\n"
             "3. Các trường cần bóc tách:\n"
             "   - 'driver_id': Chuỗi UUID nếu câu hỏi cung cấp trực tiếp UUID, ngược lại null.\n"
-            "   - 'driver_code': Mã tài xế cần tra cứu (ví dụ: DRV-001, DRV-002, D1, D2...), ngược lại null.\n"
-            "   - 'driver_name': Tên tài xế được nhắc đến (ví dụ: 'Trần Văn Bình', 'Bình', 'Minh', 'Dũng', 'Giang'...). LƯU Ý: Các danh xưng như 'anh Giang', 'chị Lan', 'bác tài Dũng', 'tài xế Bình' thì tên tài xế tương ứng là 'Giang', 'Lan', 'Dũng', 'Bình'!\n"
+            "   - 'driver_code': Mã tài xế cần tra cứu nếu có trong câu hỏi (ví dụ: DRV-001, DRV-002, D1, D2...), ngược lại bắt buộc null.\n"
+            "   - 'driver_name': Tên tài xế được nhắc đến trong câu hỏi (ví dụ: 'Trần Văn Bình', 'Bình', 'Minh', 'Dũng', 'Giang'...). LƯU Ý: Các danh xưng như 'anh Giang', 'chị Lan', 'bác tài Dũng', 'tài xế Bình' thì tên tài xế tương ứng là 'Giang', 'Lan', 'Dũng', 'Bình'. NẾU câu hỏi KHÔNG có tên tài xế nào, BẮT BUỘC để null, TUYỆT ĐỐI KHÔNG tự suy đoán hay lấy tên từ ví dụ!\n"
             "   - 'time_raw': Cụm từ chỉ thời gian nguyên văn trong câu hỏi (ví dụ: 'tháng 9/2026', 'hôm qua', '17/8/2026', 'ngày 17/8', '30 ngày qua'...). LƯU Ý: Nếu câu hỏi có chứa ngày tháng cụ thể (ví dụ: '17/8/2026', '17/8/1026', 'trong tháng 17/8/2026'): BẮT BUỘC giữ nguyên đầy đủ ngày, tháng, năm trong 'time_raw' (ví dụ: '17/8/2026') và 'time_resolved' (ví dụ: '2026-08-17'), TUYỆT ĐỐI KHÔNG tự ý bỏ ngày để chỉ lấy tháng!\n"
             "   - 'time_resolved': Mốc thời gian ISO hoặc chuẩn hóa tương ứng dựa trên thời gian hiện tại của hệ thống (ví dụ: '2026-09', '2026-08-17', '2026-09-16'...). Nếu năm bị gõ nhầm (ví dụ: '1026' thành '2026'), tự động chuẩn hóa sang năm '2026' tương ứng, ngược lại null.\n"
             "   - 'policy_scope': Danh sách mã quy chế (ví dụ dạng P kèm chữ số như P154, P05, P221) hoặc tên văn bản quy định cụ thể CHỈ KHI người dùng viết rõ nguyên văn trong câu hỏi hiện tại. NẾU câu hỏi không có mã Pxxx hoặc tên văn bản cụ thể, BẮT BUỘC để []. TUYỆT ĐỐI KHÔNG tự điền hoặc suy đoán mã quy chế khi câu hỏi không nêu rõ!\n"
@@ -1189,6 +1207,50 @@ class ConversationalPipeline:
         # If LLM mistakenly classified a follow-up query as OUT_OF_SCOPE in an active session:
         if extracted.get("intent") == "OUT_OF_SCOPE" and has_active_context and not is_true_off_topic:
             extracted["intent"] = context.get("last_intent") or "HYBRID_REASONING"
+
+        # Strict Hallucination Guard for driver_name, driver_code, driver_id returned by LLM:
+        # A driver extracted by LLM is accepted ONLY IF it actually appears in the user query
+        # (with or without accents) or matches the explicit active conversation context.
+        q_raw_lower = query.lower()
+        q_stripped = strip_vietnamese_diacritics(q_raw_lower)
+        ctx_driver_text = str(
+            context.get("driver_mention")
+            or context.get("driver_name")
+            or context.get("driver_code")
+            or ""
+        ).lower()
+        ctx_driver_stripped = strip_vietnamese_diacritics(ctx_driver_text)
+
+        raw_d_name = extracted.get("driver_name")
+        if raw_d_name:
+            d_name_str = str(raw_d_name).strip().lower()
+            d_name_strip = strip_vietnamese_diacritics(d_name_str)
+            in_q = (d_name_str in q_raw_lower) or (d_name_strip in q_stripped)
+            in_ctx = (d_name_str in ctx_driver_text) or (d_name_strip in ctx_driver_stripped)
+            if not in_q and not in_ctx:
+                print(f"[AI Slot Extractor] Dropping hallucinated driver_name '{raw_d_name}' because it was not in query or context.")
+                extracted["driver_name"] = None
+                if not extracted.get("driver_code"):
+                    extracted["driver_id"] = None
+
+        raw_d_code = extracted.get("driver_code")
+        if raw_d_code:
+            d_code_str = str(raw_d_code).strip().lower()
+            in_q = d_code_str in q_raw_lower
+            in_ctx = d_code_str in ctx_driver_text
+            if not in_q and not in_ctx:
+                print(f"[AI Slot Extractor] Dropping hallucinated driver_code '{raw_d_code}' because it was not in query or context.")
+                extracted["driver_code"] = None
+                extracted["driver_id"] = None
+
+        raw_d_id = extracted.get("driver_id")
+        if raw_d_id:
+            d_id_str = str(raw_d_id).strip().lower()
+            in_q = d_id_str in q_raw_lower
+            in_ctx = d_id_str in str(context.get("driver_id", "")).lower()
+            if not in_q and not in_ctx:
+                print(f"[AI Slot Extractor] Dropping hallucinated driver_id '{raw_d_id}' because it was not in query or context.")
+                extracted["driver_id"] = None
 
         # Augment driver from query database lookup if LLM omitted them
         if not extracted.get("driver_name") and not extracted.get("driver_code") and not extracted.get("driver_id"):
@@ -1316,6 +1378,12 @@ class ConversationalPipeline:
         elif not extracted.get("intent") or (extracted.get("intent") == "OUT_OF_SCOPE" and has_active_context and not is_true_off_topic):
             extracted["intent"] = context.get("last_intent") or "POLICY_LOOKUP"
             extracted["needs_compliance_check"] = False
+
+        if not has_driver:
+            driver_keywords = ["tài xế", "bác tài", "chuyến xe", "cuốc xe", "chuyến đi", "lái xe"]
+            has_driver_keyword = any(k in q_raw_lower for k in driver_keywords) or any(strip_vietnamese_diacritics(k) in q_stripped for k in driver_keywords)
+            if extracted.get("intent") == "DRIVER_HISTORY" and not has_driver_keyword:
+                extracted["intent"] = "POLICY_LOOKUP"
 
         if "has_policy_target" not in extracted:
             extracted["has_policy_target"] = bool(extracted.get("policy_scope") or extracted.get("policy_topics"))

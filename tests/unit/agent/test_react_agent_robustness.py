@@ -1409,3 +1409,58 @@ def test_react_agent_natural_response_sanitizes_leaks_and_empty_forms() -> None:
     assert "không có chuyến xe nào bị hủy" in res.final_answer
     assert "không vi phạm quy chế" in res.final_answer
 
+
+def test_cancelled_trips_detail_limit_and_breakdown():
+    """Verify that get_cancelled_trips_detail respects limit, sorts by event_time desc, and aggregates breakdowns."""
+    from gsm_memory.agent.tools import get_cancelled_trips_detail
+    mock_db_repo = MagicMock()
+    mock_db_repo.get_driver.return_value = MagicMock(
+        driver_id="drv-uuid-002",
+        driver_code="DRV-002",
+        full_name="Trần Văn Bình",
+    )
+    trip1 = MagicMock(
+        trip_id="trip-c1",
+        reason_code="passenger_overload",
+        cancel_party="Tài xế yêu cầu",
+        start_time="2026-09-15T08:00:00",
+        pickup_address="A",
+        dropoff_address="B",
+    )
+    trip2 = MagicMock(
+        trip_id="trip-c2",
+        reason_code="customer_cancelled",
+        cancel_party="Khách/Hệ thống",
+        start_time="2026-09-16T09:00:00",
+        pickup_address="C",
+        dropoff_address="D",
+    )
+    trip3 = MagicMock(
+        trip_id="trip-c3",
+        reason_code="customer_no_show",
+        cancel_party="Khách/Hệ thống",
+        start_time="2026-09-17T10:00:00",
+        pickup_address="E",
+        dropoff_address="F",
+    )
+    mock_db_repo.get_trips.return_value = [trip1, trip2, trip3]
+
+    res = get_cancelled_trips_detail(
+        db_repo=mock_db_repo,
+        driver_identifier="DRV-002",
+        limit=2,
+    )
+    assert res["found"] is True
+    assert res["cancelled_count"] == 3
+    assert res["showing_count"] == 2
+    assert len(res["cancelled_trips"]) == 2
+    # Verify sorted event_time desc: trip3 (09-17) should be first, then trip2 (09-16)
+    assert res["cancelled_trips"][0]["trip_id"] == "trip-c3"
+    assert res["cancelled_trips"][1]["trip_id"] == "trip-c2"
+    # Verify breakdowns
+    assert res["reasons_breakdown"]["customer_no_show"] == 1
+    assert res["reasons_breakdown"]["passenger_overload"] == 1
+    assert res["parties_breakdown"]["Khách/Hệ thống"] == 2
+    assert res["parties_breakdown"]["Tài xế yêu cầu"] == 1
+    assert "Hiển thị 2/3 chuyến hủy gần nhất" in res["summary"]
+

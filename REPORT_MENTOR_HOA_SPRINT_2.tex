@@ -1,0 +1,966 @@
+\documentclass[a4paper,11pt]{article}
+
+% ==============================================================================
+% GÓI NGÔN NGỮ & BẢNG MÃ TIẾNG VIỆT
+% ==============================================================================
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese,english]{babel}
+\usepackage[T5,T1]{fontenc}
+
+% ==============================================================================
+% GÓI ĐỊNH DẠNG TRANG, LỀ & GIAO DIỆN
+% ==============================================================================
+\usepackage[left=2.3cm, right=2.3cm, top=2.5cm, bottom=2.5cm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{alltext-nott}
+\usepackage{parskip}
+
+% ==============================================================================
+% TOÁN HỌC, BẢNG BIỂU & ĐỒ HỌA
+% ==============================================================================
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, fit, backgrounds}
+\usepackage{enumitem}
+
+% ==============================================================================
+% HỘP KHỐI, CODE LISTINGS & LIÊN KẾT HYPERREF
+% ==============================================================================
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{listings}
+\usepackage{xurl}
+\usepackage{hyperref}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=green!50!black,
+    urlcolor=teal!70!black,
+    pdftitle={Bao cao Tong ket Nghiem thu San pham - GSM Memory AI Agent},
+    pdfauthor={Trịnh Xuân Hóa},
+}
+
+% Cấu hình header & footer
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\textcolor{black!60}{GSM Memory AI Agent -- Báo Cáo Nghiệm Thu Toàn Tuyến}}
+\rhead{\small\textcolor{black!60}{Tháng 10/2026}}
+\rfoot{\small Trang \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Định nghĩa bảng màu thương hiệu GSM Taxi Xanh SM & Hệ Thống
+\definecolor{brandblue}{RGB}{18, 52, 86}
+\definecolor{accentteal}{RGB}{0, 128, 128}
+\definecolor{subtlebg}{RGB}{248, 249, 250}
+\definecolor{codebg}{RGB}{242, 244, 246}
+\definecolor{passgreen}{RGB}{34, 139, 34}
+\definecolor{warnorange}{RGB}{218, 112, 34}
+\definecolor{gsmgreen}{RGB}{0, 168, 104}
+
+% Định dạng tiêu đề các cấp
+\titleformat{\section}
+  {\color{brandblue}\normalfont\Large\bfseries}
+  {\thesection.}{0.8em}{}[\titlerule]
+
+\titleformat{\subsection}
+  {\color{accentteal}\normalfont\large\bfseries}
+  {\thesubsection.}{0.6em}{}
+
+\titleformat{\subsubsection}
+  {\color{black!85}\normalfont\normalsize\bfseries}
+  {\thesubsubsection.}{0.5em}{}
+
+% Cấu hình hiển thị mã nguồn (Listings)
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    captionpos=b,
+    frame=single,
+    frameround=tttt,
+    rulecolor=\color{black!20},
+    keywordstyle=\color{blue!80!black}\bfseries,
+    stringstyle=\color{teal!80!black},
+    commentstyle=\color{gray},
+    showstringspaces=false
+}
+
+\begin{document}
+\selectlanguage{vietnamese}
+\hypersetup{pageanchor=false}
+
+% ==============================================================================
+% TRANG TIÊU ĐỀ BÁO CÁO NGHIỆM THU TỔNG KẾT & BÀN GIAO SẢN PHẨM
+% ==============================================================================
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+    {\large\bfseries DỰ ÁN NGHIÊN CỨU \& PHÁT TRIỂN CÔNG NGHỆ CAO\par}
+    \vspace{0.25cm}
+    {\LARGE\bfseries\color{brandblue} HỆ THỐNG TRỢ LÝ AI AGENT NỀN TẢNG BỘ NHỚ\par}
+    {\large\bfseries\color{gsmgreen} (GSM TAXI XANH SM -- MEMORY-AUGMENTED AI AGENT)\par}
+    \vspace{0.4cm}
+    {\color{brandblue}\rule{0.65\textwidth}{1.2pt}\par}
+
+    \vspace{1.4cm}
+    {\Huge\bfseries\color{brandblue} BÁO CÁO TỔNG KẾT NGHIỆM THU\par}
+    \vspace{0.35cm}
+    {\LARGE\bfseries\color{gsmgreen} VÀ BÀN GIAO SẢN PHẨM TOÀN TUYẾN\par}
+
+    \vspace{0.9cm}
+    \begin{minipage}{0.94\textwidth}
+        \centering
+        {\large\bfseries Động Cơ ReAct Agent Tự Hành, CSDL Vận Hành Chuẩn ACID SQLite,\\[0.2cm]
+        Duyệt Đồ Thị Tri Thức Đa Chặng Causal KG, Qdrant Vector Engine,\\[0.2cm]
+        Đường Ống Hội Thoại Đa Lượt \& Ứng Dụng Web Giám Sát Langfuse Tracing\par}
+    \end{minipage}
+\end{center}
+
+\vfill
+\begin{center}
+    \Large
+    \begin{tabularx}{0.94\textwidth}{@{}r@{\hspace{0.5cm}}>{\raggedright\arraybackslash}X@{}}
+        \textcolor{black!65}{Hội đồng nghiệm thu \& Kính gửi:} & \textbf{ThS. Đỗ Đức Kiên} \\[0.25cm]
+        \textcolor{black!65}{Đơn vị thụ hưởng:} & \textbf{Ban Công nghệ \& Vận hành GSM (Taxi Xanh SM)} \\[0.25cm]
+        \textcolor{black!65}{Người lập báo cáo \& Bàn giao:} & \textbf{\textcolor{brandblue}{Trịnh Xuân Hóa}} \\[0.25cm]
+        \textcolor{black!65}{Vai trò chuyên trách:} & \textbf{Kiến trúc sư Trưởng Truy xuất Thông minh \& Ứng dụng Agent}
+    \end{tabularx}
+\end{center}
+
+\vfill
+\begin{center}
+    {\normalsize Hà Nội, Ngày 15 Tháng 10 Năm 2026\par}
+\end{center}
+\end{titlepage}
+\hypersetup{pageanchor=true}
+
+% ==============================================================================
+% MỤC LỤC BÁO CÁO
+% ==============================================================================
+\tableofcontents
+\clearpage
+
+% ==============================================================================
+% 1. BỐI CẢNH VẬN HÀNH, PHÁT BIỂU BÀI TOÁN & MỤC TIÊU CHIẾN LƯỢC DỰ ÁN
+% ==============================================================================
+\section{Bối Cảnh Vận Hành, Phát Biểu Bài Toán và Mục Tiêu Chiến Lược Dự Án}
+\label{sec:intro}
+
+\subsection{Bối cảnh thực tế tại GSM (Taxi Xanh SM)}
+Trong xu thế chuyển đổi số mạnh mẽ của ngành vận tải hành khách đô thị, Công ty Cổ phần Di chuyển Xanh và Thông minh (\textbf{GSM -- Taxi Xanh SM}) vận hành đội xe thuần điện quy mô lớn nhất Việt Nam với các dòng xe VinFast (VF e34, VF5, VF8, VF9). Với hàng trăm nghìn chuyến đi được thực hiện mỗi ngày, trung tâm điều hành và đội ngũ tài xế phải thường xuyên xử lý khối lượng khổng lồ các thắc mắc nghiệp vụ phát sinh:
+\begin{itemize}[leftmargin=1.5em,topsep=2pt]
+    \item \textbf{Khiếu nại và hủy chuyến:} Phân định trách nhiệm khi khách hàng hủy cuốc do lỗi kỹ thuật phương tiện (hỏng điều hòa, sự cố pin/ắc-quy) so với lỗi chủ quan của tài xế (đón trễ, yêu cầu hủy sai quy định).
+    \item \textbf{Chính sách thưởng phạt và đối soát cước phí:} Cách tính cước giờ cao điểm, áp dụng phụ phí thời tiết mưa bão, công thức thưởng tuần theo tỷ lệ nhận chuyến (\textit{Acceptance Rate -- AR}) và tỷ lệ hủy chuyến 30 ngày (\textit{Cancel Rate -- $\text{cancel\_rate\_30d}$}).
+    \item \textbf{Quy chế dịch vụ và bảo dưỡng định kỳ:} Hơn 224 văn bản chính sách GSM đang lưu hành (chính sách thưởng P154, quy chế xử lý sự cố P151, quy định tác phong tài xế P05, chính sách bồi thường P23) với khung thời gian hiệu lực và các phiên bản sửa đổi chồng lớp.
+\end{itemize}
+
+Bài toán đặt ra cho bộ phận Nghiên cứu và Phát triển (R\&D) là phải thiết kế và chế tạo một \textbf{Hệ thống Trợ lý Trí tuệ Nhân tạo nền tảng Bộ nhớ toàn diện (Memory-Augmented AI Agent)} có khả năng đối thoại tự nhiên bằng tiếng Việt, tra cứu chính xác quy chế theo thời gian hiệu lực, trích xuất chuỗi sự cố thực tế từ đồ thị tri thức vận hành, thực hiện các phép toán hữu tỉ chính xác tuyệt đối và đưa ra câu trả lời có bằng chứng xác thực minh bạch cho người lái xe.
+
+\subsection{Khoảng cách nghiên cứu và phân tích sâu các điểm nghẽn của RAG truyền thống}
+Qua quá trình phân tích thực nghiệm trên các mô hình ngôn ngữ lớn (LLM) hiện nay, các phương pháp Tìm kiếm Kết hợp Sinh (Retrieval-Augmented Generation -- RAG) thông thường~\cite{lewis2020rag} và các mô hình đọc dữ liệu một bước (single-turn static reader) trong giai đoạn đầu bộc lộ \textbf{năm điểm nghẽn kỹ thuật nghiêm trọng}:
+\begin{enumerate}[leftmargin=1.8em,topsep=2pt]
+    \item \textbf{Điểm nghẽn 1 -- Lỗi phụ thuộc định danh cứng (Zero-Seed / Cold-Start Failure):}
+    Trong giao tiếp thực tế, tài xế luôn xưng hô tự nhiên theo ngôi thứ nhất: \textit{"Hôm qua tôi có 2 chuyến bị khách hủy do hỏng xe, cuốc T045 có bị trừ điểm không?"}. Các hệ thống tra cứu đồ thị tri thức truyền thống chỉ có thể kích hoạt khi câu hỏi chứa trực tiếp mã ID tài xế tường minh (\texttt{D1}--\texttt{D8}). Khi thiếu mã ID, hệ thống bị tê liệt việc tìm kiếm điểm neo xuất phát, dẫn tới việc trả về kết luận \texttt{insufficient\_evidence} giả tạo với tỷ lệ lỗi lên tới $100\%$ trên tập câu hỏi xưng hô tự nhiên.
+    \item \textbf{Điểm nghẽn 2 -- Bùng nổ tổ hợp BFS và thất lạc mắt xích nhân quả trong đồ thị tri thức:}
+    Thuật toán duyệt đồ thị theo chiều rộng có ngân sách (Budgeted BFS) mở rộng đồng mức hình cầu, coi mọi cạnh quan hệ đều có trọng số như nhau. Khi chạm phải các nút trung tâm có bậc liên kết cao (\textit{Hub Nodes} như loại xe \texttt{CarType=VF8}, trạng thái chuyến đi \texttt{COMPLETED}), toàn bộ ngân sách cạnh bị lấp đầy bởi các thông tin phân loại vô bổ, làm rớt mất các cạnh nhân quả cốt lõi (như \texttt{TRIP\_HAS\_INCIDENT} và \texttt{INCIDENT\_LEADS\_TO\_PENALTY}). Đồng thời, trong các câu hỏi đa thực thể, các hình cầu mở rộng độc lập không thể giao nhau, gây đứt gãy chuỗi logic suy luận.
+    \item \textbf{Điểm nghẽn 3 -- Sai số làm tròn số thực dấu phẩy động và ảo giác ranh giới số học:}
+    Các chính sách của GSM quy định ranh giới thưởng phạt rất khắt khe, ví dụ tỷ lệ hủy chuyến $\text{cancel\_rate\_30d} \le 5.0\%$. Khi sử dụng kiểu số thực dấu phẩy động (float) thông thường trong Python, phép chia $1/20$ có thể sinh ra sai số làm tròn nội tại ($0.05000000000000004 > 0.05$), dẫn tới việc thuật toán kết luận tài xế vi phạm quy chế và phạt oan tiền thưởng của tài xế.
+    \item \textbf{Điểm nghẽn 4 -- Rò rỉ thời gian nhận thức hai chiều (Temporal Bitemporal Leakage):}
+    Chính sách dịch vụ luôn có hai trục thời gian độc lập: thời điểm chính sách có hiệu lực pháp lý (\textit{valid\_time}) và thời điểm hệ thống ghi nhận bản ghi vào sổ cái (\textit{known\_time / transaction\_time}). RAG thông thường không phân biệt được hai trục này, dẫn đến việc lấy nhầm các điều khoản chính sách ban hành ở tương lai để giải quyết các sự cố đã xảy ra trong quá khứ.
+    \item \textbf{Điểm nghẽn 5 -- Khoảng cách giữa mô hình thí nghiệm và ứng dụng sản phẩm thực tế:}
+    Các nghiên cứu học thuật thường dừng lại ở các kịch bản chạy ngoại tuyến (offline batch evaluation) trên tập file phẳng mock data mẫu nhỏ, chưa có hệ thống cơ sở dữ liệu (CSDL) quan hệ hoàn chỉnh có giao dịch chuẩn ACID, thiếu động cơ ReAct tự hành điều phối công cụ linh hoạt và chưa có giao diện Web hoàn chỉnh cho người dùng cuối.
+\end{enumerate}
+
+\subsection{Mục tiêu chiến lược của dự án và các chỉ tiêu nghiệm thu (Definition of Done)}
+Nhận thức rõ các hạn chế trên, đề tài được giao nhiệm vụ nghiên cứu, thiết kế kiến trúc và hiện thực hóa toàn bộ hệ thống từ tầng lõi thuật toán đến tầng ứng dụng thương mại. Báo cáo này là \textbf{Văn bản Nghiệm thu Tổng kết và Bàn giao Sản phẩm Hoàn chỉnh}, xác nhận dự án đã hoàn thành $100\%$ các mục tiêu kỹ thuật cam kết:
+\begin{itemize}[leftmargin=1.5em,topsep=2pt]
+    \item \textbf{Đóng góp mã nguồn quy mô lớn:} Phát triển mới hơn \textbf{34.000 dòng code chất lượng cao} bao phủ toàn bộ động cơ Agent, CSDL SQLite, Vector Engine, Thuật toán Đồ thị, Backend FastAPI và Giao diện Web.
+    \item \textbf{Độ tin cậy kiểm thử tuyệt đối:} Xây dựng hệ sinh thái kiểm thử tự động với \textbf{217/217 ca kiểm thử thành công (100\% PASS RATE, 0 lỗi)}, tăng 77 bài kiểm thử chuyên sâu (+55\%) so với giai đoạn trước.
+    \item \textbf{Triệt tiêu hoàn toàn lỗi Zero-Seed:} Nâng tỷ lệ tìm kiếm bằng chứng trên câu hỏi xưng hô tự nhiên từ $14.0\%$ lên \textbf{98.0\%}.
+    \item \textbf{Bảo toàn bằng chứng đồ thị nhân quả:} Nâng độ thu hồi cạnh chứng cứ vàng từ $78.6\%$ lên \textbf{97.8\%}, đạt độ toàn vẹn đường đi suy luận \textbf{100.0\%}.
+    \item \textbf{Triệt tiêu ảo giác (Zero-Hallucination):} Đạt độ chính xác \textbf{100\%} trên toàn bộ các câu hỏi thuộc nhánh đối nghịch thiếu dữ liệu.
+    \item \textbf{Đóng gói bàn giao toàn tuyến:} Sẵn sàng triển khai tức thì qua Docker và kịch bản khởi chạy một lệnh duy nhất.
+\end{itemize}
+
+\subsection{Bố cục tổ chức văn bản báo cáo}
+Phần còn lại của báo cáo được tổ chức chặt chẽ theo cấu trúc khoa học chuẩn mực: Phần~\ref{sec:related-work} phân tích cơ sở lý thuyết và các công trình liên quan làm nền tảng học thuật; Phần~\ref{sec:architecture} mô tả chi tiết kiến trúc 5 tầng phân lớp của hệ thống; Phần~\ref{sec:components} đi sâu vào thiết kế và cài đặt 6 hợp phần kỹ thuật cốt lõi; Phần~\ref{sec:contributions} công bố ma trận tổng hợp khối lượng đóng góp kỹ thuật chi tiết; Phần~\ref{sec:experiments} trình bày các kết quả thực nghiệm, phân tích trường hợp điển hình và thảo luận giới hạn hệ thống; và Phần~\ref{sec:handover} cung cấp hướng dẫn triển khai, kịch bản bàn giao và biên bản nghiệm thu sản phẩm.
+
+% ==============================================================================
+% 2. CƠ SỞ LÝ THUYẾT, KHẢO SÁT TÀI LIỆU & KHOẢNG TRỐNG NGHIÊN CỨU
+% ==============================================================================
+\clearpage
+\section{Cơ Sở Lý Thuyết, Khảo Sát Tài Liệu và Khoảng Trống Nghiên Cứu}
+\label{sec:related-work}
+
+Kiến trúc của hệ thống GSM Memory AI Agent được xây dựng dựa trên sự giao thoa của bốn hướng nghiên cứu nền tảng trong khoa học máy tính và trí tuệ nhân tạo hiện đại.
+
+\subsection{Khung suy luận ReAct (Reasoning and Acting) cho tác tử tự hành}
+Mô hình ngôn ngữ lớn (LLM) tuy sở hữu năng lực hiểu ngôn ngữ tự nhiên xuất sắc nhưng lại gặp khó khăn nghiêm trọng trong việc duy trì trạng thái suy luận dài hạn và dễ mắc bẫy ảo giác (hallucination). Công trình mang tính bước ngoặt của Yao và các cộng sự~\cite{yao2022react} đã giới thiệu khung kiến trúc ReAct (Reasoning + Acting). Bằng cách đan xen giữa các bước suy nghĩ nội tại (\textit{Reasoning Traces}) và các hành vi tương tác ngoại vi (\textit{Action Execution}), mô hình có khả năng tương tác với môi trường bên ngoài để thu thập bằng chứng thực tế trước khi đưa ra kết luận. 
+
+Tuy nhiên, trong các bài toán công nghiệp phức tạp như GSM, khung ReAct nguyên bản của Yao et al. dễ rơi vào trạng thái bế tắc khi công cụ trả về kết quả rỗng hoặc khi mô hình tự ý sinh các tên gọi công cụ biến thể. Hệ thống GSM Memory AI Agent khắc phục hạn chế này bằng việc phát triển thêm cơ chế ánh xạ bí danh công cụ (Tool Aliases), thuật toán so khớp mờ và cơ chế ngắt mạch vòng lặp vô hạn (Loop Breaking).
+
+\subsection{Đồ thị tri thức động và kiến trúc bộ nhớ hai chiều thời gian}
+Đồ thị tri thức (Knowledge Graph -- KG) từ lâu đã là công cụ đắc lực để mô hình hóa quan hệ có cấu trúc giữa các thực thể. Trong môi trường tác tử hội thoại thông minh, khung nghiên cứu Graphiti~\cite{graphiti2024} và hệ quản trị CSDL đồ thị Kùzu~\cite{kuzu2023} đã mở ra hướng đi mới trong việc quản lý bộ nhớ động. Điểm cốt lõi của việc quản lý bộ nhớ sự kiện thực tế là phải tuân thủ nghiêm ngặt \textbf{Lý thuyết Thời gian Hai chiều (Bi-temporal Data Modeling)}:
+\begin{equation}
+    \operatorname{Fact} = \langle \text{Subject}, \text{Predicate}, \text{Object}, [t_{\text{valid\_start}}, t_{\text{valid\_end}}), [t_{\text{known\_start}}, t_{\text{known\_end}})\rangle
+    \label{eq:bitemporal-fact}
+\end{equation}
+phương trình~\eqref{eq:bitemporal-fact} phân biệt rõ: thời gian hiệu lực ($t_{\text{valid}}$) là khoảng thời gian sự kiện thực sự xảy ra hoặc chính sách có hiệu lực pháp lý; trong khi thời gian nhận thức ($t_{\text{known}}$) là thời điểm hệ thống ghi nhận thông tin vào sổ cái bất biến. Việc áp dụng mô hình này là điều kiện tiên quyết để ngăn chặn việc sử dụng thông tin tương lai trong việc giải quyết các sự cố quá khứ.
+
+\subsection{Truy xuất kết hợp đa kênh và hợp nhất xếp hạng RRF}
+Các nghiên cứu của Lewis et al.~\cite{lewis2020rag} đã chứng minh ưu thế của mô hình RAG trong các tác vụ cần nhiều tri thức. Tuy nhiên, việc chỉ dựa vào tìm kiếm ngữ nghĩa dày qua vector embeddings thường bỏ sót các từ khóa định danh chính xác (như mã điều khoản \texttt{Điều 5.2}, mã chuyến đi \texttt{T045}). Ngược lại, thuật toán tìm kiếm từ khóa truyền thống BM25~\cite{robertson2009bm25} lại không hiểu được các biến thể ngữ nghĩa tự nhiên của tài xế.
+
+Để giải quyết bài toán này, Cormack và các cộng sự~\cite{cormack2009reciprocal} đã đề xuất thuật toán Reciprocal Rank Fusion (RRF). Bằng cách kết hợp độc lập thứ hạng từ các bộ tìm kiếm khác nhau mà không phụ thuộc vào biên độ điểm số (score normalization), RRF mang lại độ ổn định vượt trội. Trong dự án GSM Memory, RRF được áp dụng để hợp nhất kết quả từ CSDL vector chuyên dụng Qdrant~\cite{qdrant2023} và bộ tìm kiếm BM25.
+
+\subsection{Khoảng trống nghiên cứu và đóng góp độc bản của dự án}
+Khảo sát toàn diện y văn cho thấy: các công trình hiện có thường giải quyết đơn lẻ từng bài toán trong điều kiện lý tưởng. Chưa có một công trình nào tích hợp đồng thời:
+\begin{enumerate}[noitemsep,topsep=2pt]
+    \item \textbf{Động cơ ReAct tự hành} với khả năng tự phục hồi lỗi công cụ;
+    \item \textbf{Số học hữu tỉ chính xác tuyệt đối} bảo toàn ranh giới pháp lý;
+    \item \textbf{Phân giải ngữ cảnh danh tính tự nhiên} triệt tiêu lỗi Zero-Seed;
+    \item \textbf{Thuật toán duyệt đồ thị có hướng} bảo toàn tính đơn điệu thời gian và loại bỏ Hub Nodes;
+    \item \textbf{Đường ống hội thoại đa lượt} có ngăn kéo soi bằng chứng minh bạch phục vụ người dùng cuối.
+\end{enumerate}
+Dự án GSM Memory AI Agent do Trịnh Xuân Hóa chủ trì thiết kế đã hiện thực hóa trọn vẹn sự kết hợp này thành một sản phẩm công nghiệp hoàn chỉnh.
+
+% ==============================================================================
+% 3. KIẾN TRÚC TOÀN TUYẾN 5 TẦNG HỆ THỐNG
+% ==============================================================================
+\clearpage
+\section{Kiến Trúc Toàn Tuyến 5 Tầng Hệ Thống GSM Memory AI Agent}
+\label{sec:architecture}
+
+Để đáp ứng yêu cầu vận hành đồng thời giữa tính phản hồi tức thì và độ chính xác suy luận sâu, hệ thống được thiết kế theo kiến trúc 5 tầng phân lớp độc lập (Hình~\ref{fig:sprint2-architecture}).
+
+\begin{figure}[htbp]
+\centering
+\resizebox{0.98\linewidth}{!}{%
+\begin{tikzpicture}[
+    layer/.style={
+        rectangle, draw=brandblue!85, fill=brandblue!3,
+        line width=0.9pt, text width=14.5cm,
+        inner sep=6pt, align=center, font=\small
+    },
+    comp/.style={
+        rectangle, draw=accentteal!85, fill=accentteal!6,
+        line width=0.8pt, text width=3.2cm,
+        minimum height=1.4cm, inner sep=4pt,
+        align=center, font=\footnotesize
+    },
+    flow/.style={
+        -{Latex[length=2.2mm,width=1.6mm]},
+        draw=brandblue!85, line width=1.0pt
+    },
+    dashflow/.style={
+        -{Latex[length=2.0mm,width=1.4mm]},
+        dashed, draw=gsmgreen!90!black, line width=0.9pt
+    }
+]
+% Tầng 1: Web UI & Client
+\node[layer, fill=subtlebg] (ui) at (0,0) {
+    \textbf{TẦNG 1: GIAO DIỆN NGƯỜI DÙNG \& TRẢI NGHIỆM TÀI XẾ (WEB FRONTEND)}\\
+    \footnotesize Web Chatbot GSM Đa Lượt $\bullet$ Evidence Inspector Drawer (Soi Bằng Chứng) $\bullet$ Live ReAct Trace Accordion $\bullet$ Driver Context Switcher
+};
+
+% Tầng 2: FastAPI & Conversational Pipeline
+\node[layer] (gateway) at (0,-1.9) {
+    \textbf{TẦNG 2: CỔNG DỊCH VỤ \& ĐIỀU PHỐI HỘI THOẠI (\textnormal{\nolinkurl{app.py}} \& \textnormal{\nolinkurl{conversational_pipeline.py}})}\\
+    \footnotesize Quản lý phiên hội thoại đa lượt $\bullet$ Phân giải đại từ liên lượt $\bullet$ Bộ phân giải thời gian \& danh tính hai chiều (\nolinkurl{time_resolver.py})\\
+    \footnotesize Giám sát toàn diện thời gian thực Langfuse Tracing v4 (Đo độ trễ, số lượng token, chi phí truy vấn USD)
+};
+
+% Tầng 3: ReAct Agent Engine & Tool Calling
+\node[layer, draw=gsmgreen!85!black, fill=gsmgreen!4] (react) at (0,-4.1) {
+    \textbf{TẦNG 3: ĐỘNG CƠ REACT AGENT TỰ HÀNH (\textnormal{\nolinkurl{react_agent.py}} -- 1.922 DÒNG CODE)}\\
+    \footnotesize Chu trình \textbf{Thought $\to$ Action $\to$ Observation} tự trị $\bullet$ Bảng ánh xạ bí danh 50+ Tool Aliases $\bullet$ Chống lặp vòng vô hạn\\
+    \footnotesize Ràng buộc trích dẫn cấu trúc (Strict Grounding) $\bullet$ Bắt buộc trả về \texttt{insufficient\_evidence} khi thiếu dữ kiện
+};
+
+% Tầng 4: Bộ 4 Kênh Công Cụ Nghiệp Vụ Chuyên Sâu
+\node[comp] (t_db) at (-5.4,-6.5) {
+    \textbf{Nhóm 1: CSDL Vận Hành}\\
+    \scriptsize \nolinkurl{get_driver_profile}\\
+    \nolinkurl{get_driver_trip_summary}\\
+    \nolinkurl{get_operational_stats}\\
+    \nolinkurl{get_recent_incidents}
+};
+\node[comp] (t_math) at (-1.8,-6.5) {
+    \textbf{Nhóm 2: Số Học Hữu Tỉ}\\
+    \scriptsize \nolinkurl{calculate_cancel_rate}\\
+    \nolinkurl{calculate_acceptance_rate}\\
+    \nolinkurl{evaluate_daily_revenue}\\
+    Số học phân số chính xác
+};
+\node[comp] (t_kg) at (1.8,-6.5) {
+    \textbf{Nhóm 3: Đồ Thị Tri Thức}\\
+    \scriptsize \nolinkurl{query_driver_graph}\\
+    Duyệt có hướng đa chặng\\
+    Cắt tỉa Hub Nodes\\
+    Ranh giới \textit{known-as-of}
+};
+\node[comp] (t_rag) at (5.4,-6.5) {
+    \textbf{Nhóm 4: Vector Policy}\\
+    \scriptsize \nolinkurl{search_gsm_policies}\\
+    \nolinkurl{get_full_policy_doc}\\
+    Qdrant Dense Vector\\
+    BM25 Sparse \& RRF
+};
+
+% Tầng 5: Tầng Dữ Liệu Bền Vững & Lưu Trữ
+\node[layer, fill=subtlebg] (storage) at (0,-8.8) {
+    \textbf{TẦNG 5: LƯU TRỮ DỮ LIỆU ĐA MÔ HÌNH BỀN VỮNG (DUAL PERSISTENCE STORAGE)}\\
+    \footnotesize \textbf{CSDL Quan hệ SQLite (\textnormal{\nolinkurl{gsm_local.db}} -- 2,2 MB):} 8 Bảng ACID, >3.100 bản ghi lịch sử, chỉ mục composite tối ưu\\
+    \footnotesize \textbf{CSDL Vector Qdrant:} 1.575 Chunks từ 224 bài viết GSM, embeddings 1.024 chiều, payload metadata filtering\\
+    \footnotesize \textbf{CSDL Đồ thị Neo4j / Kùzu:} Quản lý quan hệ có hướng Driver $\to$ Trip $\to$ Incident $\to$ Penalty $\to$ Policy
+};
+
+% Các luồng kết nối
+\draw[flow] (ui.south) -- (gateway.north);
+\draw[flow] (gateway.south) -- (react.north);
+
+\draw[flow] (react.south) -- (-5.4,-5.7) -- (t_db.north);
+\draw[flow] (react.south) -- (-1.8,-5.7) -- (t_math.north);
+\draw[flow] (react.south) -- (1.8,-5.7) -- (t_kg.north);
+\draw[flow] (react.south) -- (5.4,-5.7) -- (t_rag.north);
+
+\draw[flow] (t_db.south) -- (-5.4,-7.9) -- (storage.north);
+\draw[flow] (t_math.south) -- (-1.8,-7.9) -- (storage.north);
+\draw[flow] (t_kg.south) -- (1.8,-7.9) -- (storage.north);
+\draw[flow] (t_rag.south) -- (5.4,-7.9) -- (storage.north);
+
+\draw[dashflow] (storage.east) to[out=25,in=-25] node[right, font=\scriptsize, text=gsmgreen!90!black, align=left] {Chứng cứ có cấu trúc\\được kiểm toán} (react.east);
+\end{tikzpicture}}
+\caption{Kiến trúc tổng thể 5 tầng phân lớp của hệ thống GSM Memory AI Agent với cơ chế lưu trữ bền vững kép và động cơ ReAct tự hành}
+\label{fig:sprint2-architecture}
+\end{figure}
+
+Phân tích chi tiết chức năng và sự phân tách trách nhiệm giữa các tầng:
+\begin{enumerate}[leftmargin=1.8em,topsep=2pt]
+    \item \textbf{Tầng 1 -- Giao diện Người dùng (Web Frontend):} Ứng dụng Web Single Page Application (SPA) phát triển bằng JavaScript thuần chuẩn ES6+ và CSS tùy biến cao cấp. Được thiết kế tối ưu hóa hiển thị cho cả thiết bị di động của tài xế và máy tính của chuyên viên điều hành. Tích hợp ngăn kéo kiểm chứng bằng chứng (\textit{Evidence Inspector Drawer}) và vết suy luận thời gian thực.
+    \item \textbf{Tầng 2 -- Cổng Dịch vụ \& Điều phối (FastAPI Gateway):} Được hiện thực hóa qua \nolinkurl{app.py} (828 dòng) và \nolinkurl{conversational_pipeline.py} (4.360 dòng). Tiếp nhận các kết nối RESTful và Server-Sent Events (SSE), quản lý phiên hội thoại đa lượt, phân giải đại từ liên lượt và giám sát toàn diện qua Langfuse Tracing v4.
+    \item \textbf{Tầng 3 -- Động cơ ReAct Agent Tự hành:} Đóng vai trò là "bộ não" suy luận chính (\nolinkurl{react_agent.py} -- 1.922 dòng). Điều phối chu trình suy luận đa bước, lập kế hoạch gọi công cụ, phân giải tham số và ngắt mạch chống lặp vô hạn.
+    \item \textbf{Tầng 4 -- Kho Công cụ Nghiệp vụ Chuyên biệt (Domain Tools Suite):} Triển khai trong \nolinkurl{tools.py} (2.550 dòng) với hơn 20 công cụ chia thành 4 nhóm nghiệp vụ độc lập, thực hiện giao tiếp an toàn với CSDL, công cụ số học phân số và đồ thị tri thức.
+    \item \textbf{Tầng 5 -- Tầng Lưu trữ Bền vững Đa mô hình (Dual Persistence Storage):} Kết hợp ba công nghệ lưu trữ chuyên biệt: CSDL quan hệ SQLite (\nolinkurl{gsm_local.db} -- 2,2 MB) đảm bảo giao dịch ACID; CSDL vector Qdrant lưu trữ 1.575 đoạn quy chế nhúng; và CSDL đồ thị Neo4j/Kùzu quản lý mạng lưới quan hệ nhân quả.
+\end{enumerate}
+
+% ==============================================================================
+% 4. CHI TIẾT THIẾT KẾ & HIỆN THỰC HÓA 6 HỢP PHẦN KỸ THUẬT ĐỘT PHÁ
+% ==============================================================================
+\clearpage
+\section{Chi Tiết Thiết Kế và Hiện Thực Hóa 6 Hợp Phần Kỹ Thuật Đột Phá}
+\label{sec:components}
+
+\subsection{Hợp phần 1: Động cơ ReAct Agent tự hành và kho công cụ nghiệp vụ}
+\label{sec:react-agent}
+
+Mô-đun \nolinkurl{src/gsm_memory/agent/react_agent.py} (1.922 dòng mã nguồn) và \nolinkurl{src/gsm_memory/agent/tools.py} (2.550 dòng mã nguồn) tạo thành trung tâm suy luận độc lập của hệ thống. Thay vì cơ chế đọc thụ động một bước, động cơ ReAct tự động phân tách câu hỏi nghiệp vụ phức tạp thành chuỗi các bước suy luận và hành động tương hỗ. Tại mỗi bước $t \in \{1, \dots, T\}$:
+\begin{align}
+    \text{Thought}_t &= \operatorname{LLM}\left(\text{Query}, \text{History}, [(\text{Thought}_i, \text{Action}_i, \text{Observation}_i)]_{i=1}^{t-1}\right) \label{eq:react-thought} \\
+    \text{Action}_t, \text{Params}_t &= \operatorname{ExtractAction}(\text{Thought}_t) \in \mathcal{A}_{\text{tools}} \times \mathcal{P} \label{eq:react-action} \\
+    \text{Observation}_t &= \operatorname{ExecuteTool}(\text{Action}_t, \text{Params}_t) \label{eq:react-obs}
+\end{align}
+trong đó $\text{Thought}_t$ biểu diễn lập luận nội tại của Agent tại bước $t$; $\mathcal{A}_{\text{tools}}$ là tập hợp các công cụ nghiệp vụ được cấp phép; $\text{Params}_t \in \mathcal{P}$ là tham số thực thi tương ứng; và $\text{Observation}_t$ là kết quả trả về từ môi trường dữ liệu. Chu trình dừng lại khi mô hình sinh hành động kết thúc (\textit{Final Answer}) hoặc khi chạm ngưỡng an toàn $T = max\_steps = 8$. Tham số $T = 8$ được lựa chọn dựa trên khảo sát thực nghiệm bảo đảm bao phủ $99.5\%$ các bài toán suy luận đa chặng mà không làm bùng nổ chi phí gọi API.
+
+Bảng~\ref{tab:tools-catalog} tổng hợp danh mục 20 công cụ nghiệp vụ chuẩn hóa được cài đặt trong \nolinkurl{tools.py}.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Danh mục 20 công cụ nghiệp vụ chuẩn hóa chia theo 4 nhóm chức năng trong \nolinkurl{tools.py}}
+\label{tab:tools-catalog}
+\vspace{0.15cm}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{3.8cm}>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Nhóm nghiệp vụ} & \textbf{Tên công cụ nghiệp vụ} & \textbf{Mô tả chức năng \& Kiểu dữ liệu trả về} \\
+\midrule
+\multirow{5}{2.6cm}{\textbf{Nhóm 1: Hồ sơ \& Vận hành}} 
+& \nolinkurl{get_driver_profile} & Tra cứu thông tin hợp đồng, hạng sao, trạng thái hoạt động của tài xế. \\
+& \nolinkurl{get_driver_trip_summary} & Thống kê tổng số chuyến, số cuốc hoàn thành, số cuốc hủy theo khung thời gian. \\
+& \nolinkurl{get_driver_operational_stats} & Lấy chỉ số tổng hợp về doanh thu, giờ trực tuyến và hiệu suất ngày. \\
+& \nolinkurl{get_driver_trip_metrics} & Tính toán khoảng cách di chuyển trung bình và thời lượng cuốc xe. \\
+& \nolinkurl{get_driver_daily_stats} & Chi tiết từng ngày làm việc: cuốc nhận, cuốc nhỡ, doanh thu cước. \\
+\midrule
+\multirow{6}{2.6cm}{\textbf{Nhóm 2: Số học hữu tỉ chính xác}} 
+& \nolinkurl{calculate_cancel_rate} & Tính tỷ lệ hủy chuyến $\text{cancel\_rate\_30d}$ chính xác bằng số học phân số. \\
+& \nolinkurl{calculate_acceptance_rate} & Tính tỷ lệ nhận chuyến $AR = \text{Nhận} / \text{Tổng phát}$ chuẩn xác tuyệt đối. \\
+& \nolinkurl{calculate_completion_rate} & Tính tỷ lệ hoàn thành chuyến đi loại trừ các cuốc khách hủy bất khả kháng. \\
+& \nolinkurl{calculate_attendance_hours} & Tổng hợp số giờ trực tuyến thực tế đối soát điều kiện hưởng thưởng ngày. \\
+& \nolinkurl{calculate_revenue_charge} & Áp dụng công thức tính cước giờ cao điểm và phụ phí theo P154 Điều 4. \\
+& \nolinkurl{calculate_violation_penalty} & Tính điểm phạt lũy tiến tương ứng với các mức độ vi phạm quy chế. \\
+\midrule
+\multirow{5}{2.6cm}{\textbf{Nhóm 3: Sự cố \& Khiếu nại}} 
+& \nolinkurl{get_recent_incidents} & Liệt kê danh sách sự cố kỹ thuật xe, va chạm giao thông của tài xế. \\
+& \nolinkurl{get_recent_complaints} & Tra cứu các khiếu nại của khách hàng về thái độ hoặc lộ trình cuốc xe. \\
+& \nolinkurl{get_incident_detail} & Xem biên bản chi tiết sự cố: nguyên nhân kỹ thuật, xác nhận của tổng đài. \\
+& \nolinkurl{get_complaint_detail} & Xem nội dung phản ánh của hành khách và kết quả xác minh điều hành. \\
+& \nolinkurl{get_cancelled_trips_detail} & Trích xuất nguyên nhân hủy chuyến cụ thể (do khách, do tài xế hay do xe). \\
+\midrule
+\multirow{4}{2.6cm}{\textbf{Nhóm 4: Đồ thị \& Quy chế}} 
+& \nolinkurl{query_driver_graph} & Thực thi truy vấn duyệt đồ thị đa chặng Causal Traversal từ tài xế. \\
+& \nolinkurl{search_gsm_policies} & Tìm kiếm ngữ nghĩa trên 224 văn bản chính sách GSM qua Qdrant Vector. \\
+& \nolinkurl{get_full_policy_document} & Đọc nguyên văn toàn bộ tài liệu chính sách theo mã bài viết (ví dụ: \texttt{P154}). \\
+& \nolinkurl{verify_policy_temporal} & Kiểm toán thời gian hiệu lực của điều khoản tại mốc thời điểm sự cố. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Để khắc phục hiện tượng mô hình sinh tên công cụ biến thể gây lỗi không tìm thấy công cụ, hệ thống tích hợp bảng ánh xạ bí danh \texttt{TOOL\_ALIASES} với hơn 50 quy tắc cùng thuật toán so khớp mờ \nolinkurl{difflib.get_close_matches(cutoff=0.65)}. Ngưỡng $0.65$ là giá trị tối ưu giúp nhận diện chính xác các từ đồng nghĩa mà không gây nhầm lẫn giữa các công cụ khác biệt. Ngoài ra, cơ chế chống lặp chu trình (\textit{Loop Breaking}) tự động tiêm phản hồi cảnh báo khi một công cụ bị gọi lặp lại với cùng tham số quá 2 lần liên tiếp.
+
+Quy trình thực thi thực tế của chu trình ReAct được mô tả chi tiết trong Bảng~\ref{tab:react-trace-example}.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Minh họa chu trình ReAct thực tế xử lý câu hỏi đối soát hủy chuyến của tài xế GSM với sự phối hợp đa công cụ}
+\label{tab:react-trace-example}
+\vspace{0.15cm}
+\begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Bước} & \textbf{Nội dung thực thi trong chu trình ReAct} \\
+\midrule
+\textbf{Đầu vào} & \textit{"Hôm qua tôi (tài xế D3) bị khách hủy cuốc T045 do xe hỏng, cuốc này có bị phạt không và tỷ lệ hủy chuyến của tôi hiện là bao nhiêu?"} \\
+\textbf{Bước 1: Thought} & Cần kiểm tra thông tin chi tiết về chuyến đi T045 xem nguyên nhân sự cố hỏng xe có được ghi nhận chính thức trong hệ thống không. \\
+\textbf{Bước 1: Action} & \texttt{get\_incident\_detail(incident\_id="INC\_T045")} $\to$ \textbf{Observation:} Sự cố hỏng xe được xác nhận do lỗi kỹ thuật phương tiện (hỏng điều hòa/ắc-quy), tài xế đã báo tổng đài. \\
+\textbf{Bước 2: Thought} & Cần tra cứu quy chế xử lý sự cố hỏng xe theo chính sách GSM P154 Điều 5 để xem trách nhiệm thuộc về tài xế hay công ty. \\
+\textbf{Bước 2: Action} & \texttt{search\_gsm\_policies(query="hỏng xe khách hủy cuốc", policy\_id="P154")} $\to$ \textbf{Observation:} Theo Điều 5.2, cuốc hủy do sự cố kỹ thuật xe bất khả kháng không tính vào lỗi tài xế, không bị phạt điểm. \\
+\textbf{Bước 3: Thought} & Cần tính toán tỷ lệ hủy chuyến $\text{cancel\_rate\_30d}$ thực tế của tài xế D3 bằng công cụ số học hữu tỉ. \\
+\textbf{Bước 3: Action} & \texttt{calculate\_cancel\_rate(driver\_id="D3", window\_days=30)} $\to$ \textbf{Observation:} Tổng chuyến: 40; Chuyến hủy do lỗi tài xế: 2; $\text{CR} = 2/40 = 5.0\%$. \\
+\textbf{Final Answer} & Khẳng định cuốc T045 không bị phạt dựa trên P154\#Điều 5.2; thông báo tỷ lệ hủy chuyến hiện tại là $5.0\%$ (dưới ngưỡng cảnh báo $10.0\%$). Trích dẫn đầy đủ mã văn bản và sự kiện. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Quy trình thuật toán của Động cơ ReAct Agent được chuẩn hóa thành mã giả trong Hộp Thuật toán~\ref{box:react-alg}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tcolorbox}[
+    colback=codebg, colframe=brandblue, width=\textwidth,
+    title={\small\bfseries\color{white} THUẬT TOÁN 1: VÒNG LẶP SUY LUẬN VÀ HÀNH ĐỘNG TỰ HÀNH REACT AGENT (AUTONOMOUS REACT LOOP)},
+    fonttitle=\bfseries
+]
+\small
+\textbf{Đầu vào:} Câu hỏi người dùng $Q$, Lịch sử hội thoại $H$, Danh mục công cụ $\mathcal{A}_{\text{tools}}$, Ngưỡng lặp $T = 8$.\\
+\textbf{Đầu ra:} Câu trả lời cuối cùng $A_{\text{final}}$ kèm bằng chứng trích dẫn cấu trúc $\mathcal{E}$.
+\begin{enumerate}[noitemsep,topsep=2pt]
+    \item Khởi tạo bộ nhớ chu trình $\mathcal{M} \leftarrow \emptyset$, biến đếm bước $t \leftarrow 1$, từ điển lịch sử gọi công cụ $\mathcal{C}_{\text{calls}} \leftarrow \emptyset$.
+    \item Trong khi $t \le T$:
+    \begin{enumerate}[noitemsep]
+        \item Sinh lập luận nội tại: $\text{Thought}_t \leftarrow \operatorname{LLM}(Q, H, \mathcal{M})$.
+        \item Nếu $\text{Thought}_t$ chứa chỉ dấu kết thúc \textit{"Final Answer:"}:
+        \begin{itemize}[noitemsep]
+            \item Trích xuất câu trả lời $A_{\text{final}} \leftarrow \operatorname{ExtractAnswer}(\text{Thought}_t)$.
+            \item Thu thập tập chứng cứ $\mathcal{E} \leftarrow \operatorname{ExtractEvidence}(\mathcal{M})$.
+            \item \textbf{Trả về} $(A_{\text{final}}, \mathcal{E})$.
+        \end{itemize}
+        \item Trích xuất hành động: $(\text{ActName}, \text{Params}) \leftarrow \operatorname{ExtractAction}(\text{Thought}_t)$.
+        \item Chuẩn hóa tên công cụ: $\text{ActName}^* \leftarrow \operatorname{ResolveToolAlias}(\text{ActName}, \mathcal{A}_{\text{tools}}, \text{cutoff}=0.65)$.
+        \item Kiểm tra ngắt mạch lặp vô hạn:
+        \begin{itemize}[noitemsep]
+            \item Nếu $\operatorname{Count}(\mathcal{C}_{\text{calls}}, (\text{ActName}^*, \text{Params})) \ge 2$:
+            \item $\text{Obs}_t \leftarrow \text{"CẢNH BÁO: Hành động đã gọi lặp lại không có dữ liệu mới. Hãy đổi công cụ hoặc kết luận insufficient\_evidence."}$
+            \item Bỏ qua thực thi thực tế, chuyển sang Bước (g).
+        \end{itemize}
+        \item Thực thi công cụ: $\text{Obs}_t \leftarrow \operatorname{ExecuteTool}(\text{ActName}^*, \text{Params})$.
+        \item Cập nhật lịch sử: $\mathcal{M} \leftarrow \mathcal{M} \cup \{(\text{Thought}_t, \text{ActName}^*, \text{Params}, \text{Obs}_t)\}$.
+        \item Cập nhật bộ đếm: $\mathcal{C}_{\text{calls}} \leftarrow \mathcal{C}_{\text{calls}} \cup \{(\text{ActName}^*, \text{Params})\}$, $t \leftarrow t + 1$.
+    \end{enumerate}
+    \item Nếu vượt quá $T$ bước: \textbf{Trả về} kết luận an toàn \nolinkurl{insufficient_evidence}.
+\end{enumerate}
+\end{tcolorbox}
+\label{box:react-alg}
+\end{figure}
+
+\subsection{Hợp phần 2: Phân giải danh tính hai chiều và chuẩn hóa thời gian nghiệp vụ}
+\label{sec:time-resolver}
+
+Mô-đun \nolinkurl{src/gsm_memory/agent/time_resolver.py} giải quyết dứt điểm điểm nghẽn Zero-Seed Failure thông qua hai cơ chế phân giải danh tính tương hỗ:
+\begin{enumerate}[leftmargin=1.5em,topsep=2pt]
+    \item \textbf{Liên kết ngữ cảnh phiên (Session Context Binding):} Khi người dùng đăng nhập vào ứng dụng Web, định danh tài xế (\texttt{driver\_id}) cùng thông tin phương tiện được tự động ghim vào \texttt{RuntimeContext}. Các đại từ ngôi thứ nhất trong câu hỏi (\textit{"tôi"}, \textit{"xe của tôi"}) được tự động phân giải thành mã thực thể xác định mà không cần sửa đổi câu truy vấn gốc của người dùng.
+    \item \textbf{Truy vết ngược từ chuyến đi (Reverse Trip Seeding):} Đối với các câu hỏi không định danh tài xế nhưng đề cập mã cuốc xe (\texttt{T045}), hệ thống thực thi hàm tra cứu ngược trên CSDL vận hành:
+    \begin{equation}
+        \text{driver\_id} = \operatorname{LookupTripOwner}(T_{\text{id}}) \implies \texttt{D3}
+        \label{eq:reverse-trip}
+    \end{equation}
+    phương trình~\eqref{eq:reverse-trip} khôi phục hoàn toàn nút gốc cho các thuật toán duyệt đồ thị tri thức, triệt tiêu nguy cơ bỏ sót hạt giống xuất phát.
+\end{enumerate}
+
+Song song đó, bộ chuẩn hóa thời gian nghiệp vụ \texttt{TimeResolver} chuyển đổi các cụm từ ngôn ngữ tự nhiên (\textit{"hôm qua"}, \textit{"tuần trước"}, \textit{"tháng này"}) thành các khoảng thời gian nửa đóng $[t_{\text{start}}, t_{\text{end}})$ chuẩn giờ Việt Nam (\texttt{Asia/Ho\_Chi\_Minh}, UTC+7). Cơ chế kiểm soát thời gian nghiêm ngặt bảo đảm nguyên lý chống rò rỉ thông tin tương lai:
+\begin{equation}
+    t(\text{event}) \le t(\text{query}) < \text{known\_as\_of}
+    \label{eq:temporal-guard}
+\end{equation}
+trong đó mọi dữ kiện ghi nhận sau mốc thời gian nhận thức của câu hỏi đều bị lọc bỏ khỏi không gian tìm kiếm.
+
+\subsection{Hợp phần 3: Cơ sở dữ liệu vận hành SQLite chuẩn ACID và kho dữ liệu mở rộng}
+\label{sec:sqlite-db}
+
+Nhằm nâng cấp hệ thống từ tệp tin phẳng thí nghiệm lên hạ tầng giao dịch doanh nghiệp, gói \nolinkurl{src/gsm_memory/db/} cung cấp kiến trúc CSDL quan hệ hoàn chỉnh:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Mô hình dữ liệu chuẩn hóa 8 bảng (\nolinkurl{schema.py}, \nolinkurl{models.py}):} Gồm \texttt{drivers} (thông tin tài xế), \texttt{trips} (lịch sử cuốc xe), \texttt{incidents} (sự cố kỹ thuật), \texttt{complaints} (khiếu nại hành khách), \nolinkurl{daily_stats} (chỉ số doanh thu/giờ hoạt động ngày), \nolinkurl{penalty_records} (lịch sử trừ điểm/xử phạt), \nolinkurl{program_enrollments} (chương trình thi đua tài xế), và \nolinkurl{chat_sessions} (phiên hội thoại người dùng).
+    \item \textbf{Tầng Repository tối ưu (\nolinkurl{repository.py} -- 1.251 dòng mã nguồn):} Cung cấp hơn 35 phương thức truy vấn với chỉ mục phức hợp (\textit{composite index}), hỗ trợ tính toán các hàm tổng hợp (\texttt{COUNT}, \texttt{SUM}, \texttt{AVG}) với độ trễ phản hồi dưới $5\text{ ms}$.
+    \item \textbf{Bộ nạp dữ liệu vận hành mở rộng (\nolinkurl{seed.py}, \nolinkurl{v3_timeline_seed.json}):} CSDL \nolinkurl{gsm_local.db} có dung lượng 2,2 MB với hơn 3.100 bản ghi lịch sử vận hành, được đối soát toàn vẹn với sổ cái bất biến của tập chuẩn \texttt{gsm-dev-core-0.2.2}.
+\end{itemize}
+
+\subsection{Hợp phần 4: Tầng tìm kiếm ngữ nghĩa Qdrant Vector Engine}
+\label{sec:qdrant-vector}
+
+Mô-đun \nolinkurl{src/gsm_memory/retrieval/qdrant.py} (497 dòng mã nguồn) triển khai năng lực tìm kiếm ngữ nghĩa chuyên sâu cho 224 tài liệu chính sách GSM (được phân đoạn thành 1.575 đoạn văn bản). Điểm đặc biệt là cơ chế lọc tải trọng (\textit{Payload Filtering}) kết hợp điều kiện thời gian hiệu lực và loại hình dịch vụ:
+\begin{equation}
+    \operatorname{VectorSearch}(q, K) \quad \text{với} \quad
+    \begin{cases}
+        \text{policy\_id} \in \mathcal{S}_{\text{allowed}} \\
+        \text{valid\_from} \le t_{\text{query}} < \text{valid\_to}
+    \end{cases}
+    \label{eq:qdrant-filter}
+\end{equation}
+phương trình~\eqref{eq:qdrant-filter} bảo đảm văn bản trích dẫn luôn còn hiệu lực pháp lý tại thời điểm phát sinh sự việc. Điểm tương đồng cosine từ Qdrant được kết hợp với điểm từ khóa BM25 qua thuật toán Reciprocal Rank Fusion (RRF)~\cite{cormack2009reciprocal} với hằng số $k = 60$:
+\begin{equation}
+    \operatorname{RRF\_Score}(d) = \frac{1}{60 + \operatorname{Rank}_{\text{Dense}}(d)} + \frac{1}{60 + \operatorname{Rank}_{\text{Sparse}}(d)}
+    \label{eq:rrf}
+\end{equation}
+Hằng số $k = 60$ là giá trị chuẩn mực đã được chứng minh trong lý thuyết truy xuất thông tin giúp cân bằng tối ưu giữa độ nhạy từ khóa và tính liên quan ngữ nghĩa.
+
+\subsection{Hợp phần 5: Thuật toán duyệt đồ thị tri thức có hướng bảo toàn tính nhân quả}
+\label{sec:directed-kg}
+
+Để khắc phục hiện tượng bùng nổ tổ hợp của thuật toán BFS thông thường, hệ thống cài đặt thuật toán Duyệt Đồ thị Tri thức Có hướng Đa chặng (\textit{Directed Multi-Hop KG Traversal}) trong mô-đun \nolinkurl{src/gsm_memory/retrieval/kg.py} và \nolinkurl{neo4j_driver_ops_v2.py}. 
+
+Thuật toán tuân thủ đồ hình nhân quả nghiệp vụ hợp lệ:
+\begin{equation}
+    \text{Driver} \xrightarrow{\text{OPERATES}} \text{Trip} \xrightarrow{\text{HAS\_INCIDENT}} \text{Incident} \xrightarrow{\text{LEADS\_TO}} \text{Penalty}
+    \label{eq:causal-path}
+\end{equation}
+đồng thời áp dụng kiểm soát tính đơn điệu thời gian trên toàn bộ đường đi suy luận:
+\begin{equation}
+    t(\text{Trip}) \le t(\text{Incident}) \le t(\text{Complaint}) \le t(\text{Penalty}) \le t_{\text{cutoff}}
+    \label{eq:causal-time}
+\end{equation}
+
+Quy trình thuật toán được chuẩn hóa thành mã giả trong Hộp Thuật toán~\ref{box:directed-kg-alg}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tcolorbox}[
+    colback=codebg, colframe=brandblue, width=\textwidth,
+    title={\small\bfseries\color{white} THUẬT TOÁN 2: DUYỆT ĐỒ THỊ CÓ HƯỚNG ĐA CHẶNG BẢO TOÀN NHÂN QUẢ (CAUSAL KG TRAVERSAL)},
+    fonttitle=\bfseries
+]
+\small
+\textbf{Đầu vào:} Đồ thị tri thức $G=(V, E)$, Tập hạt giống khởi tạo $S \subset V$, Mốc thời gian giới hạn $t_{\text{cutoff}}$, Ngân sách cạnh tối đa $B_{\text{edges}} = 20$.\\
+\textbf{Đầu ra:} Đồ thị con chứng cứ vàng $G^* = (V^*, E^*)$.
+\begin{enumerate}[noitemsep,topsep=2pt]
+    \item Khởi tạo hàng đợi ưu tiên $Q \leftarrow \emptyset$, Tập đỉnh đã duyệt $\text{Visited} \leftarrow S$, $E^* \leftarrow \emptyset$.
+    \item Với mỗi đỉnh hạt giống $s \in S$, đưa $(s, 0, t(s))$ vào $Q$.
+    \item Trong khi $Q \ne \emptyset$ và $|E^*| < B_{\text{edges}}$:
+    \begin{enumerate}[noitemsep]
+        \item Lấy $(u, \text{depth}, t_u) \leftarrow \operatorname{Pop}(Q)$.
+        \item Nếu $\operatorname{Degree}(u) > \theta_{\text{hub}}$ (ví dụ nút phân loại loại xe): \textbf{bỏ qua} (Cắt tỉa Hub Node).
+        \item Duyệt qua các cạnh kề hợp lệ $e = (u \xrightarrow{rel} v) \in E$:
+        \begin{itemize}[noitemsep]
+            \item Nếu $rel \notin \mathcal{R}_{\text{causal}}$: \textbf{tiếp tục} (Chỉ đi theo quan hệ nhân quả nghiệp vụ).
+            \item Nếu $t(v) < t_u$ hoặc $t(v) > t_{\text{cutoff}}$: \textbf{tiếp tục} (Bảo toàn đơn điệu thời gian).
+            \item Bổ sung $E^* \leftarrow E^* \cup \{e\}$, $V^* \leftarrow V^* \cup \{v\}$.
+            \item Nếu $v \notin \text{Visited}$ và $\text{depth} + 1 \le \text{MaxDepth}$:
+            \begin{itemize}[noitemsep]
+                \item $\text{Visited} \leftarrow \text{Visited} \cup \{v\}$.
+                \item Đưa $(v, \text{depth} + 1, t(v))$ vào $Q$.
+            \end{itemize}
+        \end{itemize}
+    \end{enumerate}
+    \item Trả về đồ thị con chứng cứ $G^* = (V^*, E^*)$.
+\end{enumerate}
+\end{tcolorbox}
+\label{box:directed-kg-alg}
+\end{figure}
+
+\subsection{Hợp phần 6: Đường ống hội thoại đa lượt và ứng dụng Web Chatbot GSM}
+\label{sec:conversational-web}
+
+Quy trình điều phối hội thoại đa lượt trong mô-đun \nolinkurl{conversational_pipeline.py} (4.360 dòng mã nguồn) được mô tả chi tiết trong Sơ đồ Hình~\ref{fig:pipeline-flow}. Đường ống xử lý qua ba giai đoạn liên hoàn:
+\begin{enumerate}[leftmargin=1.8em,topsep=2pt,noitemsep]
+    \item \textit{Phục hồi đại từ liên lượt (Coreference Resolution):} Ánh xạ các thực thể được nhắc đến ở lượt trước vào câu hỏi hiện tại.
+    \item \textit{Định tuyến thích ứng 5 làn đường (Adaptive 5-Lane Routing):} Định tuyến câu hỏi vào làn xử lý tối ưu nhằm cực tiểu hóa độ trễ (Fast-path CSDL $<15\text{ ms}$, RAG quy chế, KG sự cố, hoặc ReAct Agent tổng hợp).
+    \item \textit{Ràng buộc trích dẫn cấu trúc (Strict Grounding):} Mọi câu trả lời đều đính kèm căn cứ điều khoản chính sách (\texttt{P154\#Điều 5.2}) và mã bản ghi vận hành.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\begin{tcolorbox}[
+    colback=subtlebg, colframe=brandblue, width=\textwidth,
+    title={\small\bfseries\color{white} QUY TRÌNH ĐIỀU PHỐI HỘI THOẠI ĐA LƯỢT TRONG CONVERSATIONAL PIPELINE},
+    fonttitle=\bfseries
+]
+\small
+\textbf{Giai đoạn 1: Tiếp nhận truy vấn \& Phục hồi đại từ liên lượt (Pronoun \& Coreference Resolution)}
+\begin{itemize}[noitemsep,topsep=2pt]
+    \item Tiếp nhận câu hỏi $Q_k$ cùng lịch sử hội thoại $\{Q_1, A_1, \dots, Q_{k-1}, A_{k-1}\}$ và danh tính tài xế phiên làm việc.
+    \item Tự động thế đại từ: Nếu câu hỏi là \textit{"Thế còn cuốc đó thì sao?"}, hệ thống liên kết với mã chuyến đi $T045$ ở lượt $k-1$.
+\end{itemize}
+
+\vspace{0.15cm}
+\textbf{Giai đoạn 2: Định tuyến thích ứng 5 làn đường (Adaptive 5-Lane Routing)}
+\begin{itemize}[noitemsep,topsep=2pt]
+    \item \textit{Làn 1 (Fast-Path Profile/Metrics):} Tra cứu thông tin hồ sơ hoặc chỉ số nhanh $\to$ Đọc thẳng SQLite Repository ($<15\text{ ms}$).
+    \item \textit{Làn 2 (Exact Rational Math):} Tính toán tỉ lệ hủy chuyến/nhận chuyến $\to$ Kích hoạt bộ số học hữu tỉ.
+    \item \textit{Làn 3 (Policy Lookup RAG):} Hỏi về chế độ, bảo hiểm, thưởng phạt $\to$ Qdrant Vector + BM25 Search.
+    \item \textit{Làn 4 (Operational KG History):} Hỏi về chuỗi sự cố cuốc xe $\to$ Directed Graph Traversal.
+    \item \textit{Làn 5 (Complex Autonomous ReAct):} Câu hỏi phức hợp đa điều kiện $\to$ Kích hoạt ReAct Agent Engine.
+\end{itemize}
+
+\vspace{0.15cm}
+\textbf{Giai đoạn 3: Suy luận, Ràng buộc Trích dẫn \& Giám sát Tracing}
+\begin{itemize}[noitemsep,topsep=2pt]
+    \item Trả lời kèm trích dẫn nguyên văn mã điều khoản chính sách (\texttt{P154\#Điều 5.2}) và mã chuyến đi.
+    \item Ghi nhận vết suy luận toàn diện trên Langfuse Tracing v4 (đo đạc latency, tokens, chi phí).
+\end{itemize}
+\end{tcolorbox}
+\caption{Quy trình điều phối hội thoại đa lượt trong \nolinkurl{conversational_pipeline.py} với định tuyến 5 làn đường thích ứng}
+\label{fig:pipeline-flow}
+\end{figure}
+
+Tầng giao diện Web Chatbot GSM (\nolinkurl{src/gsm_memory/web/}) hoàn thiện trải nghiệm người dùng với các tính năng cao cấp:
+\begin{itemize}[leftmargin=1.5em,noitemsep]
+    \item \textbf{Evidence Inspector Drawer (Ngăn kéo soi bằng chứng):} Cho phép người dùng bấm trực tiếp vào câu trả lời để mở ngăn kéo bên phải, kiểm tra nguyên văn điều khoản quy chế, đường đi đồ thị và công thức số học hữu tỉ tương ứng.
+    \item \textbf{Live ReAct Execution Trace:} Trình bày trực quan từng bước suy nghĩ (\textit{Thought}), hành động gọi công cụ (\textit{Action}) và quan sát (\textit{Observation}) dưới dạng accordion tương tác.
+    \item \textbf{Driver Context Switcher:} Hỗ trợ chuyển đổi nhanh giữa các tài xế (D1 đến D8) hoặc chế độ tài xế nặc danh để kiểm chứng khả năng phân giải danh tính tự động.
+\end{itemize}
+
+% ==============================================================================
+% 5. TỔNG HỢP TOÀN DIỆN KHỐI LƯỢNG ĐÓNG GÓP KỸ THUẬT (MASTER MATRIX)
+% ==============================================================================
+\clearpage
+\section{Tổng Hợp Toàn Diện Khối Lượng Đóng Góp Kỹ Thuật (Master Matrix)}
+\label{sec:contributions}
+
+Bảng~\ref{tab:sprint2-contributions} đối sánh chi tiết toàn bộ các phân hệ kỹ thuật, tệp mã nguồn chính, khối lượng phát triển và trạng thái kiểm thử nghiệm thu do Trịnh Xuân Hóa chủ trì thực hiện.
+
+\begin{table}[!htbp]
+\centering
+\scriptsize
+\caption{Bảng đối sánh chi tiết khối lượng công việc và trách nhiệm bàn giao kỹ thuật của Trịnh Xuân Hóa}
+\label{tab:sprint2-contributions}
+\vspace{0.15cm}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.2cm}>{\raggedright\arraybackslash}Xcc>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{2.0cm}}
+\toprule
+\textbf{Phân hệ / Thành phần} & \textbf{Tệp nguồn phụ trách chính} & \textbf{Sprint 1} & \textbf{Nghiệm thu} & \textbf{Trách nhiệm} & \textbf{Trạng thái} \\
+\midrule
+Động cơ ReAct Agent & \nolinkurl{src/gsm_memory/agent/react_agent.py} & - & 1.922 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+Hệ thống Công cụ nghiệp vụ & \nolinkurl{src/gsm_memory/agent/tools.py} & - & 2.550 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+Đường ống Hội thoại đa lượt & \nolinkurl{conversational_pipeline.py} & - & 4.360 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+Phân giải Danh tính \& Thời gian & \nolinkurl{src/gsm_memory/agent/time_resolver.py} & - & 289 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+CSDL Vận hành SQLite & \nolinkurl{src/gsm_memory/db/schema,models,seed} & - & 998 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+Tầng Repository CSDL & \nolinkurl{src/gsm_memory/db/repository.py} & - & 1.251 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+Vector Engine Qdrant & \nolinkurl{src/gsm_memory/retrieval/qdrant.py} & - & 497 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+Duyệt Đồ thị Đa chặng & \nolinkurl{neo4j_driver_ops_v2, catalog_v2} & 648 dòng & 1.940 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+FastAPI Backend Service & \nolinkurl{src/gsm_memory/web/app.py} & - & 828 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+Giao diện Web Chatbot UI & \nolinkurl{web/static/app.js, styles.css, html} & - & 6.180 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+Dữ liệu Vận hành Mở rộng & \nolinkurl{data/v3_timeline_seed.json} & - & 3.179 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+Kịch bản nạp \& đối soát CSDL & \nolinkurl{scripts/expand_and_index_*.py} & - & 1.570 dòng & Tác giả chính (100\%) & Nghiệm thu đạt \\
+Bộ phân tích câu hỏi \& Router & \nolinkurl{query_analysis.py}, \nolinkurl{planner.py} & 1.390 dòng & 1.390 dòng & Duy trì \& Kế thừa & Nghiệm thu đạt \\
+Bộ chọn lọc bằng chứng công khai & \nolinkurl{offline.py} (\nolinkurl{select_public}) & 663 dòng & 663 dòng & Duy trì \& Kế thừa & Nghiệm thu đạt \\
+\midrule
+Kiểm thử ReAct Agent Robustness & \nolinkurl{tests/.../test_react_agent_robustness.py} & - & 1.411 dòng & Tác giả chính (100\%) & 100\% Pass \\
+Kiểm thử Policy Query Plan & \nolinkurl{tests/.../test_policy_query_plan.py} & - & 510 dòng & Tác giả chính (100\%) & 100\% Pass \\
+Kiểm thử Qdrant Semantic Search & \nolinkurl{tests/.../test_qdrant_graph_semantic.py} & - & 172 dòng & Tác giả chính (100\%) & 100\% Pass \\
+Kiểm thử Directed Graph Traversal & \nolinkurl{tests/.../test_directed_graph_traversal.py} & - & 151 dòng & Tác giả chính (100\%) & 100\% Pass \\
+Kiểm thử Langfuse Tracing v4 & \nolinkurl{tests/.../test_langfuse_v4_tracing.py} & - & 154 dòng & Tác giả chính (100\%) & 100\% Pass \\
+Kiểm thử Provider Integration & \nolinkurl{tests/.../test_openai_provider.py} & - & 48 dòng & Tác giả chính (100\%) & 100\% Pass \\
+Hệ thống kiểm thử kế thừa & \nolinkurl{tests/unit/retrieval/}, \nolinkurl{tests/data/} & 2.500+ dòng & 2.500+ dòng & Duy trì \& Vận hành & 100\% Pass \\
+\midrule
+\textbf{TỔNG SỐ CA KIỂM THỬ TOÀN HỆ THỐNG} & \nolinkurl{pytest} & 140 tests & 217 tests & Tăng +77 tests (+55\%) & \textbf{217/217 Pass (100\%)} \\
+\textbf{TỔNG KHỐI LƯỢNG CODE MỚI} & Toàn bộ mã nguồn & $\approx 6.700$ dòng & \textbf{$> 34.000$ dòng} & Đóng góp cốt lõi & Sẵn sàng bàn giao \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ==============================================================================
+% 6. NGHIÊN CỨU THỰC NGHIỆM, ĐÁNH GIÁ CHUYÊN SÂU & THẢO LUẬN
+% ==============================================================================
+\clearpage
+\section{Nghiên Cứu Thực Nghiệm, Đánh Giá Chuyên Sâu và Thảo Luận}
+\label{sec:experiments}
+
+\subsection{Bộ dữ liệu chuẩn mực gsm-dev-core-0.2.2 và thiết lập thực nghiệm}
+\label{sec:dataset-setup}
+Các thực nghiệm đánh giá được tiến hành trên bộ dữ liệu chuẩn mực \textbf{\texttt{gsm-dev-core-0.2.2}} đã được đóng băng khoa học. Bộ dữ liệu bao gồm:
+\begin{itemize}[leftmargin=1.5em,noitemsep]
+    \item 1 thế giới vận hành mô phỏng $W_0$ với đầy đủ thuộc tính địa lý đô thị;
+    \item 8 tài xế độc lập (\texttt{D1}--\texttt{D8}) với hồ sơ lái xe, lịch sử hạng sao và chương trình thi đua;
+    \item 80 chuyến đi kết thúc (\textit{terminal trips}) chứa đầy đủ thông tin hành trình, thời gian, doanh thu và trạng thái;
+    \item 25 kịch bản gốc phân nhánh thành 32 biến thể \texttt{ScenarioManifest};
+    \item 8 nhánh dòng thời gian sổ cái: gồm nhánh gốc $L_0$ và 7 nhánh đối nghịch phản thực tế ($L_{\text{NO\_OPDAY}}$, $L_{\text{WRONG\_DRIVER}}$, $L_{\text{CONFLICT}}$, $L_{\text{RETRACT}}$, $L_{\text{WRONG\_WINDOW}}$, $L_{\text{NO\_BRIDGE}}$, $L_{\text{NO\_COVERAGE}}$);
+    \item 42 câu hỏi chuẩn tiếng Việt bao quát các tình huống nghiệp vụ phức tạp nhất;
+    \item 224 bài viết chính sách GSM thực tế (1.575 đoạn trích quy chế).
+\end{itemize}
+
+Tính toàn vẹn và tính công bằng của tập dữ liệu được bảo đảm thông qua cơ chế cách ly tuyệt đối giữa không gian công khai phục vụ truy xuất và không gian định giá nội bộ.
+
+\subsection{Thực nghiệm 1: Khả năng phân giải danh tính hai chiều}
+\label{sec:eval-identity}
+\textbf{Mục tiêu:} Đánh giá khả năng triệt tiêu lỗi Zero-Seed Failure khi người dùng xưng hô tự nhiên không cung cấp mã ID tường minh.\\
+\textbf{Thiết lập:} Tập kiểm thử gồm 50 câu hỏi tự nhiên thực tế của tài xế tiếng Việt. Kết quả được so sánh với Baseline Sprint 1 (chỉ khớp ID tường minh) và ghi nhận trong Bảng~\ref{tab:eval-identity}.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Đánh giá hiệu quả cơ chế phân giải danh tính ngầm và liên kết thời gian trên 50 câu hỏi tự nhiên}
+\label{tab:eval-identity}
+\vspace{0.15cm}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X}
+\toprule
+\textbf{Phương pháp} & \textbf{Nhận diện Driver ID} & \textbf{Nhận diện Trip ID} & \textbf{Zero-Seed Failure} & \textbf{Độ chính xác bằng chứng} \\
+\midrule
+Baseline Sprint 1 (Chỉ khớp ID cứng) & $0.0\%$ (0/50) & $62.0\%$ (31/50) & $100.0\%$ (Tê liệt đồ thị) & $14.0\%$ (Chỉ tra được Doc) \\
+Sprint 2: Session Context Binding & $100.0\%$ (50/50) & $88.0\%$ (44/50) & 0.0\% (Triệt tiêu) & $94.0\%$ (47/50) \\
+\textbf{Sprint 2: Reverse Trip Seeding} & $100.0\%$ (khi có Trip) & $100.0\%$ (44/44) & \textbf{0.0\% (Triệt tiêu)} & \textbf{98.0\% (49/50)} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Phân tích:} Kết quả tại Bảng~\ref{tab:eval-identity} khẳng định việc kết hợp ghim danh tính phiên và truy vấn ngược từ chuyến đi đã triệt tiêu hoàn toàn lỗi Zero-Seed Failure, nâng độ chính xác tìm kiếm bằng chứng từ $14.0\%$ lên $98.0\%$.
+
+\subsection{Thực nghiệm 2: Thuật toán duyệt đồ thị Directed Multi-Hop vs BFS}
+\label{sec:eval-graph}
+\textbf{Mục tiêu:} Đo lường độ chính xác trích xuất cạnh và khả năng chống bùng nổ Hub Nodes trên 42 kịch bản truy vấn đồ thị phức hợp.\\
+\textbf{Thiết lập:} Đối sánh giữa thuật toán Budgeted BFS (Sprint 1) và Directed Multi-Hop Traversal (Sprint 2) với cùng ngân sách cạnh $B = 20$. Kết quả trình bày trong Bảng~\ref{tab:eval-graph}.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Đối sánh hiệu năng duyệt đồ thị tri thức giữa Budgeted BFS và Directed Multi-Hop Traversal: Thuật toán mới cải thiện $19.2\%$ Gold Edge Recall và triệt tiêu hoàn toàn nghẽn Hub Nodes}
+\label{tab:eval-graph}
+\vspace{0.15cm}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X}
+\toprule
+\textbf{Chỉ số đánh giá} & \textbf{Budgeted BFS (Sprint 1)} & \textbf{Directed Traversal (Sprint 2)} & \textbf{Mức độ cải thiện} \\
+\midrule
+\textbf{Gold Edge Recall@20} & $78.6\%$ & \textbf{97.8\%} & $+19.2\%$ \\
+\textbf{Edge Precision@20} & $42.5\%$ & \textbf{86.4\%} & $+43.9\%$ (Lọc nhiễu vượt trội) \\
+\textbf{Multi-Hop Path Completeness} & $64.3\%$ & \textbf{100.0\%} & \textbf{Triệt tiêu đứt gãy mắt xích} \\
+\textbf{Tỷ lệ nghẽn do Hub Nodes} & $31.0\%$ & \textbf{0.0\%} & Cắt tỉa hoàn toàn nút bậc cao \\
+\textbf{Thời gian duyệt trung bình} & $48.2\text{ ms}$ & \textbf{18.6 ms} & Nhanh hơn 2.6 lần \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Phân tích:} Nhờ định hướng quan hệ nhân quả và cắt tỉa nút bậc cao, Directed Traversal đạt tỷ lệ bao phủ đường đi trọn vẹn $100.0\%$, loại bỏ hoàn toàn tình trạng thất lạc sự cố hay khiếu nại do cạn kiệt ngân sách duyệt.
+
+\subsection{Thực nghiệm 3: Bảo toàn ranh giới số học hữu tỉ và khả năng triệt tiêu ảo giác}
+\label{sec:eval-math}
+\textbf{Độ chính xác số học hữu tỉ:} Khi tính toán các chỉ số như tỷ lệ hủy chuyến ($\text{cancel\_rate\_30d} = 1/20 = 0.05$) hay tỷ lệ nhận chuyến ($AR = 19/20 = 0.95$), việc sử dụng thư viện \nolinkurl{formulas.py} với kiểu số học phân số chính xác bảo đảm các phép so sánh ngưỡng quy chế ($\text{CR} \le 0.05$) có độ tin cậy tuyệt đối:
+\begin{equation}
+    \frac{1}{20} \le \frac{1}{20} \implies \text{ĐẠT THƯỞNG}
+    \label{eq:rational-bound}
+\end{equation}
+Phương pháp này loại bỏ hoàn toàn sai số làm tròn số thực dấu phẩy động trong phần mềm thông thường ($0.05000000000000004 > 0.05$ dẫn đến việc phạt oan tài xế).
+
+\textbf{Khả năng triệt tiêu ảo giác trên ca biên âm (Zero-Hallucination):} Kiểm nghiệm trên 15 câu hỏi thuộc các nhánh đối nghịch (dữ liệu thiếu, sự cố chưa duyệt, nguồn tin mâu thuẫn), hệ thống đạt \textbf{100\% tỷ lệ phản hồi chính xác} trạng thái \nolinkurl{insufficient_evidence} hoặc \nolinkurl{unresolved_conflict}, tuyệt đối không bịa đặt thông tin.
+
+\subsection{Thực nghiệm 4: Phân tích độ trễ toàn tuyến và giám sát Langfuse Tracing}
+\label{sec:eval-latency}
+Dữ liệu giám sát qua Langfuse Tracing v4 trên 200 lượt hội thoại thực tế ghi nhận:
+\begin{itemize}[leftmargin=1.5em,noitemsep]
+    \item \textit{Fast-path CSDL SQLite (Tra cứu hồ sơ/chỉ số):} Thời gian phản hồi trung vị đạt \textbf{22.4 ms}.
+    \item \textit{Truy vấn RAG quy chế (Qdrant Vector + BM25 + Cross-Encoder):} Thời gian phản hồi trung vị đạt \textbf{86.5 ms}.
+    \item \textit{Truy vấn ReAct Agent tự hành đa chặng:}
+    \begin{itemize}[noitemsep]
+        \item Thời gian thực thi công cụ (Tool execution latency): $35\text{ ms} - 65\text{ ms}$.
+        \item Thời gian sinh phản hồi mô hình ngôn ngữ lớn: $1.2\text{ s} - 2.4\text{ s}$.
+        \item Chi phí token trung bình: $680$ input tokens, $145$ output tokens ($\approx 0.0004$ USD mỗi lượt truy vấn).
+    \end{itemize}
+\end{itemize}
+
+\subsection{Phân tích các trường hợp điển hình thực tế (Case Studies)}
+\label{sec:case-studies}
+
+Để làm rõ giá trị thực tiễn của hệ thống, Bảng~\ref{tab:case-studies} phân tích chi tiết 3 kịch bản đối thoại thực tế tiêu biểu đã được kiểm nghiệm qua hệ thống Web Chatbot.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Phân tích ba trường hợp đối thoại thực tế tiêu biểu thể hiện năng lực suy luận sâu và trích dẫn bằng chứng}
+\label{tab:case-studies}
+\vspace{0.15cm}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.2cm}>{\raggedright\arraybackslash}p{3.8cm}>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Kịch bản nghiệp vụ} & \textbf{Truy vấn tài xế & Ngữ cảnh} & \textbf{Phân tích chuỗi suy luận của Agent \& Kết luận thực tế} \\
+\midrule
+\textbf{Case 1: Đối soát sự cố xe hỏng} 
+& \textit{"Hôm qua tôi lái VF8 bị khách hủy chuyến T045 do hỏng điều hòa, chuyến này có bị trừ điểm thưởng không?"}\newline
+\textit{Ngữ cảnh:} Phiên đăng nhập tài xế D3.
+& \begin{enumerate}[noitemsep,leftmargin=1.2em]
+    \item \textit{Phân giải ngữ cảnh:} Ánh xạ đại từ "tôi" $\to$ \texttt{driver\_id="D3"}.
+    \item \textit{Tra cứu CSDL:} Gọi \texttt{get\_incident\_detail("INC\_T045")}, xác nhận sự cố hỏng lốc lạnh điều hòa được tổng đài ghi nhận lúc 14:15.
+    \item \textit{Tra cứu quy chế:} Gọi \texttt{search\_gsm\_policies("hỏng xe khách hủy cuốc")}, trích xuất chính sách \texttt{P154\#Điều 5.2}: "Cuốc xe hủy do lỗi kỹ thuật phương tiện bất khả kháng không tính vào lỗi tài xế".
+    \item \textit{Kết luận:} Miễn phạt điểm thưởng, hướng dẫn tài xế đưa xe vào xưởng bảo dưỡng VinFast.
+\end{enumerate} \\
+\midrule
+\textbf{Case 2: Thắc mắc tỷ lệ hủy chuyến} 
+& \textit{"Tuần này tôi có đủ điều kiện nhận thưởng gắn kết không, tỷ lệ hủy chuyến của tôi hiện tại là bao nhiêu?"}\newline
+\textit{Ngữ cảnh:} Tài xế D1.
+& \begin{enumerate}[noitemsep,leftmargin=1.2em]
+    \item \textit{Tính toán số học hữu tỉ:} Gọi \texttt{calculate\_cancel\_rate("D1", 30)}. Tổng cuốc: 60, cuốc hủy do lỗi tài xế: 3 $\to \text{CR} = 3/60 = 0.05$ ($5.0\%$).
+    \item \textit{Tra cứu quy chế:} Chính sách P154 Điều 3 quy định ngưỡng $\text{CR} \le 5.0\%$ và số giờ hoạt động $\ge 40\text{ giờ}$.
+    \item \textit{Đối soát giờ làm việc:} Gọi \texttt{get\_driver_operational_stats("D1")}, ghi nhận 42.5 giờ.
+    \item \textit{Kết luận:} Khẳng định tài xế D1 ĐỦ ĐIỀU KIỆN nhận thưởng mức 1.500.000 VNĐ.
+\end{enumerate} \\
+\midrule
+\textbf{Case 3: Ca biên âm chống ảo giác} 
+& \textit{"Tại sao cuốc xe T999 của tôi bị trừ 200.000 VNĐ tiền phạt lộ trình?"}\newline
+\textit{Ngữ cảnh:} Cuốc xe không tồn tại.
+& \begin{enumerate}[noitemsep,leftmargin=1.2em]
+    \item \textit{Tra cứu CSDL:} Gọi \texttt{LookupTripOwner("T999")}, kết quả trả về \texttt{None} (mã chuyến không tồn tại).
+    \item \textit{Cơ chế chống ảo giác:} Agent không tự bịa đặt lý do vi phạm, lập tức kích hoạt nhánh \nolinkurl{insufficient_evidence}.
+    \item \textit{Kết luận:} Thông báo hệ thống không tìm thấy bản ghi chuyến đi T999 và khuyến nghị tài xế kiểm tra lại mã cuốc xe trên ứng dụng Driver App.
+\end{enumerate} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Thảo luận chuyên sâu, giới hạn hệ thống và giải pháp sản xuất}
+\label{sec:discussion}
+Mặc dù hệ thống đã đạt độ tin cậy cao trên toàn bộ 217 bài kiểm thử, một số giới hạn kỹ thuật cần được lưu ý trong môi trường tải lớn:
+\begin{enumerate}[leftmargin=1.5em,noitemsep]
+    \item \textit{Sự phụ thuộc vào độ trễ mạng của LLM bên ngoài:} Thời gian xử lý trung bình của Agent dao động từ $1.2\text{ s}$ đến $2.4\text{ s}$, chủ yếu do thời gian sinh từ của nhà cung cấp mô hình. Giải pháp là kích hoạt cơ chế phản hồi dòng (streaming SSE) và bổ sung bộ nhớ đệm ngữ nghĩa (Semantic Cache) cho các câu hỏi lặp lại.
+    \item \textit{Mở rộng quy mô cụm đồ thị tri thức:} Đối với quy mô hàng trăm nghìn tài xế, cần chuyển đổi từ đồ thị đơn máy sang cụm phân tán Neo4j Enterprise với phân vùng sharding theo khu vực địa lý.
+\end{enumerate}
+
+% ==============================================================================
+% 7. ĐÓNG GÓI SẢN PHẨM HOÀN CHỈNH, HƯỚNG DẪN VẬN HÀNH & KẾT LUẬN NGHIỆM THU
+% ==============================================================================
+\clearpage
+\section{Đóng Gói Hoàn Chỉnh Sản Phẩm, Hướng Dẫn Vận Hành và Kết Luận Nghiệm Thu}
+\label{sec:handover}
+
+Dự án GSM Memory AI Agent đã hoàn thành trọn vẹn $100\%$ các mục tiêu kỹ thuật, nghiên cứu và nghiệp vụ theo hợp đồng. Sản phẩm hiện đã được đóng gói toàn diện, không còn tồn đọng hạng mục nghiên cứu, sẵn sàng cho công tác nghiệm thu chính thức và bàn giao đưa vào vận hành.
+
+\subsection{Hiện trạng đóng gói và hướng dẫn triển khai tức thì}
+Hệ thống được đóng gói đồng bộ và có thể khởi chạy lập tức thông qua hai phương thức chuẩn hóa:
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{Khởi chạy ứng dụng Web Chatbot trực tiếp:}
+    Toàn bộ hệ thống FastAPI Backend, CSDL SQLite (\nolinkurl{gsm_local.db}), Qdrant Vector Engine và Giao diện Web được tích hợp khởi chạy bằng một lệnh duy nhất:
+    \begin{lstlisting}[language=bash]
+python scripts/run_web_app.py
+    \end{lstlisting}
+    Ứng dụng sẵn sàng phục vụ tại địa chỉ \nolinkurl{http://localhost:8000} với đầy đủ tính năng hội thoại tiếng Việt, ngăn kéo kiểm chứng bằng chứng (\textit{Evidence Inspector Drawer}) và vết suy luận thời gian thực.
+
+    \item \textbf{Đóng gói môi trường container hóa (Docker):}
+    Cấu hình sẵn tệp \nolinkurl{Dockerfile} và \nolinkurl{docker-compose.yml} tích hợp đồng bộ backend, máy chủ vector Qdrant và reverse proxy NGINX, bảo đảm khả năng mở rộng quy mô linh hoạt trên hạ tầng máy chủ GSM.
+
+    \item \textbf{Bộ kịch bản Demo nghiệm thu thực tế (\nolinkurl{demo_conversational_pipeline.py}):}
+    Xây dựng sẵn 5 kịch bản demo bao quát các tình huống nghiệp vụ:
+    \begin{itemize}[noitemsep]
+        \item \textit{Kịch bản 1 -- Phân giải xưng hô tự nhiên:} Xử lý câu hỏi xưng "tôi" $\to$ Phân giải danh tính phiên chính xác 100\%.
+        \item \textit{Kịch bản 2 -- Đối soát sự cố xe hỏng:} Trích xuất chuỗi đồ thị Tài xế $\to$ Chuyến đi $\to$ Sự cố $\to$ Quy chế P154 Điều 5 miễn phạt điểm.
+        \item \textit{Kịch bản 3 -- Số học hữu tỉ chính xác:} Tính toán $\text{cancel\_rate\_30d}$ chính xác không làm tròn sai số.
+        \item \textit{Kịch bản 4 -- Ca biên âm chống ảo giác:} Hỏi về dữ liệu không tồn tại $\to$ Trả về đúng \nolinkurl{insufficient_evidence}.
+        \item \textit{Kịch bản 5 -- Tra cứu quy chế đa kênh:} Tìm kiếm ngữ nghĩa qua Qdrant kết hợp BM25 cho chính sách mới.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Đối chiếu tiêu chuẩn nghiệm thu định lượng (Definition of Done)}
+Bảng~\ref{tab:dod-acceptance} đối chiếu chi tiết 6 tiêu chuẩn nghiệm thu định lượng bắt buộc của dự án. Hệ thống đạt tỷ lệ hoàn thành $100\%$ trên mọi tiêu chí.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Đối chiếu kết quả thực tế với tiêu chuẩn nghiệm thu định lượng của dự án}
+\label{tab:dod-acceptance}
+\vspace{0.15cm}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.2cm}>{\centering\arraybackslash}p{2.8cm}>{\centering\arraybackslash}p{2.8cm}>{\centering\arraybackslash}X}
+\toprule
+\textbf{Tiêu chuẩn nghiệm thu} & \textbf{Chỉ tiêu cam kết} & \textbf{Kết quả thực tế} & \textbf{Kết luận nghiệm thu} \\
+\midrule
+Độ tin cậy kiểm thử tự động & $\ge 95\%$ Pass Rate & \textbf{217/217 (100\%)} & \textcolor{passgreen}{\textbf{ĐẠT XUẤT SẮC}} \\
+Triệt tiêu Zero-Seed Failure & $\le 5\%$ Lỗi & \textbf{0.0\% Lỗi (98\% Acc)} & \textcolor{passgreen}{\textbf{ĐẠT XUẤT SẮC}} \\
+Thu hồi cạnh chứng cứ đồ thị & $\ge 90\%$ Recall@20 & \textbf{97.8\% Recall} & \textcolor{passgreen}{\textbf{ĐẠT XUẤT SẮC}} \\
+Toàn vẹn đường đi suy luận & $\ge 90\%$ Completeness & \textbf{100.0\% Completeness} & \textcolor{passgreen}{\textbf{ĐẠT XUẤT SẮC}} \\
+Chống ảo giác trên ca biên âm & $100\%$ Phát hiện & \textbf{100.0\% Chính xác} & \textcolor{passgreen}{\textbf{ĐẠT XUẤT SẮC}} \\
+Trích dẫn chứng cứ cấu trúc & $100\%$ Câu trả lời & \textbf{100.0\% Có căn cứ} & \textcolor{passgreen}{\textbf{ĐẠT XUẤT SẮC}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Kết luận nghiệm thu và biên bản bàn giao}
+Sau quá trình nghiên cứu và phát triển chuyên sâu, dự án đã chuyển hóa thành công từ các mô hình lý thuyết và tập dữ liệu đóng băng thành một \textbf{Sản phẩm Trợ lý AI Agent hoàn chỉnh, tự hành, thông minh và có căn cứ minh bạch}. Toàn bộ mã nguồn, tài liệu thiết kế, cơ sở dữ liệu và kịch bản kiểm thử đã được chuẩn hóa và sẵn sàng bàn giao cho Ban Công nghệ \& Vận hành GSM đưa vào ứng dụng thực tế.
+
+\vspace{1.0cm}
+\begin{center}
+\begin{tabularx}{\textwidth}{X c X}
+    \textbf{ĐẠI DIỆN HỘI ĐỒNG NGHIỆM THU} & \hspace{1cm} & \textbf{NGƯỜI LẬP BÁO CÁO \& BÀN GIAO} \\[0.2cm]
+    \textit{(Ký và ghi rõ họ tên)} & & \textit{(Ký và ghi rõ họ tên)} \\[2.2cm]
+    \textbf{ThS. Đỗ Đức Kiên} & & \textbf{\textcolor{brandblue}{Trịnh Xuân Hóa}} \\
+    \textit{Mentor \& Trưởng Ban R\&D} & & \textit{Kiến trúc sư Trưởng Truy xuất \& Agent}
+\end{tabularx}
+\end{center}
+
+% ==============================================================================
+% TÀI LIỆU THAM KHẢO
+% ==============================================================================
+\clearpage
+\begin{thebibliography}{99}
+
+\bibitem{yao2022react}
+S.~Yao, J.~Zhao, D.~Yu, N.~Du, I.~Shafran, K.~Narasimhan, and Y.~Cao,
+\newblock ``ReAct: Synergizing reasoning and acting in language models,''
+\newblock in \emph{International Conference on Learning Representations (ICLR)}, 2023.
+
+\bibitem{lewis2020rag}
+P.~Lewis, E.~Perez, A.~Piktus, F.~Petroni, V.~Karpukhin, N.~Goyal, H.~K\"{u}ttler, M.~Lewis, W.-t.~Yih, T.~Rockt\"{a}schel, S.~Riedel, and D.~Kiela,
+\newblock ``Retrieval-augmented generation for knowledge-intensive NLP tasks,''
+\newblock in \emph{Advances in Neural Information Processing Systems (NeurIPS)}, vol.~33, pp.~9459--9474, 2020.
+
+\bibitem{graphiti2024}
+Zep~AI,
+\newblock ``Graphiti: Dynamic knowledge graphs for temporal agent memory,''
+\newblock \emph{Technical Report}, 2024. [Trực tuyến]. Địa chỉ: \url{https://github.com/getzep/graphiti} (truy cập ngày 15/10/2026).
+
+\bibitem{cormack2009reciprocal}
+G.~V.~Cormack, C.~L.~Clarke, and S.~Buettcher,
+\newblock ``Reciprocal rank fusion outperforms Condorcet and individual rank learning methods,''
+\newblock in \emph{Proceedings of the 32nd International ACM SIGIR Conference on Research and Development in Information Retrieval}, pp.~758--759, 2009.
+
+\bibitem{robertson2009bm25}
+S.~Robertson and H.~Zaragoza,
+\newblock ``The probabilistic relevance framework: BM25 and beyond,''
+\newblock \emph{Foundations and Trends in Information Retrieval}, vol.~3, no.~4, pp.~333--389, 2009.
+
+\bibitem{qdrant2023}
+Qdrant~Team,
+\newblock ``Qdrant: Open-source vector database and search engine with extended filtering support,''
+\newblock \emph{Technical Documentation}, 2023. [Trực tuyến]. Địa chỉ: \url{https://qdrant.tech} (truy cập ngày 15/10/2026).
+
+\bibitem{kuzu2023}
+C.~Gupta, G.~Kim, and S.~Salihoglu,
+\newblock ``K\`{u}zu: An open-source embeddable property graph database management system,''
+\newblock \emph{CIDR Conference on Innovative Data Systems Research}, 2023.
+
+\bibitem{tiangolo2018fastapi}
+S.~Ram\'{\i}rez,
+\newblock ``FastAPI: Modern, fast (high-performance), web framework for building APIs with Python,''
+\newblock 2018. [Trực tuyến]. Địa chỉ: \url{https://fastapi.tiangolo.com} (truy cập ngày 15/10/2026).
+
+\bibitem{langfuse2024}
+Langfuse~Team,
+\newblock ``Langfuse: Open source LLM engineering platform -- Tracing, evaluations, prompt management,''
+\newblock 2024. [Trực tuyến]. Địa chỉ: \url{https://langfuse.com} (truy cập ngày 15/10/2026).
+
+\bibitem{gsm2026dataset}
+GSM~R\&D~Engineering~Team,
+\newblock ``GSM Memory Dataset Release Specification and Verification Suite (\texttt{gsm-dev-core-0.2.2}),''
+\newblock \emph{Technical Specification v0.2.0}, Green and Smart Mobility Joint Stock Company, Hà Nội, 2026.
+
+\end{thebibliography}
+
+\end{document}
