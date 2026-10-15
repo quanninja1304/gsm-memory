@@ -1801,18 +1801,47 @@ def query_driver_graph(
             if regions:
                 r_names = ", ".join(r.name for r in regions)
                 summary_lines.append(f"  * [Khu vực/Địa bàn]: {r_names}")
-            if zones:
+
+            # Analyze zone activity (pickups/dropoffs) from graph edges
+            zone_counts: dict[str, dict[str, int]] = {}
+            for e in subgraph.edges:
+                rel = e.rel_type.upper()
+                if ("PICKUP" in rel or "DROPOFF" in rel) and e.end_id in node_by_id:
+                    z_node = node_by_id[e.end_id]
+                    z_name = z_node.name or f"Zone {e.end_id[:8]}"
+                    if z_name not in zone_counts:
+                        zone_counts[z_name] = {"pickup": 0, "dropoff": 0, "total": 0}
+                    if "PICKUP" in rel:
+                        zone_counts[z_name]["pickup"] += 1
+                    else:
+                        zone_counts[z_name]["dropoff"] += 1
+                    zone_counts[z_name]["total"] += 1
+
+            if zone_counts:
+                sorted_zones = sorted(zone_counts.items(), key=lambda x: x[1]["total"], reverse=True)
+                z_details = []
+                for zn, cnts in sorted_zones[:8]:
+                    sub = []
+                    if cnts["pickup"] > 0:
+                        sub.append(f"{cnts['pickup']} lượt đón")
+                    if cnts["dropoff"] > 0:
+                        sub.append(f"{cnts['dropoff']} lượt trả")
+                    z_details.append(f"{zn} ({', '.join(sub)})" if sub else zn)
+                summary_lines.append(f"  * [Quận/Zone đón trả thực tế từ các chuyến đi ({len(sorted_zones)} zone)]: {'; '.join(z_details)}")
+            elif zones:
                 z_names = ", ".join(set(z.name for z in zones[:10]))
                 summary_lines.append(f"  * [Quận/Zone đón trả ({len(zones)} zone)]: {z_names}")
+
             if trips:
                 completed_cnt = sum(1 for t in trips if t.props.get("outcome") == "completed")
                 cancelled_cnt = sum(1 for t in trips if t.props.get("outcome") == "cancelled")
-                summary_lines.append(f"  * [Chuyến đi gần nhất]: {len(trips)} chuyến ({completed_cnt} hoàn thành, {cancelled_cnt} bị hủy).")
-                for t in trips[:4]:
+                summary_lines.append(f"  * [Hành vi chuyến đi thực tế trên đồ thị]: {len(trips)} chuyến ({completed_cnt} hoàn thành, {cancelled_cnt} bị hủy).")
+                for t in trips[:8]:
                     t_pick = t.props.get("pickup", "")
                     t_drop = t.props.get("dropoff", "")
                     t_route = f" ({t_pick} -> {t_drop})" if t_pick or t_drop else ""
-                    summary_lines.append(f"    - {t.name}: {t.props.get('outcome', 'chuyến')}{t_route}, Lúc: {t.props.get('event_time') or t.props.get('start_time', 'N/A')}")
+                    t_outcome = "Hoàn thành" if t.props.get("outcome") == "completed" else (t.props.get("outcome") or "chuyến")
+                    summary_lines.append(f"    - {t.name}: {t_outcome}{t_route}, Lúc: {t.props.get('event_time') or t.props.get('start_time', 'N/A')}")
 
         # Complaints details
         if complaints:
@@ -2380,7 +2409,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "get_driver_profile",
-        "description": "Tra cứu hồ sơ nhân sự cơ bản của tài xế (mã nhân viên, họ tên, số điện thoại, email, đội xe, phương tiện, biển số, chương trình, trạng thái, đánh giá sao trung bình).",
+        "description": "Tra cứu hồ sơ nhân sự hành chính của tài xế (mã nhân viên, họ tên, số điện thoại, email, đội xe, phương tiện, biển số, chương trình, trạng thái, đánh giá sao trung bình). LƯU Ý: Nếu người dùng hỏi về địa bàn/khu vực hoạt động thực tế, thói quen chạy xe, hay đón/trả khách ở đâu, BẮT BUỘC ƯU TIÊN dùng `query_driver_graph` với focus='location' vì đồ thị ghi nhận chính xác các chuyến đi và zone đón/trả thực tế.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -2508,7 +2537,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "query_driver_graph",
-        "description": "Truy vấn đồ thị tri thức (Knowledge Graph) có định hướng từ nút Tài xế. Xung quanh tài xế có các nhánh thực thể & cạnh phục vụ các câu hỏi chuyên biệt:\n- 'location': Khu vực/thành phố hoạt động (Driver->Region) và quận/zone cụ thể qua các chuyến đi gần nhất (Driver->Trip->Zone).\n- 'complaints': Phản ánh/khiếu nại của khách hàng (Driver->Complaint->Trip), hỗ trợ semantic_query lọc nội dung phàn nàn và xác định chuyến bị khiếu nại.\n- 'incidents': Biên bản sự cố vận hành/kỹ thuật (Driver->Incident->Trip/PolicyRule), hỗ trợ semantic_query lọc sự cố.\n- 'fleet': Đội xe, Hub điều hành và địa bàn quản lý (Driver->Fleet->Region).\n- 'vehicle': Phương tiện, dòng xe, biển số và lịch sử bảo dưỡng (Driver->Vehicle->VehicleType, MaintenanceEvent).\n- 'kpi_metrics': Các chỉ số vận hành chuẩn hóa theo kỳ (Driver->Measurement: AR, CR, cancel_rate_30d, rating).\n- 'enforcement': Quyết định chế tài & điều khoản vi phạm (Driver->EnforcementDecision->ViolationFinding->PolicyRule).\nBẮT BUỘC chọn 'focus' phù hợp hoặc truyền 'semantic_query' để lọc chính xác và tránh bùng nổ dữ liệu.",
+        "description": "Truy vấn đồ thị tri thức (Knowledge Graph) có định hướng từ nút Tài xế. ĐÂY LÀ CÔNG CỤ ĐƯỢC ƯU TIÊN HÀNG ĐẦU để phân tích hành vi thực tế của tài xế và các quan hệ mạng lưới đa thực thể thay vì chỉ dựa vào CSDL quan hệ thông thường:\n- 'location': BẮT BUỘC DÙNG KHI HỎI TÀI XẾ THƯỜNG HOẠT ĐỘNG Ở ĐÂU, ĐỊA BÀN HOẠT ĐỘNG, CÁC ZONE/VÙNG ĐÓN TRẢ THỰC TẾ. Đồ thị sẽ duyệt Driver->Region và Driver->Trip->Zone đón/trả để xác định thói quen, tần suất và hành vi di chuyển thực tế từ các cuốc xe, đồng thời kích hoạt hiển thị đồ thị trực quan trên giao diện demo.\n- 'complaints': Phản ánh/khiếu nại của khách hàng (Driver->Complaint->Trip), hỗ trợ semantic_query lọc nội dung phàn nàn và xác định chuyến bị khiếu nại.\n- 'incidents': Biên bản sự cố vận hành/kỹ thuật (Driver->Incident->Trip/PolicyRule), hỗ trợ semantic_query lọc sự cố.\n- 'fleet': Đội xe, Hub điều hành và địa bàn quản lý (Driver->Fleet->Region).\n- 'vehicle': Phương tiện, dòng xe, biển số và lịch sử bảo dưỡng (Driver->Vehicle->VehicleType, MaintenanceEvent).\n- 'kpi_metrics': Các chỉ số vận hành chuẩn hóa theo kỳ (Driver->Measurement: AR, CR, cancel_rate_30d, rating).\n- 'enforcement': Quyết định chế tài & điều khoản vi phạm (Driver->EnforcementDecision->ViolationFinding->PolicyRule).\nBẮT BUỘC chọn 'focus' phù hợp hoặc truyền 'semantic_query' để lọc chính xác và tránh bùng nổ dữ liệu.",
         "parameters": {
             "type": "object",
             "properties": {

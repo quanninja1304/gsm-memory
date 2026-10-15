@@ -309,7 +309,7 @@ class ReActAgent:
         ).replace("đ", "d").replace("Đ", "D")
 
         # 3. Substring / keyword heuristics
-        if "graph" in norm or "kg" in norm or "dothi" in norm:
+        if "graph" in norm or "kg" in norm or "dothi" in norm or "subgraph" in norm or "duyet_do_thi" in norm:
             return "query_driver_graph"
         if "full_policy" in norm or "read_policy" in norm or ("policy" in norm and ("doc" in norm or "full" in norm or "view" in norm or "content" in norm)) or "toanvan" in norm:
             return "get_full_policy_document"
@@ -1043,21 +1043,28 @@ class ReActAgent:
             "  + Bước 3 (Kết luận): Sau khi đã có Observation từ Bước 2, bạn ĐÃ CÓ ĐỦ DỮ LIỆU. BẮT BUỘC xuất ngay Thought và Final Answer theo Mẫu Dạng 2 (Báo cáo Tra cứu Quy chế GSM).\n"
             "  + TUYỆT ĐỐI CẤM đối với Trường Hợp A: TUYỆT ĐỐI CẤM gọi bất kỳ công cụ tài xế nào (`get_driver_operational_stats`, `get_driver_profile`, `get_driver_trip_summary`, `query_driver_graph`...) và TUYỆT ĐỐI CẤM tự bịa ra mã tài xế (như DRV-002) hay ngày tháng khi người dùng không hỏi về tài xế!\n\n"
             "--- TRƯỜNG HỢP B: KHI CÂU HỎI LIÊN QUAN ĐẾN TÀI XẾ / HOẠT ĐỘNG VẬN HÀNH: ---\n"
-            "  + LỰA CHỌN CÔNG CỤ ĐÚNG TRỌNG TÂM CÂU HỎI:\n"
-            "    * Hỏi về hồ sơ nhân sự, thông tin tài xế, phương tiện, biển số mặc định, trạng thái: Gọi `get_driver_profile`.\n"
-            "    * Hỏi về tổng hợp chuyến đi, số cuốc hoàn thành/hủy, tỷ lệ hủy, tổng quan sự cố/khiếu nại: Gọi `get_driver_trip_summary` (hoặc `get_driver_trip_metrics`).\n"
-            "    * Hỏi về chi tiết danh sách chuyến bị hủy và nguyên nhân hủy: Gọi `get_cancelled_trips_detail` (mặc định lấy tối đa 10 chuyến hủy gần nhất, kèm thống kê phân loại nguyên nhân và bên hủy).\n"
-            "    * Hỏi về cuốc xe (phát, nhận, hoàn thành, hủy) và doanh thu theo ngày hoặc tháng/kỳ: Gọi `get_driver_operational_stats`.\n"
-            "    * Hỏi về danh sách khiếu nại/phản ánh khách hàng gần nhất: Gọi `get_recent_complaints` (hoặc `get_complaint_detail` khi cần xem chi tiết một vụ việc).\n"
-            "    * Hỏi về danh sách sự cố vận hành, kỹ thuật: Gọi `get_recent_incidents` (hoặc `get_incident_detail` khi cần xem chi tiết một sự cố).\n"
-            "    * Khi câu hỏi yêu cầu tra cứu đồ thị tri thức (Knowledge Graph), duyệt mạng lưới quan hệ đa thực thể hoặc tìm kiếm ngữ nghĩa theo chủ đề (focus):\n"
-            "      - Khu vực, thành phố, địa bàn hoạt động hoặc zone đón/trả: Gọi `query_driver_graph(driver_identifier=..., focus='location')` -> Duyệt Driver -> Region và Driver -> Trip -> Zone.\n"
-            "      - Phản ánh, khiếu nại tìm kiếm theo ngữ nghĩa sâu hoặc xác định chuyến xe bị khiếu nại: Gọi `query_driver_graph(driver_identifier=..., focus='complaints', semantic_query='...')` -> Duyệt Driver -> Complaint -> Trip.\n"
-            "      - Sự cố vận hành, kỹ thuật liên kết quy chế: Gọi `query_driver_graph(driver_identifier=..., focus='incidents', semantic_query='...')` -> Duyệt Driver -> Incident -> Trip/PolicyRule.\n"
-            "      - Đội xe, Hub điều hành và địa bàn: Gọi `query_driver_graph(driver_identifier=..., focus='fleet')` -> Duyệt Driver -> Fleet -> Region.\n"
-            "      - Phương tiện, dòng xe, biển số, lịch sử bảo dưỡng: Gọi `query_driver_graph(driver_identifier=..., focus='vehicle')` -> Duyệt Driver -> Vehicle -> VehicleType, MaintenanceEvent.\n"
-            "      - Chỉ số KPI đo lường chuẩn hóa: Gọi `query_driver_graph(driver_identifier=..., focus='kpi_metrics')` -> Duyệt Driver -> Measurement.\n"
-            "      - Quyết định chế tài, biên bản xử lý kỷ luật vi phạm: Gọi `query_driver_graph(driver_identifier=..., focus='enforcement')` -> Duyệt Driver -> EnforcementDecision -> ViolationFinding -> PolicyRule.\n"
+            "  + NGUYÊN TẮC CỐT LÕI: KNOWLEDGE GRAPH FIRST (ƯU TIÊN ĐỒ THỊ TRI THỨC CHO MỌI CÂU HỎI VỀ TÀI XẾ):\n"
+            "    * Trừ các câu hỏi về tra cứu văn bản quy chế/chính sách chung GSM (Trường Hợp A), TẤT CẢ các câu hỏi liên quan đến tài xế (hành vi, khiếu nại, sự cố, địa bàn hoạt động, thói quen đón trả, phương tiện, đội xe...) ĐỀU BẮT BUỘC ƯU TIÊN GỌI `query_driver_graph`!\n"
+            "    * BẮT BUỘC GỌI `query_driver_graph` (với focus tương ứng) khi câu hỏi liên quan đến:\n"
+            "      (1) KHIẾU NẠI & PHẢN ÁNH KHÁCH HÀNG (HOẶC HỎI CỤ THỂ CÓ KHIẾU NẠI VỀ ĐIỀU HÒA, THÁI ĐỘ, CƯỚC, ĐỖ SAI, HỦY CHUYẾN... HAY KHÔNG):\n"
+            "          -> BẮT BUỘC GỌI `query_driver_graph(driver_identifier=..., focus='complaints', semantic_query='<chủ đề cụ thể>')`.\n"
+            "          -> LÝ DO: Đồ thị tri thức liên kết Driver -> Complaint -> Trip và tích hợp tìm kiếm ngữ nghĩa (Semantic Search) trên toàn bộ mô tả chi tiết của từng sự vụ. TUYỆT ĐỐI CẤM tự bịa đặt hay phỏng đoán khi chưa tra cứu đồ thị!\n"
+            "      (2) SỰ CỐ VẬN HÀNH & KỸ THUẬT PHƯƠNG TIỆN (HỎI VỀ HỎNG XE, PIN, MÀN HÌNH, TAI NẠN...):\n"
+            "          -> BẮT BUỘC GỌI `query_driver_graph(driver_identifier=..., focus='incidents', semantic_query='<chủ đề cụ thể>')`.\n"
+            "      (3) ĐỊA BÀN / KHU VỰC HOẠT ĐỘNG THỰC TẾ, TÀI XẾ THƯỜNG HOẠT ĐỘNG Ở ĐÂU, HAY ĐÓN/TRẢ Ở ĐÂU, THÓI QUEN DI CHUYỂN, HÀNH VI CHUYẾN ĐI:\n"
+            "          -> BẮT BUỘC GỌI `query_driver_graph(driver_identifier=..., focus='location')`.\n"
+            "          -> LÝ DO: Hồ sơ CSDL (`get_driver_profile`) chỉ lưu tỉnh/thành phố đăng ký tĩnh. Thực tế hành vi tài xế hoạt động ở đâu, các quận/zone nào phải được suy ra từ các chuyến đi thực tế (Driver -> Trip -> Zone) trong Đồ thị Tri thức (Knowledge Graph).\n"
+            "      (4) PHƯƠNG TIỆN, DÒNG XE, BIỂN SỐ, LỊCH SỬ BẢO DƯỠNG:\n"
+            "          -> BẮT BUỘC GỌI `query_driver_graph(driver_identifier=..., focus='vehicle')`.\n"
+            "      (5) ĐỘI XE, HUB ĐIỀU HÀNH VÀ ĐỊA BÀN QUẢN LÝ:\n"
+            "          -> BẮT BUỘC GỌI `query_driver_graph(driver_identifier=..., focus='fleet')`.\n"
+            "      (6) TỔNG QUAN HÀNH VI VÀ CÁC QUAN HỆ ĐA THỰC THỂ CỦA TÀI XẾ:\n"
+            "          -> BẮT BUỘC GỌI `query_driver_graph(driver_identifier=..., focus='all')`.\n"
+            "    * CÁC CÔNG CỤ CSDL ĐẶC THÙ KHÁC:\n"
+            "      - Hỏi về hồ sơ nhân sự cá nhân thuần túy (số điện thoại, email, ngày vào làm, trạng thái tài khoản): Gọi `get_driver_profile`.\n"
+            "      - Hỏi về tổng hợp chuyến đi, số cuốc hoàn thành/hủy, tỷ lệ hủy: Gọi `get_driver_trip_summary` (hoặc `get_driver_trip_metrics`).\n"
+            "      - Hỏi về chi tiết danh sách chuyến bị hủy và nguyên nhân hủy: Gọi `get_cancelled_trips_detail`.\n"
+            "      - Hỏi về cuốc xe và doanh thu theo ngày hoặc tháng/kỳ: Gọi `get_driver_operational_stats`.\n"
             "QUY TẮC LỰA CHỌN CÔNG CỤ ĐÚNG TRỌNG TÂM & CHỐNG GỌI TOOL THỪA:\n"
             "  + QUY TRÌNH BẮT BUỘC KHI TÍNH TOÁN CÁC CHỈ SỐ VẬN HÀNH (Tỷ lệ hủy chuyến, Tỷ lệ nhận cuốc, Tỷ lệ hoàn thành, Doanh thu):\n"
             "    * BƯỚC 1: BẮT BUỘC gọi `get_driver_trip_summary` (hoặc `get_driver_trip_metrics` / `get_driver_operational_stats`) với driver_identifier và snapshot_id để lấy số liệu thực tế từ CSDL. TUYỆT ĐỐI CẤM tự bịa ra các con số (như 5, 15, 20)!\n"
@@ -1331,12 +1338,18 @@ class ReActAgent:
                 if final_match:
                     executed_actions = [s for s in steps if s.action]
                     # Guard 1: Cannot finalize without calling any tool if iteration < max_iterations UNLESS prior history exists
-                    has_prior_history = bool(context.get("chat_history") and len(context["chat_history"]) >= 2)
+                    # If user is asking a factual question to check/verify a topic ("có ... không", "khiếu nại", "sự cố", etc.),
+                    # prior history must NOT bypass tool execution.
+                    is_verification_q = any(k in query.lower() for k in [
+                        "có ", "khiếu nại", "khieu nai", "phàn nàn", "phan nan", "sự cố", "su co",
+                        "điều hòa", "máy lạnh", "bao nhiêu", "mấy", "tỷ lệ", "ở đâu", "xe gì", "phương tiện",
+                    ])
+                    has_prior_history = bool(context.get("chat_history") and len(context["chat_history"]) >= 2) and not is_verification_q
                     if not executed_actions and iteration < self.max_iterations and not has_prior_history:
                         scratchpad += (
                             f"\nThought: {raw_text}\n"
                             "Observation: Bạn chưa thực hiện bất kỳ công cụ (Action) nào để lấy dữ liệu thực tế từ hệ thống. "
-                            "BẮT BUỘC phải gọi công cụ (Action: get_driver_profile, search_gsm_policies...) trước khi kết luận."
+                            "BẮT BUỘC phải gọi công cụ (Action: query_driver_graph, get_driver_profile, search_gsm_policies...) trước khi kết luận."
                         )
                         continue
 
@@ -1392,21 +1405,86 @@ class ReActAgent:
                         )
                         continue
 
-                    # Guard 4: If query involves knowledge graph, nodes, or edges, must execute query_driver_graph
-                    has_graph_query = any(k in query.lower() for k in ["đồ thị", "kg", "node", "nút", "cạnh", "mạng lưới", "quan hệ"])
+                    # Guard 4: Prioritize Knowledge Graph (query_driver_graph) for all driver behavior / complaints / incidents / trips / location / vehicle questions
+                    complaint_keywords = [
+                        "khiếu nại", "khieu nai", "phàn nàn", "phan nan", "phản ánh", "phan anh",
+                        "thái độ", "thai do", "gắt gỏng", "cộc lốc", "điều hòa", "dieu hoa", "máy lạnh", "may lanh",
+                        "cước", "cuoc", "đỗ sai", "do sai", "sảnh đón", "sanh don", "say xe", "hút thuốc", "hut thuoc",
+                        "tai nghe", "khách phàn nàn", "khách khiếu nại", "từ chối", "tu choi",
+                    ]
+                    incident_keywords = [
+                        "sự cố", "su co", "hỏng xe", "hong xe", "chết máy", "chet may", "lỗi kỹ thuật", "loi ky thuat",
+                        "tai nạn", "tai nan", "màn hình", "man hinh", "pin", "treo máy", "va chạm", "va cham",
+                    ]
+                    location_behavior_keywords = [
+                        "hoạt động ở đâu", "hoạt động tại đâu", "thường hoạt động", "hay hoạt động",
+                        "địa bàn hoạt động", "khu vực hoạt động", "dia ban hoat dong", "khu vuc hoat dong",
+                        "đón khách ở đâu", "trả khách ở đâu", "tuyến đường", "chạy ở đâu", "chay o dau",
+                        "vùng hoạt động", "zone", "hành vi hoạt động", "hành vi của tài xế", "hanh vi",
+                        "thói quen", "đồ thị", "kg", "node", "nút", "cạnh", "mạng lưới", "quan hệ",
+                    ]
+                    vehicle_fleet_keywords = [
+                        "xe gì", "loại xe", "dòng xe", "phương tiện", "biển số", "bảo dưỡng", "đội xe", "hub",
+                    ]
+                    has_complaint_q = any(k in query.lower() for k in complaint_keywords)
+                    has_incident_q = any(k in query.lower() for k in incident_keywords)
+                    has_location_q = any(k in query.lower() for k in location_behavior_keywords)
+                    has_vehicle_q = any(k in query.lower() for k in vehicle_fleet_keywords)
+                    has_driver_context = bool(context.get("driver_id") or context.get("driver_mention") or any(k in query.lower() for k in ["tài xế", "tai xe", "drv-"]))
+
                     has_called_graph = any(s.action == "query_driver_graph" for s in steps)
-                    if has_graph_query and not has_called_graph and iteration < self.max_iterations and graph_guard_nudged < 1:
+                    has_called_driver_tool = any(
+                        s.action in (
+                            "query_driver_graph",
+                            "get_driver_profile",
+                            "get_driver_trip_summary",
+                            "get_driver_trip_metrics",
+                            "get_driver_operational_stats",
+                            "get_driver_daily_stats",
+                            "get_cancelled_trips_detail",
+                        )
+                        for s in steps
+                    )
+                    has_called_specific_op_tool = any(s.action in ("calculate_cancel_rate", "calculate_acceptance_rate", "calculate_completion_rate", "calculate_violation_penalty_points") for s in steps)
+
+                    # Graph priority:
+                    # 1. Any behavioral/entity inquiry (location, complaints, incidents, vehicle) MUST call query_driver_graph
+                    # 2. Any general driver inquiry where no driver tool has been called yet must prioritize query_driver_graph
+                    needs_graph = (
+                        (has_location_q or has_complaint_q or has_incident_q or has_vehicle_q)
+                        or (has_driver_context and not has_called_driver_tool and not is_policy_lookup)
+                    )
+
+                    if needs_graph and not has_called_graph and not has_called_specific_op_tool and iteration < self.max_iterations and graph_guard_nudged < 1:
                         graph_guard_nudged += 1
+                        if has_complaint_q:
+                            focus_arg = "complaints"
+                            semantic_topic = query.strip()
+                        elif has_incident_q:
+                            focus_arg = "incidents"
+                            semantic_topic = query.strip()
+                        elif has_location_q:
+                            focus_arg = "location"
+                            semantic_topic = ""
+                        elif has_vehicle_q:
+                            focus_arg = "vehicle"
+                            semantic_topic = ""
+                        else:
+                            focus_arg = "all"
+                            semantic_topic = ""
+
+                        sem_input_str = f', "semantic_query": "{semantic_topic}"' if semantic_topic else ""
                         yield {
                             "type": "thought",
                             "iteration": iteration,
-                            "thought": "Câu hỏi yêu cầu tra cứu từ đồ thị tri thức nên cần gọi công cụ query_driver_graph.",
+                            "thought": f"Câu hỏi liên quan đến hành vi/khiếu nại/sự cố của tài xế, BẮT BUỘC ưu tiên duyệt đồ thị tri thức bằng công cụ query_driver_graph(focus='{focus_arg}').",
                         }
                         scratchpad += (
                             f"\nThought: {raw_text}\n"
-                            "Observation: Câu hỏi yêu cầu tra cứu từ đồ thị tri thức (Knowledge Graph). "
-                            "BẮT BUỘC bạn phải gọi Action: query_driver_graph với Action Input: {\"driver_identifier\": \"...\"} "
-                            "để trích xuất các nút và cạnh liên kết trong đồ thị trước khi đưa ra Final Answer."
+                            f"Observation: Câu hỏi liên quan đến tài xế / hành vi vận hành / khiếu nại / sự cố (mục tiêu: {focus_arg}). "
+                            f"BẮT BUỘC bạn phải gọi Action: query_driver_graph với Action Input: {{\"driver_identifier\": \"...\", \"focus\": \"{focus_arg}\"{sem_input_str}}} "
+                            "để trích xuất Đồ thị Tri thức (Knowledge Graph) và tìm kiếm ngữ nghĩa chuẩn xác trước khi đưa ra Final Answer. "
+                            "TUYỆT ĐỐI CẤM tự phỏng đoán hay bịa đặt khi chưa tra cứu đồ thị!"
                         )
                         continue
 

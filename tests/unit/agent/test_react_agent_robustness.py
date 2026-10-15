@@ -476,6 +476,54 @@ def test_react_agent_guards_force_cancel_rate_tool_calling():
     assert any("computation:cancel_rate_30d" in c.get("citation_locator", "") for c in result.citations)
 
 
+def test_react_agent_guards_force_graph_tool_for_operating_area():
+    """Verify that ReActAgent guards force query_driver_graph when asking where a driver operates."""
+    from gsm_memory.agent.conversational_pipeline import Subgraph, SubgraphNode, SubgraphEdge
+
+    early_llm_response = (
+        "Thought: Tôi đã xem CSDL và thấy tài xế hoạt động ở Hà Nội.\n"
+        "Final Answer: Tài xế An hoạt động tại Hà Nội."
+    )
+    action_llm_response = (
+        "Thought: Cần gọi query_driver_graph để duyệt đồ thị các chuyến đi và zone đón trả thực tế.\n"
+        "Action: query_driver_graph\n"
+        'Action Input: {"driver_identifier": "DRV-001", "focus": "location"}'
+    )
+    final_llm_response = (
+        "Thought: Đã duyệt xong đồ thị các chuyến đi và zone thực tế.\n"
+        "Final Answer: Dựa trên phân tích đồ thị tri thức từ các chuyến đi thực tế, tài xế An thường đón trả khách tại Vùng 1 và Vùng 2 Hà Nội."
+    )
+
+    responses = [early_llm_response, action_llm_response, final_llm_response]
+
+    def mock_call_llm(messages, **kwargs):
+        return responses.pop(0), "mock_model", {}
+
+    mock_pipeline = MagicMock()
+    mock_pipeline.expand_subgraph_directed.return_value = Subgraph(
+        seed_id="drv-001",
+        snapshot_id="snap-1",
+        nodes=[
+            SubgraphNode(id="drv-001", label="Driver", name="Nguyễn Văn An", props={}),
+            SubgraphNode(id="reg-1", label="Region", name="Hà Nội", props={}),
+            SubgraphNode(id="z-1", label="Zone", name="Vùng 1 — Hà Nội", props={}),
+        ],
+        edges=[
+            SubgraphEdge(start_id="drv-001", end_id="reg-1", rel_type="OPERATES_IN", props={}),
+        ],
+    )
+
+    agent = ReActAgent(call_llm_fn=mock_call_llm, pipeline_ref=mock_pipeline, max_iterations=4)
+    query = "Tài xế Nguyễn Văn An thường hoạt động ở đâu?"
+    events = list(agent.run_stream(query))
+
+    final_event = next(e for e in events if e.get("type") == "final_result")
+    result: ReActResult = final_event["result"]
+
+    assert any(s.action == "query_driver_graph" for s in result.steps)
+    assert any("kg:subgraph" in c.get("citation_locator", "") for c in result.citations)
+
+
 def test_agent_attendance_evaluation_workflow_decomposed():
     """Verify that ReActAgent decomposes attendance verification into:
     1. search_gsm_policies (to find policy thresholds),
@@ -1463,4 +1511,66 @@ def test_cancelled_trips_detail_limit_and_breakdown():
     assert res["parties_breakdown"]["Khách/Hệ thống"] == 2
     assert res["parties_breakdown"]["Tài xế yêu cầu"] == 1
     assert "Hiển thị 2/3 chuyến hủy gần nhất" in res["summary"]
+
+
+def test_react_agent_forces_graph_for_specific_complaint_verification():
+    """Verify that ReActAgent guard forces query_driver_graph when user asks about a specific complaint topic,
+    preventing hallucination even when prior chat history exists.
+    """
+    from gsm_memory.agent.react_agent import ReActAgent, ReActResult
+    from gsm_memory.agent.conversational_pipeline import Subgraph, SubgraphNode, SubgraphEdge
+
+    # Step 1: LLM tries to hallucinate directly without calling tool
+    early_llm_response = (
+        "Thought: Kiểm tra xem có khiếu nại về điều hòa không. Đã có 2 vụ khiếu nại.\n"
+        "Final Answer: Theo dữ liệu hệ thống ghi nhận, có 2 vụ khiếu nại liên quan đến bật tắt điều hòa."
+    )
+    # Step 2: Guard intercepts and forces query_driver_graph(focus='complaints', semantic_query=...)
+    action_llm_response = (
+        "Thought: Cần gọi query_driver_graph để tra cứu ngữ nghĩa các khiếu nại của tài xế trên đồ thị.\n"
+        "Action: query_driver_graph\n"
+        'Action Input: {"driver_identifier": "bff953c4-63cd-58b5-82f3-d3ecac5ac17a", "focus": "complaints", "semantic_query": "bật tắt điều hòa"}'
+    )
+    # Step 3: LLM sees observation and concludes accurately
+    final_llm_response = (
+        "Thought: Dữ liệu đồ thị không ghi nhận bất kỳ khiếu nại nào về điều hòa.\n"
+        "Final Answer: Theo dữ liệu đồ thị tri thức, tài xế Đặng Hương Giang không có khiếu nại nào về bật tắt điều hòa."
+    )
+
+    responses = [early_llm_response, action_llm_response, final_llm_response]
+
+    def mock_call_llm(messages, **kwargs):
+        return responses.pop(0), "mock_model", {}
+
+    mock_pipeline = MagicMock()
+    mock_pipeline.expand_subgraph_directed.return_value = Subgraph(
+        seed_id="bff953c4-63cd-58b5-82f3-d3ecac5ac17a",
+        snapshot_id="8b1426b6-2fad-5aba-b886-e16de44c18e7",
+        nodes=[
+            SubgraphNode(id="drv-007", label="Driver", name="Đặng Hương Giang", props={"code": "DRV-007"}),
+            SubgraphNode(id="comp-1", label="Complaint", name="Khiếu nại sảnh đón", props={"description": "Đỗ sai sảnh đón"}),
+        ],
+        edges=[
+            SubgraphEdge(start_id="drv-007", end_id="comp-1", rel_type="RECEIVED_COMPLAINT", props={}),
+        ],
+    )
+
+    agent = ReActAgent(call_llm_fn=mock_call_llm, pipeline_ref=mock_pipeline, max_iterations=4)
+    history_ctx = {
+        "driver_id": "bff953c4-63cd-58b5-82f3-d3ecac5ac17a",
+        "chat_history": [
+            {"role": "user", "content": "tài xế giang có bị khiếu nại gì không"},
+            {"role": "assistant", "content": "Tài xế Đặng Hương Giang có 10 khiếu nại được ghi nhận."},
+        ],
+    }
+
+    query = "có khiếu nại về bật tắt điều hòa không"
+    events = list(agent.run_stream(query, context=history_ctx))
+
+    final_event = next(e for e in events if e.get("type") == "final_result")
+    result: ReActResult = final_event["result"]
+
+    assert any(s.action == "query_driver_graph" for s in result.steps)
+    assert "không có khiếu nại nào về bật tắt điều hòa" in result.final_answer.lower()
+
 
